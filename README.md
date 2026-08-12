@@ -35,10 +35,22 @@ Hindsight stores every dependency state your organization ever had as a **bitemp
 
 | Path | Purpose |
 |---|---|
+| `hindsight/` | Ingest pipeline: git lockfile history → half-open bitemporal intervals → HydraDB (CLI: `python -m hindsight`) |
+| `hindsight_mcp/` | MCP server — raw `cypher()` + schema for agents, plus canned exposure / blast-radius / maintainer-reach tools (`docs/mcp.md`) |
 | `poc/` | Validation proof-of-concept: parsers, ingest, oracle checks, measured results (`poc/POC-RESULTS.md`) |
 | `tests/` | Unit + integration tests (integration runs against a real HydraDB node in CI) |
 | `scripts/` | Dev tooling, including the PR monitor loop |
+| `docs/` | `mcp.md` (agent surface), `engine-patch.md` (HydraDB time-travel fork) |
 | `task_plan.md`, `findings.md`, `progress.md` | Working notes: research, adversarial idea debate, PoC gates |
+
+## Agent surface
+
+Hindsight ships an MCP server so a coding or security agent can traverse the graph directly.
+Rather than a wall of canned tools over now-only data, it exposes **`cypher` plus the schema** —
+the agent composes its own traversals — with a handful of composed tools for the common questions.
+Read-only is enforced at the tool boundary (mutations rejected in any casing, after a semicolon, or
+hidden in comments). Every exposure answer carries `evidence: "resolved"` and states that a resolved
+lockfile entry is not proof of build or deployment. See `docs/mcp.md`.
 
 ## Validated PoC numbers (see `poc/POC-RESULTS.md`)
 
