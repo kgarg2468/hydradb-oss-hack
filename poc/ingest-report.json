@@ -1,0 +1,47 @@
+{
+  "batch": 1000,
+  "workers": 1,
+  "tx_from": 1786571004,
+  "phases": {
+    "Repo nodes": {
+      "rows": 8,
+      "seconds": 0.062,
+      "rows_per_sec": 129.6,
+      "kind": "node"
+    },
+    "Package nodes": {
+      "rows": 6381,
+      "seconds": 0.34,
+      "rows_per_sec": 18767.1,
+      "kind": "node"
+    },
+    "PackageVersion nodes": {
+      "rows": 24938,
+      "seconds": 1.474,
+      "rows_per_sec": 16915.4,
+      "kind": "node"
+    },
+    "VERSION_OF edges": {
+      "rows": 24938,
+      "seconds": 8.532,
+      "rows_per_sec": 2922.8,
+      "kind": "edge"
+    },
+    "RESOLVES edges": {
+      "rows": 86319,
+      "seconds": 12.124,
+      "rows_per_sec": 7119.4,
+      "kind": "edge"
+    }
+  },
+  "total_edges": 111723,
+  "total_edge_seconds": 20.657,
+  "edges_per_sec": 5386.0,
+  "total_nodes": 31327,
+  "maintainers": {
+    "nodes": 154,
+    "edges": 466,
+    "node_seconds": 0.058,
+    "edge_seconds": 0.143
+  }
+}

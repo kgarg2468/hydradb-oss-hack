@@ -1,0 +1,872 @@
+{
+  "top_n": 200,
+  "packages": {
+    "@types/node": [
+      "types"
+    ],
+    "electron-to-chromium": [
+      "kilianvalkhof"
+    ],
+    "caniuse-lite": [
+      "ai"
+    ],
+    "@babel/parser": [
+      "existentialism",
+      "hzoo",
+      "jlhwung",
+      "nicolo-ribaudo"
+    ],
+    "@babel/types": [
+      "existentialism",
+      "hzoo",
+      "jlhwung",
+      "nicolo-ribaudo"
+    ],
+    "eslint": [
+      "eslintbot",
+      "openjsfoundation"
+    ],
+    "@babel/traverse": [
+      "existentialism",
+      "hzoo",
+      "jlhwung",
+      "nicolo-ribaudo"
+    ],
+    "@babel/core": [
+      "existentialism",
+      "hzoo",
+      "jlhwung",
+      "nicolo-ribaudo"
+    ],
+    "@babel/generator": [
+      "existentialism",
+      "hzoo",
+      "jlhwung",
+      "nicolo-ribaudo"
+    ],
+    "@eslint/js": [
+      "eslintbot",
+      "openjsfoundation"
+    ],
+    "@babel/runtime": [
+      "existentialism",
+      "hzoo",
+      "jlhwung",
+      "nicolo-ribaudo"
+    ],
+    "@babel/helpers": [
+      "existentialism",
+      "hzoo",
+      "jlhwung",
+      "nicolo-ribaudo"
+    ],
+    "@babel/compat-data": [
+      "existentialism",
+      "hzoo",
+      "jlhwung",
+      "nicolo-ribaudo"
+    ],
+    "core-js": [
+      "zloirock"
+    ],
+    "@babel/helper-module-transforms": [
+      "existentialism",
+      "hzoo",
+      "jlhwung",
+      "nicolo-ribaudo"
+    ],
+    "browserslist": [
+      "ai"
+    ],
+    "globals": [
+      "byk",
+      "lo1tuma",
+      "nzakas",
+      "sindresorhus"
+    ],
+    "terser": [
+      "fabiosantoscode"
+    ],
+    "type-fest": [
+      "sindresorhus"
+    ],
+    "glob": [
+      "isaacs"
+    ],
+    "typescript": [
+      "andrewbranch",
+      "jakebailey",
+      "microsoft-oss-releases",
+      "microsoft1es",
+      "typescript-bot",
+      "typescript-deploys",
+      "weswigham"
+    ],
+    "@babel/template": [
+      "existentialism",
+      "hzoo",
+      "jlhwung",
+      "nicolo-ribaudo"
+    ],
+    "@babel/code-frame": [
+      "existentialism",
+      "hzoo",
+      "jlhwung",
+      "nicolo-ribaudo"
+    ],
+    "commander": [
+      "abetomo",
+      "shadowspawn"
+    ],
+    "@babel/helper-compilation-targets": [
+      "existentialism",
+      "hzoo",
+      "jlhwung",
+      "nicolo-ribaudo"
+    ],
+    "semver": [
+      "npm-cli-ops",
+      "reggi",
+      "saquibkhan"
+    ],
+    "@babel/helper-plugin-utils": [
+      "existentialism",
+      "hzoo",
+      "jlhwung",
+      "nicolo-ribaudo"
+    ],
+    "core-js-compat": [
+      "zloirock"
+    ],
+    "@babel/helper-validator-identifier": [
+      "existentialism",
+      "hzoo",
+      "jlhwung",
+      "nicolo-ribaudo"
+    ],
+    "lru-cache": [
+      "isaacs"
+    ],
+    "@babel/helper-module-imports": [
+      "existentialism",
+      "hzoo",
+      "jlhwung",
+      "nicolo-ribaudo"
+    ],
+    "@babel/helper-annotate-as-pure": [
+      "existentialism",
+      "hzoo",
+      "jlhwung",
+      "nicolo-ribaudo"
+    ],
+    "@babel/helper-string-parser": [
+      "existentialism",
+      "hzoo",
+      "jlhwung",
+      "nicolo-ribaudo"
+    ],
+    "@babel/helper-validator-option": [
+      "existentialism",
+      "hzoo",
+      "jlhwung",
+      "nicolo-ribaudo"
+    ],
+    "@babel/highlight": [
+      "existentialism",
+      "hzoo",
+      "jlhwung",
+      "nicolo-ribaudo"
+    ],
+    "@babel/plugin-syntax-import-attributes": [
+      "existentialism",
+      "hzoo",
+      "jlhwung",
+      "nicolo-ribaudo"
+    ],
+    "chalk": [
+      "sindresorhus"
+    ],
+    "minimatch": [
+      "isaacs"
+    ],
+    "@babel/helper-simple-access": [
+      "existentialism",
+      "hzoo",
+      "jlhwung",
+      "nicolo-ribaudo"
+    ],
+    "acorn": [
+      "adrianheine",
+      "marijn",
+      "rreverser"
+    ],
+    "debug": [
+      "qix",
+      "tootallnate"
+    ],
+    "enhanced-resolve": [
+      "15000621931",
+      "__hai",
+      "avivkeller",
+      "ev1stensberg",
+      "evilebottnawi",
+      "jhnns",
+      "sokra",
+      "thelarkinn"
+    ],
+    "eslint-scope": [
+      "eslintbot",
+      "openjsfoundation"
+    ],
+    "execa": [
+      "ehmicky",
+      "sindresorhus"
+    ],
+    "globby": [
+      "sindresorhus"
+    ],
+    "tslib": [
+      "andrewbranch",
+      "jakebailey",
+      "microsoft-oss-releases",
+      "microsoft1es",
+      "typescript-bot",
+      "typescript-deploys",
+      "weswigham"
+    ],
+    "eslint-visitor-keys": [
+      "eslintbot",
+      "openjsfoundation"
+    ],
+    "jest-worker": [
+      "aaronabramov",
+      "cpojer",
+      "openjs-operations",
+      "rickhanlonii",
+      "simenb"
+    ],
+    "schema-utils": [
+      "15000621931",
+      "__hai",
+      "avivkeller",
+      "ev1stensberg",
+      "evilebottnawi",
+      "sokra"
+    ],
+    "ajv": [
+      "blakeembrey",
+      "esp"
+    ],
+    "es-abstract": [
+      "ljharb"
+    ],
+    "qs": [
+      "ljharb",
+      "nlf"
+    ],
+    "rimraf": [
+      "isaacs"
+    ],
+    "uuid": [
+      "broofa",
+      "ctavan"
+    ],
+    "yargs": [
+      "bcoe",
+      "oss-bot",
+      "shadowspawn"
+    ],
+    "@jridgewell/trace-mapping": [
+      "jridgewell"
+    ],
+    "ignore": [
+      "kael"
+    ],
+    "open": [
+      "sindresorhus"
+    ],
+    "spdx-license-ids": [
+      "kemitchell",
+      "shinnn"
+    ],
+    "@babel/helper-function-name": [
+      "existentialism",
+      "hzoo",
+      "jlhwung",
+      "nicolo-ribaudo"
+    ],
+    "@babel/helper-split-export-declaration": [
+      "existentialism",
+      "hzoo",
+      "jlhwung",
+      "nicolo-ribaudo"
+    ],
+    "camelcase": [
+      "sindresorhus"
+    ],
+    "ci-info": [
+      "sibiraj-s",
+      "watson"
+    ],
+    "espree": [
+      "eslintbot",
+      "openjsfoundation"
+    ],
+    "node-releases": [
+      "chicoxyzzy"
+    ],
+    "readable-stream": [
+      "cwmma",
+      "matteo.collina",
+      "nodejs-foundation"
+    ],
+    "resolve": [
+      "ljharb"
+    ],
+    "@eslint/eslintrc": [
+      "eslintbot",
+      "openjsfoundation"
+    ],
+    "@types/estree": [
+      "types"
+    ],
+    "ansi-escapes": [
+      "sindresorhus"
+    ],
+    "ansi-regex": [
+      "sindresorhus"
+    ],
+    "async": [
+      "aearly",
+      "beaugunderson",
+      "caolan",
+      "hargasinski",
+      "megawac"
+    ],
+    "minipass": [
+      "isaacs"
+    ],
+    "string-width": [
+      "sindresorhus"
+    ],
+    "supports-color": [
+      "sindresorhus"
+    ],
+    "update-browserslist-db": [
+      "ai"
+    ],
+    "whatwg-url": [
+      "domenic",
+      "joris-van-der-wel",
+      "sebmaster",
+      "timothygu",
+      "tmpvar",
+      "zirro"
+    ],
+    "@babel/helper-hoist-variables": [
+      "existentialism",
+      "hzoo",
+      "jlhwung",
+      "nicolo-ribaudo"
+    ],
+    "fast-glob": [
+      "mrmlnc"
+    ],
+    "fastq": [
+      "matteo.collina"
+    ],
+    "flat-cache": [
+      "jaredwray"
+    ],
+    "get-stream": [
+      "ehmicky",
+      "sindresorhus"
+    ],
+    "hosted-git-info": [
+      "npm-cli-ops",
+      "reggi",
+      "saquibkhan"
+    ],
+    "jackspeak": [
+      "isaacs"
+    ],
+    "source-map": [
+      "ahanot",
+      "aplacitelli",
+      "brizental",
+      "eemeli",
+      "ejpbruel",
+      "factorui.npm",
+      "gijs",
+      "hmanilla",
+      "jdarcangelo-mozilla",
+      "jdescottes-mozilla-npm",
+      "jkratzer",
+      "knowtheory",
+      "llisi-moz",
+      "loganfsmyth",
+      "mlifshin",
+      "mozilla-devtools",
+      "mozilla-npm",
+      "mozrhelmer",
+      "mythmon",
+      "nbaumgardner",
+      "nchevobbe",
+      "nickfitzgerald",
+      "project-nimbus-publishing",
+      "tigleym",
+      "tromey"
+    ],
+    "terser-webpack-plugin": [
+      "15000621931",
+      "__hai",
+      "avivkeller",
+      "ev1stensberg",
+      "evilebottnawi",
+      "jhnns",
+      "sokra"
+    ],
+    "yargs-parser": [
+      "bcoe",
+      "nexdrew",
+      "oss-bot"
+    ],
+    "@babel/helper-environment-visitor": [
+      "existentialism",
+      "hzoo",
+      "jlhwung",
+      "nicolo-ribaudo"
+    ],
+    "@eslint-community/regexpp": [
+      "eslint-community-bot",
+      "michaeldeboey"
+    ],
+    "@humanwhocodes/config-array": [
+      "nzakas"
+    ],
+    "@types/json-schema": [
+      "types"
+    ],
+    "flatted": [
+      "webreflection"
+    ],
+    "get-intrinsic": [
+      "ljharb"
+    ],
+    "is-core-module": [
+      "ljharb"
+    ],
+    "istanbul-lib-instrument": [
+      "bcoe",
+      "coreyfarrell",
+      "gotwarlost",
+      "oss-bot"
+    ],
+    "js-tokens": [
+      "lydell"
+    ],
+    "normalize-package-data": [
+      "npm-cli-ops",
+      "reggi",
+      "saquibkhan"
+    ],
+    "object-inspect": [
+      "emilbayes",
+      "ljharb"
+    ],
+    "p-limit": [
+      "sindresorhus"
+    ],
+    "parse-json": [
+      "sindresorhus"
+    ],
+    "read-pkg": [
+      "sindresorhus"
+    ],
+    "read-pkg-up": [
+      "sindresorhus"
+    ],
+    "regenerator-runtime": [
+      "benjamn"
+    ],
+    "regjsparser": [
+      "jviereck"
+    ],
+    "strip-ansi": [
+      "sindresorhus"
+    ],
+    "watchpack": [
+      "15000621931",
+      "__hai",
+      "avivkeller",
+      "ev1stensberg",
+      "evilebottnawi",
+      "sokra"
+    ],
+    "wrap-ansi": [
+      "sindresorhus"
+    ],
+    "@jridgewell/gen-mapping": [
+      "jridgewell"
+    ],
+    "@jridgewell/sourcemap-codec": [
+      "jridgewell"
+    ],
+    "ansi-styles": [
+      "sindresorhus"
+    ],
+    "emoji-regex": [
+      "google-wombot",
+      "mathias"
+    ],
+    "file-entry-cache": [
+      "jaredwray"
+    ],
+    "https-proxy-agent": [
+      "tootallnate"
+    ],
+    "human-signals": [
+      "ehmicky"
+    ],
+    "ini": [
+      "npm-cli-ops",
+      "reggi",
+      "saquibkhan"
+    ],
+    "mime-db": [
+      "blakeembrey",
+      "dougwilson",
+      "ulisesgascon",
+      "wesleytodd"
+    ],
+    "picomatch": [
+      "danez",
+      "doowb",
+      "jonschlinkert",
+      "mrmlnc"
+    ],
+    "tr46": [
+      "domenic",
+      "joris-van-der-wel",
+      "sebmaster",
+      "timothygu",
+      "tmpvar",
+      "zirro"
+    ],
+    "write-file-atomic": [
+      "npm-cli-ops",
+      "reggi",
+      "saquibkhan"
+    ],
+    "@eslint-community/eslint-utils": [
+      "eslint-community-bot",
+      "michaeldeboey"
+    ],
+    "@jridgewell/source-map": [
+      "jridgewell"
+    ],
+    "cliui": [
+      "bcoe",
+      "oss-bot"
+    ],
+    "cross-spawn": [
+      "satazor"
+    ],
+    "find-cache-dir": [
+      "sindresorhus"
+    ],
+    "find-up": [
+      "sindresorhus"
+    ],
+    "graceful-fs": [
+      "isaacs"
+    ],
+    "loader-utils": [
+      "evilebottnawi",
+      "jhnns",
+      "sokra"
+    ],
+    "make-dir": [
+      "sindresorhus"
+    ],
+    "npm-run-path": [
+      "sindresorhus"
+    ],
+    "path-scurry": [
+      "isaacs"
+    ],
+    "slash": [
+      "sindresorhus"
+    ],
+    "source-map-support": [
+      "evanw",
+      "julien-f",
+      "linusu"
+    ],
+    "tapable": [
+      "15000621931",
+      "__hai",
+      "avivkeller",
+      "ev1stensberg",
+      "evilebottnawi",
+      "sokra"
+    ],
+    "which": [
+      "npm-cli-ops",
+      "reggi",
+      "saquibkhan"
+    ],
+    "@webassemblyjs/ast": [
+      "xtuc"
+    ],
+    "@webassemblyjs/helper-buffer": [
+      "xtuc"
+    ],
+    "@webassemblyjs/helper-wasm-section": [
+      "xtuc"
+    ],
+    "@webassemblyjs/wasm-edit": [
+      "xtuc"
+    ],
+    "@webassemblyjs/wasm-gen": [
+      "xtuc"
+    ],
+    "@webassemblyjs/wasm-opt": [
+      "xtuc"
+    ],
+    "@webassemblyjs/wasm-parser": [
+      "xtuc"
+    ],
+    "@webassemblyjs/wast-printer": [
+      "xtuc"
+    ],
+    "agent-base": [
+      "tootallnate"
+    ],
+    "buffer": [
+      "feross"
+    ],
+    "decamelize": [
+      "sindresorhus"
+    ],
+    "deepmerge": [
+      "tehshrike"
+    ],
+    "is-fullwidth-code-point": [
+      "sindresorhus"
+    ],
+    "js-yaml": [
+      "vitaly"
+    ],
+    "jsesc": [
+      "mathias"
+    ],
+    "json5": [
+      "aseemk",
+      "jordanbtucker"
+    ],
+    "micromatch": [
+      "danez",
+      "doowb",
+      "jonschlinkert"
+    ],
+    "mime-types": [
+      "blakeembrey",
+      "dougwilson",
+      "jongleberry",
+      "ulisesgascon",
+      "wesleytodd"
+    ],
+    "path-type": [
+      "sindresorhus"
+    ],
+    "pkg-dir": [
+      "sindresorhus"
+    ],
+    "readdirp": [
+      "paulmillr",
+      "thlorenz"
+    ],
+    "serialize-javascript": [
+      "ericf",
+      "okuryu",
+      "redonkulus"
+    ],
+    "string.prototype.trimend": [
+      "khaledelansari",
+      "ljharb"
+    ],
+    "webidl-conversions": [
+      "domenic",
+      "joris-van-der-wel",
+      "sebmaster",
+      "timothygu",
+      "tmpvar",
+      "zirro"
+    ],
+    "@nodelib/fs.stat": [
+      "mrmlnc"
+    ],
+    "@types/istanbul-lib-coverage": [
+      "types"
+    ],
+    "@webassemblyjs/floating-point-hex-parser": [
+      "xtuc"
+    ],
+    "@webassemblyjs/helper-api-error": [
+      "xtuc"
+    ],
+    "@webassemblyjs/helper-wasm-bytecode": [
+      "xtuc"
+    ],
+    "@webassemblyjs/ieee754": [
+      "xtuc"
+    ],
+    "@webassemblyjs/leb128": [
+      "xtuc"
+    ],
+    "@webassemblyjs/utf8": [
+      "xtuc"
+    ],
+    "binary-extensions": [
+      "paulmillr",
+      "sindresorhus"
+    ],
+    "chokidar": [
+      "paulmillr"
+    ],
+    "convert-source-map": [
+      "phated",
+      "thlorenz"
+    ],
+    "esquery": [
+      "jrfeenst",
+      "michaelficarra"
+    ],
+    "estraverse": [
+      "constellation",
+      "michaelficarra",
+      "nzakas"
+    ],
+    "foreground-child": [
+      "bcoe",
+      "coreyfarrell",
+      "isaacs"
+    ],
+    "glob-parent": [
+      "doowb",
+      "es128",
+      "phated",
+      "yocontra"
+    ],
+    "has-symbols": [
+      "ljharb"
+    ],
+    "http-proxy-agent": [
+      "tootallnate"
+    ],
+    "iconv-lite": [
+      "ashtuchkin",
+      "bsebas",
+      "wesleytodd"
+    ],
+    "is-regex": [
+      "ljharb"
+    ],
+    "is-stream": [
+      "sindresorhus"
+    ],
+    "istanbul-lib-coverage": [
+      "bcoe",
+      "coreyfarrell",
+      "gotwarlost",
+      "oss-bot"
+    ],
+    "json-parse-even-better-errors": [
+      "npm-cli-ops",
+      "reggi",
+      "saquibkhan"
+    ],
+    "kind-of": [
+      "doowb",
+      "jonschlinkert"
+    ],
+    "locate-path": [
+      "sindresorhus"
+    ],
+    "minimist": [
+      "emilbayes",
+      "ljharb",
+      "shadowspawn"
+    ],
+    "object.assign": [
+      "ljharb"
+    ],
+    "optionator": [
+      "gkz"
+    ],
+    "p-locate": [
+      "sindresorhus"
+    ],
+    "picocolors": [
+      "alexeyraspopov"
+    ],
+    "punycode": [
+      "google-wombot",
+      "mathias"
+    ],
+    "string.prototype.trimstart": [
+      "khaledelansari",
+      "ljharb"
+    ],
+    "strip-json-comments": [
+      "sindresorhus"
+    ],
+    "universalify": [
+      "ryanzim"
+    ],
+    "webpack-sources": [
+      "15000621931",
+      "__hai",
+      "avivkeller",
+      "ev1stensberg",
+      "evilebottnawi",
+      "jhnns",
+      "sokra"
+    ],
+    "yocto-queue": [
+      "sindresorhus"
+    ],
+    "@humanwhocodes/object-schema": [
+      "nzakas"
+    ],
+    "@jridgewell/resolve-uri": [
+      "jridgewell"
+    ],
+    "@nodelib/fs.scandir": [
+      "mrmlnc"
+    ],
+    "@nodelib/fs.walk": [
+      "mrmlnc"
+    ],
+    "@sinonjs/commons": [
+      "benjamin.gruenbaum",
+      "cjohansen",
+      "fatso83",
+      "mantoni",
+      "mrgnrdrck",
+      "simenb"
+    ],
+    "ansi-colors": [
+      "doowb",
+      "jonschlinkert"
+    ],
+    "anymatch": [
+      "doowb",
+      "es128",
+      "jonschlinkert",
+      "phated"
+    ]
+  },
+  "errors": {}
+}
