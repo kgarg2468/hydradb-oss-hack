@@ -1,0 +1,1744 @@
+{
+  "t": 1757339000,
+  "graph": {
+    "repos": 8,
+    "packages": 6381,
+    "versions": 24938,
+    "resolves": 86319
+  },
+  "exact_exposure": [],
+  "exact_exposure_agrees": true,
+  "audit_scope": {
+    "ansi-regex": [
+      [
+        "axios/axios",
+        "2.1.1"
+      ],
+      [
+        "babel/babel",
+        "2.1.1"
+      ],
+      [
+        "grafana/grafana",
+        "2.1.1"
+      ],
+      [
+        "facebook/react",
+        "2.1.1"
+      ],
+      [
+        "axios/axios",
+        "6.0.1"
+      ],
+      [
+        "babel/babel",
+        "6.0.1"
+      ],
+      [
+        "facebook/react",
+        "6.0.1"
+      ],
+      [
+        "axios/axios",
+        "5.0.1"
+      ],
+      [
+        "babel/babel",
+        "5.0.1"
+      ],
+      [
+        "grafana/grafana",
+        "5.0.1"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "5.0.1"
+      ],
+      [
+        "facebook/react",
+        "5.0.1"
+      ],
+      [
+        "storybookjs/storybook",
+        "5.0.1"
+      ],
+      [
+        "apache/superset",
+        "5.0.1"
+      ],
+      [
+        "webpack/webpack",
+        "5.0.1"
+      ],
+      [
+        "axios/axios",
+        "6.2.0"
+      ],
+      [
+        "babel/babel",
+        "3.0.0"
+      ],
+      [
+        "facebook/react",
+        "3.0.0"
+      ],
+      [
+        "grafana/grafana",
+        "6.1.0"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "6.1.0"
+      ],
+      [
+        "storybookjs/storybook",
+        "6.1.0"
+      ],
+      [
+        "apache/superset",
+        "6.1.0"
+      ],
+      [
+        "webpack/webpack",
+        "6.1.0"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "4.1.1"
+      ],
+      [
+        "apache/superset",
+        "4.1.1"
+      ],
+      [
+        "facebook/react",
+        "4.1.0"
+      ]
+    ],
+    "ansi-styles": [
+      [
+        "axios/axios",
+        "3.2.1"
+      ],
+      [
+        "babel/babel",
+        "3.2.1"
+      ],
+      [
+        "grafana/grafana",
+        "3.2.1"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "3.2.1"
+      ],
+      [
+        "facebook/react",
+        "3.2.1"
+      ],
+      [
+        "storybookjs/storybook",
+        "3.2.1"
+      ],
+      [
+        "apache/superset",
+        "3.2.1"
+      ],
+      [
+        "axios/axios",
+        "2.2.1"
+      ],
+      [
+        "facebook/react",
+        "2.2.1"
+      ],
+      [
+        "axios/axios",
+        "6.2.1"
+      ],
+      [
+        "babel/babel",
+        "6.2.1"
+      ],
+      [
+        "grafana/grafana",
+        "6.2.1"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "6.2.1"
+      ],
+      [
+        "facebook/react",
+        "6.2.1"
+      ],
+      [
+        "storybookjs/storybook",
+        "6.2.1"
+      ],
+      [
+        "apache/superset",
+        "6.2.1"
+      ],
+      [
+        "webpack/webpack",
+        "6.2.1"
+      ],
+      [
+        "axios/axios",
+        "4.3.0"
+      ],
+      [
+        "grafana/grafana",
+        "4.3.0"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "4.3.0"
+      ],
+      [
+        "facebook/react",
+        "4.3.0"
+      ],
+      [
+        "storybookjs/storybook",
+        "4.3.0"
+      ],
+      [
+        "apache/superset",
+        "4.3.0"
+      ],
+      [
+        "webpack/webpack",
+        "4.3.0"
+      ],
+      [
+        "babel/babel",
+        "4.2.1"
+      ],
+      [
+        "babel/babel",
+        "5.2.0"
+      ],
+      [
+        "grafana/grafana",
+        "5.2.0"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "5.2.0"
+      ],
+      [
+        "facebook/react",
+        "5.2.0"
+      ],
+      [
+        "storybookjs/storybook",
+        "5.2.0"
+      ],
+      [
+        "apache/superset",
+        "5.2.0"
+      ],
+      [
+        "webpack/webpack",
+        "5.2.0"
+      ],
+      [
+        "apache/superset",
+        "1.0.0"
+      ]
+    ],
+    "chalk": [
+      [
+        "axios/axios",
+        "2.4.2"
+      ],
+      [
+        "babel/babel",
+        "2.4.2"
+      ],
+      [
+        "grafana/grafana",
+        "2.4.2"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "2.4.2"
+      ],
+      [
+        "facebook/react",
+        "2.4.2"
+      ],
+      [
+        "storybookjs/storybook",
+        "2.4.2"
+      ],
+      [
+        "apache/superset",
+        "2.4.2"
+      ],
+      [
+        "axios/axios",
+        "5.2.0"
+      ],
+      [
+        "axios/axios",
+        "1.1.3"
+      ],
+      [
+        "facebook/react",
+        "1.1.3"
+      ],
+      [
+        "axios/axios",
+        "4.1.2"
+      ],
+      [
+        "babel/babel",
+        "4.1.2"
+      ],
+      [
+        "grafana/grafana",
+        "4.1.2"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "4.1.2"
+      ],
+      [
+        "facebook/react",
+        "4.1.2"
+      ],
+      [
+        "storybookjs/storybook",
+        "4.1.2"
+      ],
+      [
+        "apache/superset",
+        "4.1.2"
+      ],
+      [
+        "webpack/webpack",
+        "4.1.2"
+      ],
+      [
+        "axios/axios",
+        "5.3.0"
+      ],
+      [
+        "babel/babel",
+        "5.3.0"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "5.3.0"
+      ],
+      [
+        "facebook/react",
+        "5.3.0"
+      ],
+      [
+        "storybookjs/storybook",
+        "5.3.0"
+      ],
+      [
+        "apache/superset",
+        "5.3.0"
+      ],
+      [
+        "grafana/grafana",
+        "5.4.1"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "5.4.1"
+      ],
+      [
+        "storybookjs/storybook",
+        "5.4.1"
+      ],
+      [
+        "apache/superset",
+        "5.4.1"
+      ],
+      [
+        "grafana/grafana",
+        "4.1.0"
+      ],
+      [
+        "apache/superset",
+        "4.1.0"
+      ],
+      [
+        "grafana/grafana",
+        "3.0.0"
+      ],
+      [
+        "facebook/react",
+        "3.0.0"
+      ],
+      [
+        "storybookjs/storybook",
+        "3.0.0"
+      ],
+      [
+        "apache/superset",
+        "3.0.0"
+      ],
+      [
+        "facebook/react",
+        "4.1.1"
+      ],
+      [
+        "apache/superset",
+        "0.4.0"
+      ],
+      [
+        "webpack/webpack",
+        "5.6.0"
+      ]
+    ],
+    "chalk-template": [
+      [
+        "webpack/webpack",
+        "1.1.0"
+      ]
+    ],
+    "color": [
+      [
+        "jitsi/jitsi-meet",
+        "3.2.1"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "4.2.3"
+      ],
+      [
+        "storybookjs/storybook",
+        "4.2.3"
+      ],
+      [
+        "apache/superset",
+        "4.2.3"
+      ]
+    ],
+    "color-convert": [
+      [
+        "axios/axios",
+        "1.9.3"
+      ],
+      [
+        "babel/babel",
+        "1.9.3"
+      ],
+      [
+        "grafana/grafana",
+        "1.9.3"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "1.9.3"
+      ],
+      [
+        "facebook/react",
+        "1.9.3"
+      ],
+      [
+        "storybookjs/storybook",
+        "1.9.3"
+      ],
+      [
+        "apache/superset",
+        "1.9.3"
+      ],
+      [
+        "axios/axios",
+        "2.0.1"
+      ],
+      [
+        "babel/babel",
+        "2.0.1"
+      ],
+      [
+        "grafana/grafana",
+        "2.0.1"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "2.0.1"
+      ],
+      [
+        "facebook/react",
+        "2.0.1"
+      ],
+      [
+        "storybookjs/storybook",
+        "2.0.1"
+      ],
+      [
+        "apache/superset",
+        "2.0.1"
+      ],
+      [
+        "webpack/webpack",
+        "2.0.1"
+      ],
+      [
+        "grafana/grafana",
+        "0.5.3"
+      ]
+    ],
+    "color-name": [
+      [
+        "axios/axios",
+        "1.1.3"
+      ],
+      [
+        "babel/babel",
+        "1.1.3"
+      ],
+      [
+        "grafana/grafana",
+        "1.1.3"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "1.1.3"
+      ],
+      [
+        "facebook/react",
+        "1.1.3"
+      ],
+      [
+        "storybookjs/storybook",
+        "1.1.3"
+      ],
+      [
+        "apache/superset",
+        "1.1.3"
+      ],
+      [
+        "axios/axios",
+        "1.1.4"
+      ],
+      [
+        "babel/babel",
+        "1.1.4"
+      ],
+      [
+        "grafana/grafana",
+        "1.1.4"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "1.1.4"
+      ],
+      [
+        "facebook/react",
+        "1.1.4"
+      ],
+      [
+        "storybookjs/storybook",
+        "1.1.4"
+      ],
+      [
+        "apache/superset",
+        "1.1.4"
+      ],
+      [
+        "webpack/webpack",
+        "1.1.4"
+      ]
+    ],
+    "color-string": [
+      [
+        "jitsi/jitsi-meet",
+        "1.9.0"
+      ],
+      [
+        "storybookjs/storybook",
+        "1.9.1"
+      ],
+      [
+        "apache/superset",
+        "1.9.1"
+      ]
+    ],
+    "debug": [
+      [
+        "axios/axios",
+        "4.3.4"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "4.3.4"
+      ],
+      [
+        "facebook/react",
+        "4.3.4"
+      ],
+      [
+        "storybookjs/storybook",
+        "4.3.4"
+      ],
+      [
+        "apache/superset",
+        "4.3.4"
+      ],
+      [
+        "axios/axios",
+        "2.6.9"
+      ],
+      [
+        "babel/babel",
+        "2.6.9"
+      ],
+      [
+        "grafana/grafana",
+        "2.6.9"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "2.6.9"
+      ],
+      [
+        "facebook/react",
+        "2.6.9"
+      ],
+      [
+        "storybookjs/storybook",
+        "2.6.9"
+      ],
+      [
+        "apache/superset",
+        "2.6.9"
+      ],
+      [
+        "axios/axios",
+        "4.4.1"
+      ],
+      [
+        "babel/babel",
+        "4.4.1"
+      ],
+      [
+        "grafana/grafana",
+        "4.4.1"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "4.4.1"
+      ],
+      [
+        "storybookjs/storybook",
+        "4.4.1"
+      ],
+      [
+        "apache/superset",
+        "4.4.1"
+      ],
+      [
+        "webpack/webpack",
+        "4.4.1"
+      ],
+      [
+        "facebook/react",
+        "4.3.5"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "4.4.0"
+      ],
+      [
+        "facebook/react",
+        "4.4.0"
+      ],
+      [
+        "apache/superset",
+        "4.4.0"
+      ],
+      [
+        "babel/babel",
+        "3.2.7"
+      ],
+      [
+        "grafana/grafana",
+        "3.2.7"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "3.2.7"
+      ],
+      [
+        "storybookjs/storybook",
+        "3.2.7"
+      ],
+      [
+        "apache/superset",
+        "3.2.7"
+      ],
+      [
+        "webpack/webpack",
+        "3.2.7"
+      ],
+      [
+        "babel/babel",
+        "4.3.7"
+      ],
+      [
+        "grafana/grafana",
+        "4.3.7"
+      ],
+      [
+        "apache/superset",
+        "4.3.7"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "3.1.0"
+      ],
+      [
+        "facebook/react",
+        "4.1.1"
+      ],
+      [
+        "facebook/react",
+        "4.3.2"
+      ]
+    ],
+    "error-ex": [
+      [
+        "axios/axios",
+        "1.3.2"
+      ],
+      [
+        "babel/babel",
+        "1.3.2"
+      ],
+      [
+        "grafana/grafana",
+        "1.3.2"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "1.3.2"
+      ],
+      [
+        "facebook/react",
+        "1.3.2"
+      ],
+      [
+        "storybookjs/storybook",
+        "1.3.2"
+      ],
+      [
+        "apache/superset",
+        "1.3.2"
+      ],
+      [
+        "webpack/webpack",
+        "1.3.2"
+      ]
+    ],
+    "has-ansi": [
+      [
+        "axios/axios",
+        "2.0.0"
+      ],
+      [
+        "facebook/react",
+        "2.0.0"
+      ]
+    ],
+    "is-arrayish": [
+      [
+        "axios/axios",
+        "0.2.1"
+      ],
+      [
+        "babel/babel",
+        "0.2.1"
+      ],
+      [
+        "grafana/grafana",
+        "0.2.1"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "0.2.1"
+      ],
+      [
+        "facebook/react",
+        "0.2.1"
+      ],
+      [
+        "storybookjs/storybook",
+        "0.2.1"
+      ],
+      [
+        "apache/superset",
+        "0.2.1"
+      ],
+      [
+        "webpack/webpack",
+        "0.2.1"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "0.3.2"
+      ],
+      [
+        "storybookjs/storybook",
+        "0.3.2"
+      ],
+      [
+        "apache/superset",
+        "0.3.2"
+      ]
+    ],
+    "simple-swizzle": [
+      [
+        "jitsi/jitsi-meet",
+        "0.2.2"
+      ],
+      [
+        "storybookjs/storybook",
+        "0.2.2"
+      ],
+      [
+        "apache/superset",
+        "0.2.2"
+      ]
+    ],
+    "slice-ansi": [
+      [
+        "babel/babel",
+        "5.0.0"
+      ],
+      [
+        "storybookjs/storybook",
+        "5.0.0"
+      ],
+      [
+        "webpack/webpack",
+        "5.0.0"
+      ],
+      [
+        "babel/babel",
+        "7.1.0"
+      ],
+      [
+        "storybookjs/storybook",
+        "7.1.0"
+      ],
+      [
+        "webpack/webpack",
+        "7.1.0"
+      ],
+      [
+        "grafana/grafana",
+        "4.0.0"
+      ],
+      [
+        "facebook/react",
+        "4.0.0"
+      ],
+      [
+        "apache/superset",
+        "4.0.0"
+      ],
+      [
+        "grafana/grafana",
+        "3.0.0"
+      ],
+      [
+        "apache/superset",
+        "3.0.0"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "2.1.0"
+      ]
+    ],
+    "strip-ansi": [
+      [
+        "axios/axios",
+        "6.0.1"
+      ],
+      [
+        "babel/babel",
+        "6.0.1"
+      ],
+      [
+        "grafana/grafana",
+        "6.0.1"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "6.0.1"
+      ],
+      [
+        "facebook/react",
+        "6.0.1"
+      ],
+      [
+        "storybookjs/storybook",
+        "6.0.1"
+      ],
+      [
+        "apache/superset",
+        "6.0.1"
+      ],
+      [
+        "webpack/webpack",
+        "6.0.1"
+      ],
+      [
+        "axios/axios",
+        "7.0.1"
+      ],
+      [
+        "axios/axios",
+        "3.0.1"
+      ],
+      [
+        "babel/babel",
+        "3.0.1"
+      ],
+      [
+        "grafana/grafana",
+        "3.0.1"
+      ],
+      [
+        "facebook/react",
+        "3.0.1"
+      ],
+      [
+        "axios/axios",
+        "7.1.0"
+      ],
+      [
+        "babel/babel",
+        "7.1.0"
+      ],
+      [
+        "grafana/grafana",
+        "7.1.0"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "7.1.0"
+      ],
+      [
+        "facebook/react",
+        "7.1.0"
+      ],
+      [
+        "storybookjs/storybook",
+        "7.1.0"
+      ],
+      [
+        "apache/superset",
+        "7.1.0"
+      ],
+      [
+        "webpack/webpack",
+        "7.1.0"
+      ],
+      [
+        "babel/babel",
+        "4.0.0"
+      ],
+      [
+        "facebook/react",
+        "4.0.0"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "5.2.0"
+      ],
+      [
+        "facebook/react",
+        "5.2.0"
+      ],
+      [
+        "apache/superset",
+        "5.2.0"
+      ],
+      [
+        "apache/superset",
+        "6.0.0"
+      ],
+      [
+        "apache/superset",
+        "0.1.1"
+      ]
+    ],
+    "supports-color": [
+      [
+        "axios/axios",
+        "5.5.0"
+      ],
+      [
+        "babel/babel",
+        "5.5.0"
+      ],
+      [
+        "grafana/grafana",
+        "5.5.0"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "5.5.0"
+      ],
+      [
+        "facebook/react",
+        "5.5.0"
+      ],
+      [
+        "storybookjs/storybook",
+        "5.5.0"
+      ],
+      [
+        "apache/superset",
+        "5.5.0"
+      ],
+      [
+        "axios/axios",
+        "8.1.1"
+      ],
+      [
+        "babel/babel",
+        "8.1.1"
+      ],
+      [
+        "grafana/grafana",
+        "8.1.1"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "8.1.1"
+      ],
+      [
+        "facebook/react",
+        "8.1.1"
+      ],
+      [
+        "storybookjs/storybook",
+        "8.1.1"
+      ],
+      [
+        "apache/superset",
+        "8.1.1"
+      ],
+      [
+        "webpack/webpack",
+        "8.1.1"
+      ],
+      [
+        "axios/axios",
+        "2.0.0"
+      ],
+      [
+        "facebook/react",
+        "2.0.0"
+      ],
+      [
+        "axios/axios",
+        "7.2.0"
+      ],
+      [
+        "grafana/grafana",
+        "7.2.0"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "7.2.0"
+      ],
+      [
+        "facebook/react",
+        "7.2.0"
+      ],
+      [
+        "storybookjs/storybook",
+        "7.2.0"
+      ],
+      [
+        "apache/superset",
+        "7.2.0"
+      ],
+      [
+        "webpack/webpack",
+        "7.2.0"
+      ],
+      [
+        "babel/babel",
+        "9.2.2"
+      ],
+      [
+        "babel/babel",
+        "7.1.0"
+      ],
+      [
+        "babel/babel",
+        "4.5.0"
+      ],
+      [
+        "facebook/react",
+        "6.1.0"
+      ],
+      [
+        "apache/superset",
+        "9.4.0"
+      ],
+      [
+        "apache/superset",
+        "10.0.0"
+      ],
+      [
+        "webpack/webpack",
+        "3.2.3"
+      ]
+    ],
+    "supports-hyperlinks": [
+      [
+        "grafana/grafana",
+        "3.2.0"
+      ],
+      [
+        "apache/superset",
+        "3.2.0"
+      ],
+      [
+        "facebook/react",
+        "1.0.1"
+      ],
+      [
+        "storybookjs/storybook",
+        "1.0.1"
+      ]
+    ],
+    "wrap-ansi": [
+      [
+        "axios/axios",
+        "2.1.0"
+      ],
+      [
+        "babel/babel",
+        "2.1.0"
+      ],
+      [
+        "axios/axios",
+        "8.0.1"
+      ],
+      [
+        "axios/axios",
+        "6.2.0"
+      ],
+      [
+        "grafana/grafana",
+        "6.2.0"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "6.2.0"
+      ],
+      [
+        "facebook/react",
+        "6.2.0"
+      ],
+      [
+        "storybookjs/storybook",
+        "6.2.0"
+      ],
+      [
+        "apache/superset",
+        "6.2.0"
+      ],
+      [
+        "webpack/webpack",
+        "6.2.0"
+      ],
+      [
+        "axios/axios",
+        "7.0.0"
+      ],
+      [
+        "babel/babel",
+        "7.0.0"
+      ],
+      [
+        "grafana/grafana",
+        "7.0.0"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "7.0.0"
+      ],
+      [
+        "facebook/react",
+        "7.0.0"
+      ],
+      [
+        "storybookjs/storybook",
+        "7.0.0"
+      ],
+      [
+        "apache/superset",
+        "7.0.0"
+      ],
+      [
+        "webpack/webpack",
+        "7.0.0"
+      ],
+      [
+        "axios/axios",
+        "8.1.0"
+      ],
+      [
+        "babel/babel",
+        "8.1.0"
+      ],
+      [
+        "grafana/grafana",
+        "8.1.0"
+      ],
+      [
+        "jitsi/jitsi-meet",
+        "8.1.0"
+      ],
+      [
+        "facebook/react",
+        "8.1.0"
+      ],
+      [
+        "storybookjs/storybook",
+        "8.1.0"
+      ],
+      [
+        "apache/superset",
+        "8.1.0"
+      ],
+      [
+        "webpack/webpack",
+        "8.1.0"
+      ],
+      [
+        "babel/babel",
+        "9.0.0"
+      ],
+      [
+        "grafana/grafana",
+        "9.0.0"
+      ],
+      [
+        "storybookjs/storybook",
+        "9.0.0"
+      ],
+      [
+        "webpack/webpack",
+        "9.0.0"
+      ]
+    ]
+  },
+  "shape_agreement_disagreements": [],
+  "top_packages": [
+    [
+      "type-fest",
+      50
+    ],
+    [
+      "commander",
+      45
+    ],
+    [
+      "semver",
+      44
+    ],
+    [
+      "minimatch",
+      39
+    ],
+    [
+      "lru-cache",
+      38
+    ],
+    [
+      "chalk",
+      37
+    ],
+    [
+      "debug",
+      35
+    ],
+    [
+      "find-up",
+      34
+    ],
+    [
+      "glob",
+      34
+    ],
+    [
+      "ansi-styles",
+      33
+    ],
+    [
+      "get-stream",
+      31
+    ],
+    [
+      "locate-path",
+      31
+    ],
+    [
+      "p-locate",
+      31
+    ],
+    [
+      "supports-color",
+      31
+    ],
+    [
+      "execa",
+      30
+    ]
+  ],
+  "aggregation_ms": 8847.8,
+  "maintainer_reach": [
+    {
+      "maintainer": "sindresorhus",
+      "repos": 8,
+      "packages": 34,
+      "repo_package_pairs": 265,
+      "pkg_names": [
+        "ansi-escapes",
+        "ansi-regex",
+        "ansi-styles",
+        "binary-extensions",
+        "camelcase",
+        "chalk",
+        "decamelize",
+        "execa",
+        "find-cache-dir",
+        "find-up"
+      ]
+    },
+    {
+      "maintainer": "existentialism",
+      "repos": 8,
+      "packages": 25,
+      "repo_package_pairs": 173,
+      "pkg_names": [
+        "@babel/code-frame",
+        "@babel/compat-data",
+        "@babel/core",
+        "@babel/generator",
+        "@babel/helper-annotate-as-pure",
+        "@babel/helper-compilation-targets",
+        "@babel/helper-environment-visitor",
+        "@babel/helper-function-name",
+        "@babel/helper-hoist-variables",
+        "@babel/helper-module-imports"
+      ]
+    },
+    {
+      "maintainer": "hzoo",
+      "repos": 8,
+      "packages": 25,
+      "repo_package_pairs": 173,
+      "pkg_names": [
+        "@babel/code-frame",
+        "@babel/compat-data",
+        "@babel/core",
+        "@babel/generator",
+        "@babel/helper-annotate-as-pure",
+        "@babel/helper-compilation-targets",
+        "@babel/helper-environment-visitor",
+        "@babel/helper-function-name",
+        "@babel/helper-hoist-variables",
+        "@babel/helper-module-imports"
+      ]
+    },
+    {
+      "maintainer": "jlhwung",
+      "repos": 8,
+      "packages": 25,
+      "repo_package_pairs": 173,
+      "pkg_names": [
+        "@babel/code-frame",
+        "@babel/compat-data",
+        "@babel/core",
+        "@babel/generator",
+        "@babel/helper-annotate-as-pure",
+        "@babel/helper-compilation-targets",
+        "@babel/helper-environment-visitor",
+        "@babel/helper-function-name",
+        "@babel/helper-hoist-variables",
+        "@babel/helper-module-imports"
+      ]
+    },
+    {
+      "maintainer": "nicolo-ribaudo",
+      "repos": 8,
+      "packages": 25,
+      "repo_package_pairs": 173,
+      "pkg_names": [
+        "@babel/code-frame",
+        "@babel/compat-data",
+        "@babel/core",
+        "@babel/generator",
+        "@babel/helper-annotate-as-pure",
+        "@babel/helper-compilation-targets",
+        "@babel/helper-environment-visitor",
+        "@babel/helper-function-name",
+        "@babel/helper-hoist-variables",
+        "@babel/helper-module-imports"
+      ]
+    },
+    {
+      "maintainer": "xtuc",
+      "repos": 8,
+      "packages": 14,
+      "repo_package_pairs": 112,
+      "pkg_names": [
+        "@webassemblyjs/ast",
+        "@webassemblyjs/floating-point-hex-parser",
+        "@webassemblyjs/helper-api-error",
+        "@webassemblyjs/helper-buffer",
+        "@webassemblyjs/helper-wasm-bytecode",
+        "@webassemblyjs/helper-wasm-section",
+        "@webassemblyjs/ieee754",
+        "@webassemblyjs/leb128",
+        "@webassemblyjs/utf8",
+        "@webassemblyjs/wasm-edit"
+      ]
+    },
+    {
+      "maintainer": "ljharb",
+      "repos": 8,
+      "packages": 12,
+      "repo_package_pairs": 95,
+      "pkg_names": [
+        "es-abstract",
+        "get-intrinsic",
+        "has-symbols",
+        "is-core-module",
+        "is-regex",
+        "minimist",
+        "object-inspect",
+        "object.assign",
+        "qs",
+        "resolve"
+      ]
+    },
+    {
+      "maintainer": "isaacs",
+      "repos": 8,
+      "packages": 9,
+      "repo_package_pairs": 72,
+      "pkg_names": [
+        "foreground-child",
+        "glob",
+        "graceful-fs",
+        "jackspeak",
+        "lru-cache",
+        "minimatch",
+        "minipass",
+        "path-scurry",
+        "rimraf"
+      ]
+    },
+    {
+      "maintainer": "evilebottnawi",
+      "repos": 8,
+      "packages": 7,
+      "repo_package_pairs": 56,
+      "pkg_names": [
+        "enhanced-resolve",
+        "loader-utils",
+        "schema-utils",
+        "tapable",
+        "terser-webpack-plugin",
+        "watchpack",
+        "webpack-sources"
+      ]
+    },
+    {
+      "maintainer": "sokra",
+      "repos": 8,
+      "packages": 7,
+      "repo_package_pairs": 56,
+      "pkg_names": [
+        "enhanced-resolve",
+        "loader-utils",
+        "schema-utils",
+        "tapable",
+        "terser-webpack-plugin",
+        "watchpack",
+        "webpack-sources"
+      ]
+    },
+    {
+      "maintainer": "npm-cli-ops",
+      "repos": 8,
+      "packages": 7,
+      "repo_package_pairs": 53,
+      "pkg_names": [
+        "hosted-git-info",
+        "ini",
+        "json-parse-even-better-errors",
+        "normalize-package-data",
+        "semver",
+        "which",
+        "write-file-atomic"
+      ]
+    },
+    {
+      "maintainer": "reggi",
+      "repos": 8,
+      "packages": 7,
+      "repo_package_pairs": 53,
+      "pkg_names": [
+        "hosted-git-info",
+        "ini",
+        "json-parse-even-better-errors",
+        "normalize-package-data",
+        "semver",
+        "which",
+        "write-file-atomic"
+      ]
+    },
+    {
+      "maintainer": "saquibkhan",
+      "repos": 8,
+      "packages": 7,
+      "repo_package_pairs": 53,
+      "pkg_names": [
+        "hosted-git-info",
+        "ini",
+        "json-parse-even-better-errors",
+        "normalize-package-data",
+        "semver",
+        "which",
+        "write-file-atomic"
+      ]
+    },
+    {
+      "maintainer": "15000621931",
+      "repos": 8,
+      "packages": 6,
+      "repo_package_pairs": 48,
+      "pkg_names": [
+        "enhanced-resolve",
+        "schema-utils",
+        "tapable",
+        "terser-webpack-plugin",
+        "watchpack",
+        "webpack-sources"
+      ]
+    },
+    {
+      "maintainer": "__hai",
+      "repos": 8,
+      "packages": 6,
+      "repo_package_pairs": 48,
+      "pkg_names": [
+        "enhanced-resolve",
+        "schema-utils",
+        "tapable",
+        "terser-webpack-plugin",
+        "watchpack",
+        "webpack-sources"
+      ]
+    },
+    {
+      "maintainer": "avivkeller",
+      "repos": 8,
+      "packages": 6,
+      "repo_package_pairs": 48,
+      "pkg_names": [
+        "enhanced-resolve",
+        "schema-utils",
+        "tapable",
+        "terser-webpack-plugin",
+        "watchpack",
+        "webpack-sources"
+      ]
+    },
+    {
+      "maintainer": "bcoe",
+      "repos": 8,
+      "packages": 6,
+      "repo_package_pairs": 48,
+      "pkg_names": [
+        "cliui",
+        "foreground-child",
+        "istanbul-lib-coverage",
+        "istanbul-lib-instrument",
+        "yargs",
+        "yargs-parser"
+      ]
+    },
+    {
+      "maintainer": "eslintbot",
+      "repos": 8,
+      "packages": 6,
+      "repo_package_pairs": 48,
+      "pkg_names": [
+        "@eslint/eslintrc",
+        "@eslint/js",
+        "eslint",
+        "eslint-scope",
+        "eslint-visitor-keys",
+        "espree"
+      ]
+    },
+    {
+      "maintainer": "ev1stensberg",
+      "repos": 8,
+      "packages": 6,
+      "repo_package_pairs": 48,
+      "pkg_names": [
+        "enhanced-resolve",
+        "schema-utils",
+        "tapable",
+        "terser-webpack-plugin",
+        "watchpack",
+        "webpack-sources"
+      ]
+    },
+    {
+      "maintainer": "openjsfoundation",
+      "repos": 8,
+      "packages": 6,
+      "repo_package_pairs": 48,
+      "pkg_names": [
+        "@eslint/eslintrc",
+        "@eslint/js",
+        "eslint",
+        "eslint-scope",
+        "eslint-visitor-keys",
+        "espree"
+      ]
+    },
+    {
+      "maintainer": "doowb",
+      "repos": 8,
+      "packages": 6,
+      "repo_package_pairs": 47,
+      "pkg_names": [
+        "ansi-colors",
+        "anymatch",
+        "glob-parent",
+        "kind-of",
+        "micromatch",
+        "picomatch"
+      ]
+    },
+    {
+      "maintainer": "jridgewell",
+      "repos": 8,
+      "packages": 5,
+      "repo_package_pairs": 40,
+      "pkg_names": [
+        "@jridgewell/gen-mapping",
+        "@jridgewell/resolve-uri",
+        "@jridgewell/source-map",
+        "@jridgewell/sourcemap-codec",
+        "@jridgewell/trace-mapping"
+      ]
+    },
+    {
+      "maintainer": "mrmlnc",
+      "repos": 8,
+      "packages": 5,
+      "repo_package_pairs": 40,
+      "pkg_names": [
+        "@nodelib/fs.scandir",
+        "@nodelib/fs.stat",
+        "@nodelib/fs.walk",
+        "fast-glob",
+        "picomatch"
+      ]
+    },
+    {
+      "maintainer": "oss-bot",
+      "repos": 8,
+      "packages": 5,
+      "repo_package_pairs": 40,
+      "pkg_names": [
+        "cliui",
+        "istanbul-lib-coverage",
+        "istanbul-lib-instrument",
+        "yargs",
+        "yargs-parser"
+      ]
+    },
+    {
+      "maintainer": "jonschlinkert",
+      "repos": 8,
+      "packages": 5,
+      "repo_package_pairs": 39,
+      "pkg_names": [
+        "ansi-colors",
+        "anymatch",
+        "kind-of",
+        "micromatch",
+        "picomatch"
+      ]
+    }
+  ],
+  "maintainer_reach_ms": 4785.3,
+  "maintainers_reaching_all_repos": 139,
+  "maintainer_count": 154,
+  "latency": [
+    {
+      "query": "blast radius, id-anchored (pkg=chalk)",
+      "n": 30,
+      "p50": 3.85,
+      "p95": 6.15,
+      "min": 3.52,
+      "max": 23.76,
+      "mean": 4.75
+    },
+    {
+      "query": "blast radius, label-scan (pkg=chalk)",
+      "n": 30,
+      "p50": 7880.63,
+      "p95": 8103.27,
+      "min": 7769.3,
+      "max": 8118.17,
+      "mean": 7902.93
+    },
+    {
+      "query": "compromised label-scan (whole graph)",
+      "n": 30,
+      "p50": 7881.1,
+      "p95": 7981.52,
+      "min": 7803.72,
+      "max": 8115.17,
+      "mean": 7889.35
+    },
+    {
+      "query": "per-incident-package, id-anchored",
+      "n": 18,
+      "p50": 24.15,
+      "p95": 48.14,
+      "min": 4.98,
+      "max": 64.22,
+      "mean": 27.04
+    },
+    {
+      "query": "per-incident-package, label-scan",
+      "n": 18,
+      "p50": 7910.56,
+      "p95": 8476.15,
+      "min": 7807.18,
+      "max": 8962.69,
+      "mean": 8004.0
+    }
+  ],
+  "id_anchor_speedup": 2046.9
+}

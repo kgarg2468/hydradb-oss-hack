@@ -1,0 +1,15 @@
+# Large PoC data (reproducible via poc/clone_repos.sh + poc/extract_history.py)
+poc/repos/
+poc/snapshots/
+poc/logs/
+poc/__pycache__/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Local HydraDB node state
+hydradb-data/
+
+# Conductor workspace scratch
+.context/

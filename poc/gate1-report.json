@@ -1,0 +1,2014 @@
+{
+  "checks": [
+    {
+      "repo": "axios",
+      "t": 1757000000,
+      "graph": 1767,
+      "oracle": 1767,
+      "commit": "d03f245a40ec016b190748a865cce9fe3815c903",
+      "agree": true
+    },
+    {
+      "repo": "axios",
+      "t": 1757339000,
+      "graph": 1767,
+      "oracle": 1767,
+      "commit": "d03f245a40ec016b190748a865cce9fe3815c903",
+      "agree": true
+    },
+    {
+      "repo": "axios",
+      "t": 1757600000,
+      "graph": 1767,
+      "oracle": 1767,
+      "commit": "d03f245a40ec016b190748a865cce9fe3815c903",
+      "agree": true
+    },
+    {
+      "repo": "axios",
+      "t": 1735689600,
+      "graph": 1672,
+      "oracle": 1672,
+      "commit": "b2cb45d5a533a5465c99559b16987e4d5fc08cbc",
+      "agree": true
+    },
+    {
+      "repo": "axios",
+      "t": 1751328000,
+      "graph": 1672,
+      "oracle": 1672,
+      "commit": "73a836dae75f06055c24561d83cf4ca1c43e2854",
+      "agree": true
+    },
+    {
+      "repo": "axios",
+      "t": 1764547200,
+      "graph": 1753,
+      "oracle": 1753,
+      "commit": "08b84b52d5835d0c7b81049c365c3d271ade8bff",
+      "agree": true
+    },
+    {
+      "repo": "axios",
+      "t": 1723228405,
+      "graph": 1668,
+      "oracle": 1668,
+      "commit": "c6cce43cd94489f655f4488c5a50ecaf781c94f2",
+      "agree": true
+    },
+    {
+      "repo": "axios",
+      "t": 1731743637,
+      "graph": 1672,
+      "oracle": 1672,
+      "commit": "7139ce96c38a25ae575d0b7478dd890cc4a47074",
+      "agree": true
+    },
+    {
+      "repo": "axios",
+      "t": 1742990616,
+      "graph": 1672,
+      "oracle": 1672,
+      "commit": "9f6f97bcfb7c510103dfcb05641ae8e8f5c08bcc",
+      "agree": true
+    },
+    {
+      "repo": "axios",
+      "t": 1736409134,
+      "graph": 1672,
+      "oracle": 1672,
+      "commit": "b2cb45d5a533a5465c99559b16987e4d5fc08cbc",
+      "agree": true
+    },
+    {
+      "repo": "axios",
+      "t": 1754735917,
+      "graph": 1677,
+      "oracle": 1677,
+      "commit": "b76c4ac6f871141dd011a21f3b7ca4e66bfc33ae",
+      "agree": true
+    },
+    {
+      "repo": "axios",
+      "t": 1714394217,
+      "graph": 1668,
+      "oracle": 1668,
+      "commit": "8e4314bfd68773ef405a4c081cf30c3bce5447ee",
+      "agree": true
+    },
+    {
+      "repo": "axios",
+      "t": 1765316996,
+      "graph": 1767,
+      "oracle": 1767,
+      "commit": "f7bdcd1b6c6e8a1f47598228193b0a2088dd382c",
+      "agree": true
+    },
+    {
+      "repo": "axios",
+      "t": 1737968003,
+      "graph": 1672,
+      "oracle": 1672,
+      "commit": "b2cb45d5a533a5465c99559b16987e4d5fc08cbc",
+      "agree": true
+    },
+    {
+      "repo": "axios",
+      "t": 1709674737,
+      "graph": 1667,
+      "oracle": 1667,
+      "commit": "d844227411263fab39d447442879112f8b0c8de5",
+      "agree": true
+    },
+    {
+      "repo": "axios",
+      "t": 1756252535,
+      "graph": 1677,
+      "oracle": 1677,
+      "commit": "b76c4ac6f871141dd011a21f3b7ca4e66bfc33ae",
+      "agree": true
+    },
+    {
+      "repo": "babel",
+      "t": 1757000000,
+      "graph": 1594,
+      "oracle": 1594,
+      "commit": "b41f8cdd0183e800de58c573a4f57497f72b2e26",
+      "agree": true
+    },
+    {
+      "repo": "babel",
+      "t": 1757339000,
+      "graph": 1594,
+      "oracle": 1594,
+      "commit": "b41f8cdd0183e800de58c573a4f57497f72b2e26",
+      "agree": true
+    },
+    {
+      "repo": "babel",
+      "t": 1757600000,
+      "graph": 1594,
+      "oracle": 1594,
+      "commit": "6344d2e16cdbd8dc1063fdb166c25e4c3e49cdb1",
+      "agree": true
+    },
+    {
+      "repo": "babel",
+      "t": 1735689600,
+      "graph": 1471,
+      "oracle": 1471,
+      "commit": "e9dc2bb3d1965b790e0a964e8be6385ca39d640d",
+      "agree": true
+    },
+    {
+      "repo": "babel",
+      "t": 1751328000,
+      "graph": 1543,
+      "oracle": 1543,
+      "commit": "4b4e7e20aaf09e61e56ac11bff71d7dcab227f33",
+      "agree": true
+    },
+    {
+      "repo": "babel",
+      "t": 1764547200,
+      "graph": 1607,
+      "oracle": 1607,
+      "commit": "a385b6495c2fd718ab05f0f81620d8c44c598af7",
+      "agree": true
+    },
+    {
+      "repo": "babel",
+      "t": 1721109020,
+      "graph": 1510,
+      "oracle": 1510,
+      "commit": "25d3561badb3a0309430bbabd37a6ef999cd3c94",
+      "agree": true
+    },
+    {
+      "repo": "babel",
+      "t": 1760491374,
+      "graph": 1596,
+      "oracle": 1596,
+      "commit": "4535a76122e966a41f7a0ae741df217af8e7f779",
+      "agree": true
+    },
+    {
+      "repo": "babel",
+      "t": 1717804584,
+      "graph": 1507,
+      "oracle": 1507,
+      "commit": "02da3da6a3889ef6b999907edb98dd0ac1df91f3",
+      "agree": true
+    },
+    {
+      "repo": "babel",
+      "t": 1754843760,
+      "graph": 1589,
+      "oracle": 1589,
+      "commit": "0d5e0f5f5769766614edce99da44f13e95cc3904",
+      "agree": true
+    },
+    {
+      "repo": "babel",
+      "t": 1734913760,
+      "graph": 1471,
+      "oracle": 1471,
+      "commit": "e9dc2bb3d1965b790e0a964e8be6385ca39d640d",
+      "agree": true
+    },
+    {
+      "repo": "babel",
+      "t": 1713451583,
+      "graph": 1497,
+      "oracle": 1497,
+      "commit": "610897a9a96c5e344e77ca9665df7613d2f88358",
+      "agree": true
+    },
+    {
+      "repo": "babel",
+      "t": 1731711391,
+      "graph": 1490,
+      "oracle": 1490,
+      "commit": "a6aa8a900bb3388edb636874a80e6f985d9dd819",
+      "agree": true
+    },
+    {
+      "repo": "babel",
+      "t": 1729962393,
+      "graph": 1490,
+      "oracle": 1490,
+      "commit": "e5e3bd2c509aa668ba63466f93d2a87b27fa8064",
+      "agree": true
+    },
+    {
+      "repo": "babel",
+      "t": 1745953421,
+      "graph": 1489,
+      "oracle": 1489,
+      "commit": "296cdc53e4063d3df6a19c037b92e2b2c74e90d2",
+      "agree": true
+    },
+    {
+      "repo": "babel",
+      "t": 1714117922,
+      "graph": 1495,
+      "oracle": 1495,
+      "commit": "ee4875443db7563b87ef8e11e1fb75582ac72ac1",
+      "agree": true
+    },
+    {
+      "repo": "grafana",
+      "t": 1757000000,
+      "graph": 3082,
+      "oracle": 3082,
+      "commit": "4e28cba1c53ab9a2f69f542e1d8767ad6d8e56c7",
+      "agree": true
+    },
+    {
+      "repo": "grafana",
+      "t": 1757339000,
+      "graph": 3061,
+      "oracle": 3061,
+      "commit": "3c5c6b8185128baf2297dbf65db98e4ff1d51b9e",
+      "agree": true
+    },
+    {
+      "repo": "grafana",
+      "t": 1757600000,
+      "graph": 3062,
+      "oracle": 3062,
+      "commit": "d3c0980c84fd19ab5440241825f23d47d27ba36b",
+      "agree": true
+    },
+    {
+      "repo": "grafana",
+      "t": 1735689600,
+      "graph": 2894,
+      "oracle": 2894,
+      "commit": "7e4b05c268fc9e2961a8333970c968c39a1e5650",
+      "agree": true
+    },
+    {
+      "repo": "grafana",
+      "t": 1751328000,
+      "graph": 3059,
+      "oracle": 3059,
+      "commit": "99782ae4061c4f6ac2c0ad06d4d4db2f792cb7b9",
+      "agree": true
+    },
+    {
+      "repo": "grafana",
+      "t": 1764547200,
+      "graph": 3187,
+      "oracle": 3187,
+      "commit": "f872fd7f2f58c8059556de43076f9c038cf5e7e0",
+      "agree": true
+    },
+    {
+      "repo": "grafana",
+      "t": 1758783835,
+      "graph": 3064,
+      "oracle": 3064,
+      "commit": "529987825380deba3094a6e5510f1fa51b16603e",
+      "agree": true
+    },
+    {
+      "repo": "grafana",
+      "t": 1752439539,
+      "graph": 3054,
+      "oracle": 3054,
+      "commit": "e4f78c462e2ec881a8f25106b8ccd7f60b3be980",
+      "agree": true
+    },
+    {
+      "repo": "grafana",
+      "t": 1758420669,
+      "graph": 3064,
+      "oracle": 3064,
+      "commit": "529987825380deba3094a6e5510f1fa51b16603e",
+      "agree": true
+    },
+    {
+      "repo": "grafana",
+      "t": 1759555842,
+      "graph": 3064,
+      "oracle": 3064,
+      "commit": "69b76089b31c29449b99a47c6fbd3de8dfb54ec2",
+      "agree": true
+    },
+    {
+      "repo": "grafana",
+      "t": 1721127127,
+      "graph": 2875,
+      "oracle": 2875,
+      "commit": "9bc68562d4dfa10779feb9696b859ba44bbad8bc",
+      "agree": true
+    },
+    {
+      "repo": "grafana",
+      "t": 1725368173,
+      "graph": 3029,
+      "oracle": 3029,
+      "commit": "9d974f75602335ba8fdca391e5398f19f5b70b1f",
+      "agree": true
+    },
+    {
+      "repo": "grafana",
+      "t": 1709180473,
+      "graph": 2914,
+      "oracle": 2914,
+      "commit": "6e75584505f862e159c48d69a3469ee057606b44",
+      "agree": true
+    },
+    {
+      "repo": "grafana",
+      "t": 1753182491,
+      "graph": 2982,
+      "oracle": 2982,
+      "commit": "ec9da2678afe31d7111181e72980c6abf6d6bc7a",
+      "agree": true
+    },
+    {
+      "repo": "grafana",
+      "t": 1722208550,
+      "graph": 2855,
+      "oracle": 2855,
+      "commit": "ef1d96c19aa6fb3b32fd78a4dba8a12ba7dcbccb",
+      "agree": true
+    },
+    {
+      "repo": "grafana",
+      "t": 1739196717,
+      "graph": 2981,
+      "oracle": 2981,
+      "commit": "dec07c4c3496b0ada0a8a439d45b8d1f6eee9135",
+      "agree": true
+    },
+    {
+      "repo": "jitsi-meet",
+      "t": 1757000000,
+      "graph": 1779,
+      "oracle": 1779,
+      "commit": "2cb727fc58576eff6feb3d34f192e429bacb87cb",
+      "agree": true
+    },
+    {
+      "repo": "jitsi-meet",
+      "t": 1757339000,
+      "graph": 1779,
+      "oracle": 1779,
+      "commit": "2cb727fc58576eff6feb3d34f192e429bacb87cb",
+      "agree": true
+    },
+    {
+      "repo": "jitsi-meet",
+      "t": 1757600000,
+      "graph": 1783,
+      "oracle": 1783,
+      "commit": "eb03642ea63e1f998284ef8d81778fd86fbb1732",
+      "agree": true
+    },
+    {
+      "repo": "jitsi-meet",
+      "t": 1735689600,
+      "graph": 1685,
+      "oracle": 1685,
+      "commit": "a30958ab23ebe82384f519f426818ceabdc82c8f",
+      "agree": true
+    },
+    {
+      "repo": "jitsi-meet",
+      "t": 1751328000,
+      "graph": 1758,
+      "oracle": 1758,
+      "commit": "2eff0d8f785e28af28ce3243ba7fd64c4aca3758",
+      "agree": true
+    },
+    {
+      "repo": "jitsi-meet",
+      "t": 1764547200,
+      "graph": 1780,
+      "oracle": 1780,
+      "commit": "7a9ba79783c6cdcb31733069064b039c12b8e54b",
+      "agree": true
+    },
+    {
+      "repo": "jitsi-meet",
+      "t": 1735770063,
+      "graph": 1685,
+      "oracle": 1685,
+      "commit": "a30958ab23ebe82384f519f426818ceabdc82c8f",
+      "agree": true
+    },
+    {
+      "repo": "jitsi-meet",
+      "t": 1753504920,
+      "graph": 1770,
+      "oracle": 1770,
+      "commit": "3c80cfddd7caf4a8f70fa5b517185431e7a9dfc2",
+      "agree": true
+    },
+    {
+      "repo": "jitsi-meet",
+      "t": 1757668200,
+      "graph": 1783,
+      "oracle": 1783,
+      "commit": "eb03642ea63e1f998284ef8d81778fd86fbb1732",
+      "agree": true
+    },
+    {
+      "repo": "jitsi-meet",
+      "t": 1716777932,
+      "graph": 1384,
+      "oracle": 1384,
+      "commit": "ef387c939a4da86642b060ffd109642aa42bf9e2",
+      "agree": true
+    },
+    {
+      "repo": "jitsi-meet",
+      "t": 1716929400,
+      "graph": 1384,
+      "oracle": 1384,
+      "commit": "ef387c939a4da86642b060ffd109642aa42bf9e2",
+      "agree": true
+    },
+    {
+      "repo": "jitsi-meet",
+      "t": 1718272619,
+      "graph": 1369,
+      "oracle": 1369,
+      "commit": "3139111d368cf33f18b3200621ed883156888d71",
+      "agree": true
+    },
+    {
+      "repo": "jitsi-meet",
+      "t": 1726448074,
+      "graph": 1356,
+      "oracle": 1356,
+      "commit": "4c9234ffecba39034d29cd0d69c19fa1d4869b7e",
+      "agree": true
+    },
+    {
+      "repo": "jitsi-meet",
+      "t": 1709783698,
+      "graph": 1398,
+      "oracle": 1398,
+      "commit": "0a846606fcbbd7953ace3e21928114d910715ae2",
+      "agree": true
+    },
+    {
+      "repo": "jitsi-meet",
+      "t": 1757045050,
+      "graph": 1779,
+      "oracle": 1779,
+      "commit": "2cb727fc58576eff6feb3d34f192e429bacb87cb",
+      "agree": true
+    },
+    {
+      "repo": "jitsi-meet",
+      "t": 1724770985,
+      "graph": 1357,
+      "oracle": 1357,
+      "commit": "fc94854b721bb842ff4cd36df2424611c131f721",
+      "agree": true
+    },
+    {
+      "repo": "react",
+      "t": 1757000000,
+      "graph": 2456,
+      "oracle": 2456,
+      "commit": "df10309e2b884868d2032a4d6506714b3953b027",
+      "agree": true
+    },
+    {
+      "repo": "react",
+      "t": 1757339000,
+      "graph": 2456,
+      "oracle": 2456,
+      "commit": "df10309e2b884868d2032a4d6506714b3953b027",
+      "agree": true
+    },
+    {
+      "repo": "react",
+      "t": 1757600000,
+      "graph": 2456,
+      "oracle": 2456,
+      "commit": "df10309e2b884868d2032a4d6506714b3953b027",
+      "agree": true
+    },
+    {
+      "repo": "react",
+      "t": 1735689600,
+      "graph": 2294,
+      "oracle": 2294,
+      "commit": "c86542b240375f95dfd14af5b8ec39e29881e74d",
+      "agree": true
+    },
+    {
+      "repo": "react",
+      "t": 1751328000,
+      "graph": 2413,
+      "oracle": 2413,
+      "commit": "3531b2672955285c0a59f84be06ac92b0d987a3e",
+      "agree": true
+    },
+    {
+      "repo": "react",
+      "t": 1764547200,
+      "graph": 2429,
+      "oracle": 2429,
+      "commit": "a10ff9c8577004fa054be4f83906a29289bbffb9",
+      "agree": true
+    },
+    {
+      "repo": "react",
+      "t": 1710217808,
+      "graph": 2192,
+      "oracle": 2192,
+      "commit": "71c4699de36579097098b690b668abf5a0cf9fb6",
+      "agree": true
+    },
+    {
+      "repo": "react",
+      "t": 1747777265,
+      "graph": 2416,
+      "oracle": 2416,
+      "commit": "2ed34eba0df3ca9604e15b250ba207a8030dc8af",
+      "agree": true
+    },
+    {
+      "repo": "react",
+      "t": 1717877416,
+      "graph": 2253,
+      "oracle": 2253,
+      "commit": "3730b40e9bbacef0279f6d120b344c1544cb38ba",
+      "agree": true
+    },
+    {
+      "repo": "react",
+      "t": 1726788566,
+      "graph": 2282,
+      "oracle": 2282,
+      "commit": "babde5d1826365bfb794abdb7de4bd21f7b02356",
+      "agree": true
+    },
+    {
+      "repo": "react",
+      "t": 1729059713,
+      "graph": 2294,
+      "oracle": 2294,
+      "commit": "db320ea4d910d360ccb83850ccdbc464a77fc1c5",
+      "agree": true
+    },
+    {
+      "repo": "react",
+      "t": 1742709353,
+      "graph": 2474,
+      "oracle": 2474,
+      "commit": "5ccfcd17ffa0adf9e7f5ba7fbf48e6bf6a4eb67e",
+      "agree": true
+    },
+    {
+      "repo": "react",
+      "t": 1750951230,
+      "graph": 2413,
+      "oracle": 2413,
+      "commit": "3531b2672955285c0a59f84be06ac92b0d987a3e",
+      "agree": true
+    },
+    {
+      "repo": "react",
+      "t": 1717867690,
+      "graph": 2253,
+      "oracle": 2253,
+      "commit": "3730b40e9bbacef0279f6d120b344c1544cb38ba",
+      "agree": true
+    },
+    {
+      "repo": "react",
+      "t": 1757138780,
+      "graph": 2456,
+      "oracle": 2456,
+      "commit": "df10309e2b884868d2032a4d6506714b3953b027",
+      "agree": true
+    },
+    {
+      "repo": "react",
+      "t": 1754558139,
+      "graph": 2413,
+      "oracle": 2413,
+      "commit": "3531b2672955285c0a59f84be06ac92b0d987a3e",
+      "agree": true
+    },
+    {
+      "repo": "storybook",
+      "t": 1757000000,
+      "graph": 2537,
+      "oracle": 2537,
+      "commit": "ba402395d373e50fa0be1681bd89ab0bd3938ebf",
+      "agree": true
+    },
+    {
+      "repo": "storybook",
+      "t": 1757339000,
+      "graph": 2537,
+      "oracle": 2537,
+      "commit": "ba402395d373e50fa0be1681bd89ab0bd3938ebf",
+      "agree": true
+    },
+    {
+      "repo": "storybook",
+      "t": 1757600000,
+      "graph": 2538,
+      "oracle": 2538,
+      "commit": "98c4d9a81cd35002cae67869bc0c83274525a912",
+      "agree": true
+    },
+    {
+      "repo": "storybook",
+      "t": 1735689600,
+      "graph": 2721,
+      "oracle": 2721,
+      "commit": "63423fdea2316a563cf6c4c3667b65b67fcf65a1",
+      "agree": true
+    },
+    {
+      "repo": "storybook",
+      "t": 1751328000,
+      "graph": 2574,
+      "oracle": 2574,
+      "commit": "e2ea281fccfa04e95f9172179424855061719de3",
+      "agree": true
+    },
+    {
+      "repo": "storybook",
+      "t": 1764547200,
+      "graph": 2972,
+      "oracle": 2972,
+      "commit": "f0f5d63ac7ed572d5d5e7346a40a47ab7e55bfd1",
+      "agree": true
+    },
+    {
+      "repo": "storybook",
+      "t": 1719203339,
+      "graph": 2611,
+      "oracle": 2611,
+      "commit": "a8b3f9194a0bdcdd9474a954d4af92b30b6506a4",
+      "agree": true
+    },
+    {
+      "repo": "storybook",
+      "t": 1708899428,
+      "graph": 2771,
+      "oracle": 2771,
+      "commit": "de94881b928d585ee949dab42fdefa2535b86d61",
+      "agree": true
+    },
+    {
+      "repo": "storybook",
+      "t": 1765863178,
+      "graph": 2966,
+      "oracle": 2966,
+      "commit": "405ae3d1a93c97ce1bba7d414e19b04a73b59d26",
+      "agree": true
+    },
+    {
+      "repo": "storybook",
+      "t": 1710759989,
+      "graph": 2729,
+      "oracle": 2729,
+      "commit": "a1657fae02e5fa49c3201e89f18eaf095ef899e2",
+      "agree": true
+    },
+    {
+      "repo": "storybook",
+      "t": 1707180240,
+      "graph": 2718,
+      "oracle": 2718,
+      "commit": "1ae9e0b69bfe28e59cff9590454841f957142b49",
+      "agree": true
+    },
+    {
+      "repo": "storybook",
+      "t": 1720888622,
+      "graph": 2591,
+      "oracle": 2591,
+      "commit": "e04c240b6c66a46bbdfc8bd252e4f9e536c07921",
+      "agree": true
+    },
+    {
+      "repo": "storybook",
+      "t": 1747721845,
+      "graph": 2544,
+      "oracle": 2544,
+      "commit": "493ece52db81bb5ef2b147b7572463be94d91372",
+      "agree": true
+    },
+    {
+      "repo": "storybook",
+      "t": 1760573262,
+      "graph": 2531,
+      "oracle": 2531,
+      "commit": "44be3594272caf10e0beb0600f9d2df2eff43f3d",
+      "agree": true
+    },
+    {
+      "repo": "storybook",
+      "t": 1748527049,
+      "graph": 2544,
+      "oracle": 2544,
+      "commit": "6a0a739d770c4d204d10b3b64813abf4ed1d205b",
+      "agree": true
+    },
+    {
+      "repo": "storybook",
+      "t": 1735467432,
+      "graph": 2721,
+      "oracle": 2721,
+      "commit": "63423fdea2316a563cf6c4c3667b65b67fcf65a1",
+      "agree": true
+    },
+    {
+      "repo": "superset",
+      "t": 1757000000,
+      "graph": 3510,
+      "oracle": 3510,
+      "commit": "e77ff267a18e335f92059f46f4091f00e26b7dbe",
+      "agree": true
+    },
+    {
+      "repo": "superset",
+      "t": 1757339000,
+      "graph": 3511,
+      "oracle": 3511,
+      "commit": "472e599f911684fb5e88ce02843be6ccd5d8254b",
+      "agree": true
+    },
+    {
+      "repo": "superset",
+      "t": 1757600000,
+      "graph": 3511,
+      "oracle": 3511,
+      "commit": "472e599f911684fb5e88ce02843be6ccd5d8254b",
+      "agree": true
+    },
+    {
+      "repo": "superset",
+      "t": 1735689600,
+      "graph": 3441,
+      "oracle": 3441,
+      "commit": "a193d790b23eccd32e843d005d841d6bc590c705",
+      "agree": true
+    },
+    {
+      "repo": "superset",
+      "t": 1751328000,
+      "graph": 3265,
+      "oracle": 3265,
+      "commit": "2e9939baf253e607a54722b1996baaf625e72133",
+      "agree": true
+    },
+    {
+      "repo": "superset",
+      "t": 1764547200,
+      "graph": 3639,
+      "oracle": 3639,
+      "commit": "71c015c579dc1a918b0b8453c9c98146e79f106b",
+      "agree": true
+    },
+    {
+      "repo": "superset",
+      "t": 1730589137,
+      "graph": 3482,
+      "oracle": 3482,
+      "commit": "ab95bff7b6ce55ec804a6d6411df7584ab442360",
+      "agree": true
+    },
+    {
+      "repo": "superset",
+      "t": 1713729365,
+      "graph": 3491,
+      "oracle": 3491,
+      "commit": "1ef839ca6dcc7679aa2c6008add0a5de13707406",
+      "agree": true
+    },
+    {
+      "repo": "superset",
+      "t": 1759063488,
+      "graph": 3516,
+      "oracle": 3516,
+      "commit": "927cc1cda15c44a0f98a2678939722d6ab8f2c08",
+      "agree": true
+    },
+    {
+      "repo": "superset",
+      "t": 1721786779,
+      "graph": 3419,
+      "oracle": 3419,
+      "commit": "1e412a871174b1ab632ca1c95c5df5c39c20ecbf",
+      "agree": true
+    },
+    {
+      "repo": "superset",
+      "t": 1725167356,
+      "graph": 3395,
+      "oracle": 3395,
+      "commit": "75c500c9a53ce503b8636761f17b5b63eb8ee8e2",
+      "agree": true
+    },
+    {
+      "repo": "superset",
+      "t": 1713459205,
+      "graph": 3500,
+      "oracle": 3500,
+      "commit": "96cea5aa1f1aadc77c07f5ddf359e758cc916b64",
+      "agree": true
+    },
+    {
+      "repo": "superset",
+      "t": 1707801754,
+      "graph": 3505,
+      "oracle": 3505,
+      "commit": "884ea034800cc1fb089f5d9bcf78163aac296f0d",
+      "agree": true
+    },
+    {
+      "repo": "superset",
+      "t": 1712540398,
+      "graph": 3503,
+      "oracle": 3503,
+      "commit": "bbe209a9e8f9c86911a1c62636ce69ea7e8ce94d",
+      "agree": true
+    },
+    {
+      "repo": "superset",
+      "t": 1710732027,
+      "graph": 3509,
+      "oracle": 3509,
+      "commit": "05d97b02e37a2ce191196b6cfc00ee7cd3a8f05b",
+      "agree": true
+    },
+    {
+      "repo": "superset",
+      "t": 1713058348,
+      "graph": 3503,
+      "oracle": 3503,
+      "commit": "7e679d56ea23271ccd57c6245fd2693e10e02599",
+      "agree": true
+    },
+    {
+      "repo": "webpack",
+      "t": 1757000000,
+      "graph": 1137,
+      "oracle": 1137,
+      "commit": "7ddc38a376dcf48fb025c4d27248f95ba7ccdeea",
+      "agree": true
+    },
+    {
+      "repo": "webpack",
+      "t": 1757339000,
+      "graph": 1137,
+      "oracle": 1137,
+      "commit": "e4ae6e83ce7d3f020330c17c2cbd2b369ae3eddd",
+      "agree": true
+    },
+    {
+      "repo": "webpack",
+      "t": 1757600000,
+      "graph": 1137,
+      "oracle": 1137,
+      "commit": "a4c722ed95630d7ee4934cd547e4c9b342b5dd53",
+      "agree": true
+    },
+    {
+      "repo": "webpack",
+      "t": 1735689600,
+      "graph": 883,
+      "oracle": 883,
+      "commit": "3d510f05b7d5bd74ed9cf86fc8e4c07d6b255834",
+      "agree": true
+    },
+    {
+      "repo": "webpack",
+      "t": 1751328000,
+      "graph": 971,
+      "oracle": 971,
+      "commit": "2ee507894158b61bfdda2c5013cb696f6c7da937",
+      "agree": true
+    },
+    {
+      "repo": "webpack",
+      "t": 1764547200,
+      "graph": 1235,
+      "oracle": 1235,
+      "commit": "2b44af0488971c705e0fa84e4cade0cd9b05045b",
+      "agree": true
+    },
+    {
+      "repo": "webpack",
+      "t": 1732269947,
+      "graph": 883,
+      "oracle": 883,
+      "commit": "d19ad4a46a607266a7b911141a9d4775372de223",
+      "agree": true
+    },
+    {
+      "repo": "webpack",
+      "t": 1744057341,
+      "graph": 889,
+      "oracle": 889,
+      "commit": "cf8c1cf9e4453976f4f8e4f5d62ac242cbcdc09c",
+      "agree": true
+    },
+    {
+      "repo": "webpack",
+      "t": 1763095178,
+      "graph": 1179,
+      "oracle": 1179,
+      "commit": "583321ec178f1ad8413fab59cbddae228e84c18a",
+      "agree": true
+    },
+    {
+      "repo": "webpack",
+      "t": 1711038843,
+      "graph": 890,
+      "oracle": 890,
+      "commit": "ca234aa34fefed32e38e8bf2c2c659a36ccf684b",
+      "agree": true
+    },
+    {
+      "repo": "webpack",
+      "t": 1713297715,
+      "graph": 891,
+      "oracle": 891,
+      "commit": "ca055378720cac07bb33a749791c78e4f09780fa",
+      "agree": true
+    },
+    {
+      "repo": "webpack",
+      "t": 1737810287,
+      "graph": 883,
+      "oracle": 883,
+      "commit": "3d510f05b7d5bd74ed9cf86fc8e4c07d6b255834",
+      "agree": true
+    },
+    {
+      "repo": "webpack",
+      "t": 1719878812,
+      "graph": 887,
+      "oracle": 887,
+      "commit": "f5888379f6651dbf27809fbf33e52b6dd496de09",
+      "agree": true
+    },
+    {
+      "repo": "webpack",
+      "t": 1714785078,
+      "graph": 892,
+      "oracle": 892,
+      "commit": "5b617798a8e6fbeeff9334b0cb77a1d5fd866b55",
+      "agree": true
+    },
+    {
+      "repo": "webpack",
+      "t": 1744326960,
+      "graph": 889,
+      "oracle": 889,
+      "commit": "cf8c1cf9e4453976f4f8e4f5d62ac242cbcdc09c",
+      "agree": true
+    },
+    {
+      "repo": "webpack",
+      "t": 1761802559,
+      "graph": 1179,
+      "oracle": 1179,
+      "commit": "b8956879ef889cf35bf156bb820a1726e3ab58c2",
+      "agree": true
+    }
+  ],
+  "mismatches": [],
+  "incident": {
+    "before window": [],
+    "INSIDE window": [],
+    "after remediation": [],
+    "bitemporal_K = during incident (13:43Z, not yet public)": 0,
+    "bitemporal_K = after disclosure (15:20Z)": 0,
+    "bitemporal_K = today": 0
+  },
+  "full_set_checks": {
+    "agree": 128,
+    "total": 128,
+    "distinct_answer_sets": 98
+  },
+  "targeted_checks": {
+    "agree": 192,
+    "total": 192
+  },
+  "exposure_rows": [
+    [
+      "axios",
+      "ansi-regex",
+      [
+        "2.1.1",
+        "5.0.1",
+        "6.0.1",
+        "6.2.0"
+      ]
+    ],
+    [
+      "axios",
+      "ansi-styles",
+      [
+        "2.2.1",
+        "3.2.1",
+        "4.3.0",
+        "6.2.1"
+      ]
+    ],
+    [
+      "axios",
+      "chalk",
+      [
+        "1.1.3",
+        "2.4.2",
+        "4.1.2",
+        "5.2.0",
+        "5.3.0"
+      ]
+    ],
+    [
+      "axios",
+      "color-convert",
+      [
+        "1.9.3",
+        "2.0.1"
+      ]
+    ],
+    [
+      "axios",
+      "color-name",
+      [
+        "1.1.3",
+        "1.1.4"
+      ]
+    ],
+    [
+      "axios",
+      "debug",
+      [
+        "2.6.9",
+        "4.3.4",
+        "4.4.1"
+      ]
+    ],
+    [
+      "axios",
+      "error-ex",
+      [
+        "1.3.2"
+      ]
+    ],
+    [
+      "axios",
+      "has-ansi",
+      [
+        "2.0.0"
+      ]
+    ],
+    [
+      "axios",
+      "is-arrayish",
+      [
+        "0.2.1"
+      ]
+    ],
+    [
+      "axios",
+      "strip-ansi",
+      [
+        "3.0.1",
+        "6.0.1",
+        "7.0.1",
+        "7.1.0"
+      ]
+    ],
+    [
+      "axios",
+      "supports-color",
+      [
+        "2.0.0",
+        "5.5.0",
+        "7.2.0",
+        "8.1.1"
+      ]
+    ],
+    [
+      "axios",
+      "wrap-ansi",
+      [
+        "2.1.0",
+        "6.2.0",
+        "7.0.0",
+        "8.0.1",
+        "8.1.0"
+      ]
+    ],
+    [
+      "babel",
+      "ansi-regex",
+      [
+        "2.1.1",
+        "3.0.0",
+        "5.0.1",
+        "6.0.1"
+      ]
+    ],
+    [
+      "babel",
+      "ansi-styles",
+      [
+        "3.2.1",
+        "4.2.1",
+        "5.2.0",
+        "6.2.1"
+      ]
+    ],
+    [
+      "babel",
+      "chalk",
+      [
+        "2.4.2",
+        "4.1.2",
+        "5.3.0"
+      ]
+    ],
+    [
+      "babel",
+      "color-convert",
+      [
+        "1.9.3",
+        "2.0.1"
+      ]
+    ],
+    [
+      "babel",
+      "color-name",
+      [
+        "1.1.3",
+        "1.1.4"
+      ]
+    ],
+    [
+      "babel",
+      "debug",
+      [
+        "2.6.9",
+        "3.2.7",
+        "4.3.7",
+        "4.4.1"
+      ]
+    ],
+    [
+      "babel",
+      "error-ex",
+      [
+        "1.3.2"
+      ]
+    ],
+    [
+      "babel",
+      "is-arrayish",
+      [
+        "0.2.1"
+      ]
+    ],
+    [
+      "babel",
+      "slice-ansi",
+      [
+        "5.0.0",
+        "7.1.0"
+      ]
+    ],
+    [
+      "babel",
+      "strip-ansi",
+      [
+        "3.0.1",
+        "4.0.0",
+        "6.0.1",
+        "7.1.0"
+      ]
+    ],
+    [
+      "babel",
+      "supports-color",
+      [
+        "4.5.0",
+        "5.5.0",
+        "7.1.0",
+        "8.1.1",
+        "9.2.2"
+      ]
+    ],
+    [
+      "babel",
+      "wrap-ansi",
+      [
+        "2.1.0",
+        "7.0.0",
+        "8.1.0",
+        "9.0.0"
+      ]
+    ],
+    [
+      "grafana",
+      "ansi-regex",
+      [
+        "2.1.1",
+        "5.0.1",
+        "6.1.0"
+      ]
+    ],
+    [
+      "grafana",
+      "ansi-styles",
+      [
+        "3.2.1",
+        "4.3.0",
+        "5.2.0",
+        "6.2.1"
+      ]
+    ],
+    [
+      "grafana",
+      "chalk",
+      [
+        "2.4.2",
+        "3.0.0",
+        "4.1.0",
+        "4.1.2",
+        "5.4.1"
+      ]
+    ],
+    [
+      "grafana",
+      "color-convert",
+      [
+        "0.5.3",
+        "1.9.3",
+        "2.0.1"
+      ]
+    ],
+    [
+      "grafana",
+      "color-name",
+      [
+        "1.1.3",
+        "1.1.4"
+      ]
+    ],
+    [
+      "grafana",
+      "debug",
+      [
+        "2.6.9",
+        "3.2.7",
+        "4.3.7",
+        "4.4.1"
+      ]
+    ],
+    [
+      "grafana",
+      "error-ex",
+      [
+        "1.3.2"
+      ]
+    ],
+    [
+      "grafana",
+      "is-arrayish",
+      [
+        "0.2.1"
+      ]
+    ],
+    [
+      "grafana",
+      "slice-ansi",
+      [
+        "3.0.0",
+        "4.0.0"
+      ]
+    ],
+    [
+      "grafana",
+      "strip-ansi",
+      [
+        "3.0.1",
+        "6.0.1",
+        "7.1.0"
+      ]
+    ],
+    [
+      "grafana",
+      "supports-color",
+      [
+        "5.5.0",
+        "7.2.0",
+        "8.1.1"
+      ]
+    ],
+    [
+      "grafana",
+      "supports-hyperlinks",
+      [
+        "3.2.0"
+      ]
+    ],
+    [
+      "grafana",
+      "wrap-ansi",
+      [
+        "6.2.0",
+        "7.0.0",
+        "8.1.0",
+        "9.0.0"
+      ]
+    ],
+    [
+      "jitsi-meet",
+      "ansi-regex",
+      [
+        "4.1.1",
+        "5.0.1",
+        "6.1.0"
+      ]
+    ],
+    [
+      "jitsi-meet",
+      "ansi-styles",
+      [
+        "3.2.1",
+        "4.3.0",
+        "5.2.0",
+        "6.2.1"
+      ]
+    ],
+    [
+      "jitsi-meet",
+      "chalk",
+      [
+        "2.4.2",
+        "4.1.2",
+        "5.3.0",
+        "5.4.1"
+      ]
+    ],
+    [
+      "jitsi-meet",
+      "color",
+      [
+        "3.2.1",
+        "4.2.3"
+      ]
+    ],
+    [
+      "jitsi-meet",
+      "color-convert",
+      [
+        "1.9.3",
+        "2.0.1"
+      ]
+    ],
+    [
+      "jitsi-meet",
+      "color-name",
+      [
+        "1.1.3",
+        "1.1.4"
+      ]
+    ],
+    [
+      "jitsi-meet",
+      "color-string",
+      [
+        "1.9.0"
+      ]
+    ],
+    [
+      "jitsi-meet",
+      "debug",
+      [
+        "2.6.9",
+        "3.1.0",
+        "3.2.7",
+        "4.3.4",
+        "4.4.0",
+        "4.4.1"
+      ]
+    ],
+    [
+      "jitsi-meet",
+      "error-ex",
+      [
+        "1.3.2"
+      ]
+    ],
+    [
+      "jitsi-meet",
+      "is-arrayish",
+      [
+        "0.2.1",
+        "0.3.2"
+      ]
+    ],
+    [
+      "jitsi-meet",
+      "simple-swizzle",
+      [
+        "0.2.2"
+      ]
+    ],
+    [
+      "jitsi-meet",
+      "slice-ansi",
+      [
+        "2.1.0"
+      ]
+    ],
+    [
+      "jitsi-meet",
+      "strip-ansi",
+      [
+        "5.2.0",
+        "6.0.1",
+        "7.1.0"
+      ]
+    ],
+    [
+      "jitsi-meet",
+      "supports-color",
+      [
+        "5.5.0",
+        "7.2.0",
+        "8.1.1"
+      ]
+    ],
+    [
+      "jitsi-meet",
+      "wrap-ansi",
+      [
+        "6.2.0",
+        "7.0.0",
+        "8.1.0"
+      ]
+    ],
+    [
+      "react",
+      "ansi-regex",
+      [
+        "2.1.1",
+        "3.0.0",
+        "4.1.0",
+        "5.0.1",
+        "6.0.1"
+      ]
+    ],
+    [
+      "react",
+      "ansi-styles",
+      [
+        "2.2.1",
+        "3.2.1",
+        "4.3.0",
+        "5.2.0",
+        "6.2.1"
+      ]
+    ],
+    [
+      "react",
+      "chalk",
+      [
+        "1.1.3",
+        "2.4.2",
+        "3.0.0",
+        "4.1.1",
+        "4.1.2",
+        "5.3.0"
+      ]
+    ],
+    [
+      "react",
+      "color-convert",
+      [
+        "1.9.3",
+        "2.0.1"
+      ]
+    ],
+    [
+      "react",
+      "color-name",
+      [
+        "1.1.3",
+        "1.1.4"
+      ]
+    ],
+    [
+      "react",
+      "debug",
+      [
+        "2.6.9",
+        "4.1.1",
+        "4.3.2",
+        "4.3.4",
+        "4.3.5",
+        "4.4.0"
+      ]
+    ],
+    [
+      "react",
+      "error-ex",
+      [
+        "1.3.2"
+      ]
+    ],
+    [
+      "react",
+      "has-ansi",
+      [
+        "2.0.0"
+      ]
+    ],
+    [
+      "react",
+      "is-arrayish",
+      [
+        "0.2.1"
+      ]
+    ],
+    [
+      "react",
+      "slice-ansi",
+      [
+        "4.0.0"
+      ]
+    ],
+    [
+      "react",
+      "strip-ansi",
+      [
+        "3.0.1",
+        "4.0.0",
+        "5.2.0",
+        "6.0.1",
+        "7.1.0"
+      ]
+    ],
+    [
+      "react",
+      "supports-color",
+      [
+        "2.0.0",
+        "5.5.0",
+        "6.1.0",
+        "7.2.0",
+        "8.1.1"
+      ]
+    ],
+    [
+      "react",
+      "supports-hyperlinks",
+      [
+        "1.0.1"
+      ]
+    ],
+    [
+      "react",
+      "wrap-ansi",
+      [
+        "6.2.0",
+        "7.0.0",
+        "8.1.0"
+      ]
+    ],
+    [
+      "storybook",
+      "ansi-regex",
+      [
+        "5.0.1",
+        "6.1.0"
+      ]
+    ],
+    [
+      "storybook",
+      "ansi-styles",
+      [
+        "3.2.1",
+        "4.3.0",
+        "5.2.0",
+        "6.2.1"
+      ]
+    ],
+    [
+      "storybook",
+      "chalk",
+      [
+        "2.4.2",
+        "3.0.0",
+        "4.1.2",
+        "5.3.0",
+        "5.4.1"
+      ]
+    ],
+    [
+      "storybook",
+      "color",
+      [
+        "4.2.3"
+      ]
+    ],
+    [
+      "storybook",
+      "color-convert",
+      [
+        "1.9.3",
+        "2.0.1"
+      ]
+    ],
+    [
+      "storybook",
+      "color-name",
+      [
+        "1.1.3",
+        "1.1.4"
+      ]
+    ],
+    [
+      "storybook",
+      "color-string",
+      [
+        "1.9.1"
+      ]
+    ],
+    [
+      "storybook",
+      "debug",
+      [
+        "2.6.9",
+        "3.2.7",
+        "4.3.4",
+        "4.4.1"
+      ]
+    ],
+    [
+      "storybook",
+      "error-ex",
+      [
+        "1.3.2"
+      ]
+    ],
+    [
+      "storybook",
+      "is-arrayish",
+      [
+        "0.2.1",
+        "0.3.2"
+      ]
+    ],
+    [
+      "storybook",
+      "simple-swizzle",
+      [
+        "0.2.2"
+      ]
+    ],
+    [
+      "storybook",
+      "slice-ansi",
+      [
+        "5.0.0",
+        "7.1.0"
+      ]
+    ],
+    [
+      "storybook",
+      "strip-ansi",
+      [
+        "6.0.1",
+        "7.1.0"
+      ]
+    ],
+    [
+      "storybook",
+      "supports-color",
+      [
+        "5.5.0",
+        "7.2.0",
+        "8.1.1"
+      ]
+    ],
+    [
+      "storybook",
+      "supports-hyperlinks",
+      [
+        "1.0.1"
+      ]
+    ],
+    [
+      "storybook",
+      "wrap-ansi",
+      [
+        "6.2.0",
+        "7.0.0",
+        "8.1.0",
+        "9.0.0"
+      ]
+    ],
+    [
+      "superset",
+      "ansi-regex",
+      [
+        "4.1.1",
+        "5.0.1",
+        "6.1.0"
+      ]
+    ],
+    [
+      "superset",
+      "ansi-styles",
+      [
+        "1.0.0",
+        "3.2.1",
+        "4.3.0",
+        "5.2.0",
+        "6.2.1"
+      ]
+    ],
+    [
+      "superset",
+      "chalk",
+      [
+        "0.4.0",
+        "2.4.2",
+        "3.0.0",
+        "4.1.0",
+        "4.1.2",
+        "5.3.0",
+        "5.4.1"
+      ]
+    ],
+    [
+      "superset",
+      "color",
+      [
+        "4.2.3"
+      ]
+    ],
+    [
+      "superset",
+      "color-convert",
+      [
+        "1.9.3",
+        "2.0.1"
+      ]
+    ],
+    [
+      "superset",
+      "color-name",
+      [
+        "1.1.3",
+        "1.1.4"
+      ]
+    ],
+    [
+      "superset",
+      "color-string",
+      [
+        "1.9.1"
+      ]
+    ],
+    [
+      "superset",
+      "debug",
+      [
+        "2.6.9",
+        "3.2.7",
+        "4.3.4",
+        "4.3.7",
+        "4.4.0",
+        "4.4.1"
+      ]
+    ],
+    [
+      "superset",
+      "error-ex",
+      [
+        "1.3.2"
+      ]
+    ],
+    [
+      "superset",
+      "is-arrayish",
+      [
+        "0.2.1",
+        "0.3.2"
+      ]
+    ],
+    [
+      "superset",
+      "simple-swizzle",
+      [
+        "0.2.2"
+      ]
+    ],
+    [
+      "superset",
+      "slice-ansi",
+      [
+        "3.0.0",
+        "4.0.0"
+      ]
+    ],
+    [
+      "superset",
+      "strip-ansi",
+      [
+        "0.1.1",
+        "5.2.0",
+        "6.0.0",
+        "6.0.1",
+        "7.1.0"
+      ]
+    ],
+    [
+      "superset",
+      "supports-color",
+      [
+        "10.0.0",
+        "5.5.0",
+        "7.2.0",
+        "8.1.1",
+        "9.4.0"
+      ]
+    ],
+    [
+      "superset",
+      "supports-hyperlinks",
+      [
+        "3.2.0"
+      ]
+    ],
+    [
+      "superset",
+      "wrap-ansi",
+      [
+        "6.2.0",
+        "7.0.0",
+        "8.1.0"
+      ]
+    ],
+    [
+      "webpack",
+      "ansi-regex",
+      [
+        "5.0.1",
+        "6.1.0"
+      ]
+    ],
+    [
+      "webpack",
+      "ansi-styles",
+      [
+        "4.3.0",
+        "5.2.0",
+        "6.2.1"
+      ]
+    ],
+    [
+      "webpack",
+      "chalk",
+      [
+        "4.1.2",
+        "5.6.0"
+      ]
+    ],
+    [
+      "webpack",
+      "chalk-template",
+      [
+        "1.1.0"
+      ]
+    ],
+    [
+      "webpack",
+      "color-convert",
+      [
+        "2.0.1"
+      ]
+    ],
+    [
+      "webpack",
+      "color-name",
+      [
+        "1.1.4"
+      ]
+    ],
+    [
+      "webpack",
+      "debug",
+      [
+        "3.2.7",
+        "4.4.1"
+      ]
+    ],
+    [
+      "webpack",
+      "error-ex",
+      [
+        "1.3.2"
+      ]
+    ],
+    [
+      "webpack",
+      "is-arrayish",
+      [
+        "0.2.1"
+      ]
+    ],
+    [
+      "webpack",
+      "slice-ansi",
+      [
+        "5.0.0",
+        "7.1.0"
+      ]
+    ],
+    [
+      "webpack",
+      "strip-ansi",
+      [
+        "6.0.1",
+        "7.1.0"
+      ]
+    ],
+    [
+      "webpack",
+      "supports-color",
+      [
+        "3.2.3",
+        "7.2.0",
+        "8.1.1"
+      ]
+    ],
+    [
+      "webpack",
+      "wrap-ansi",
+      [
+        "6.2.0",
+        "7.0.0",
+        "8.1.0",
+        "9.0.0"
+      ]
+    ]
+  ],
+  "gate1_pass": true
+}
