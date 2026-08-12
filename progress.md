@@ -11,7 +11,8 @@
 - Remaining: benchmark for the "one number", 3-min video, submission form, upstream PR decision, build-in-public post.
 - Mutation idioms that HydraDB actually executes (hard-won, encode everywhere):
   - nodes: `UNWIND $rows AS row MERGE (n {id: row.id}) SET n:Label, n.prop = row.x`
-  - edges: `UNWIND $rows AS row MATCH (s:L1 {id: row.s}), (d:L2 {id: row.d}) CREATE (s)-[:REL {id: row.id, ...}]->(d)` (edge id REQUIRED)
+  - edges (production, repeatable): `UNWIND $rows AS row MATCH (s:L1 {id: row.s}), (d:L2 {id: row.d}) MERGE (s)-[e:REL {id: row.id}]->(d) SET e.p = row.p` — MERGE pattern carries ONLY `id`, everything else in a trailing SET. Idempotent + closes intervals in place; 8.1k edges/s.
+  - edges (one-shot fixtures only): `… CREATE (s)-[:REL {id: row.id, ...}]->(d)` — faster (12.1k edges/s) but duplicates on re-run. Edge `id` REQUIRED either way.
   - rejected: multi-node CREATE, non-UNWIND MATCH..CREATE, multi-hop CREATE patterns.
 - Planned PR sequence: #2 ingest productionization (hindsight/ package + CLI + name→id map), #3 engine fork publication + epoch admin endpoint, #4 MCP server (cypher() + schema), #5 timeline UI, #6 benchmark ("one number") + video assets.
 
