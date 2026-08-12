@@ -99,7 +99,15 @@ Fail 1 or 3 → kill A, revisit B. Fail 4 alone → ship schema-level only.
 - read_epoch IS a SlateDB sequence; epoch→state is a real durable 1:1 mapping via named checkpoints (`hydradb-epoch-<seq>`); manifest = registry (survives restart free). Snapshot installed into existing ACTIVE_STORAGE_SNAPSHOT task-local → all reads follow.
 - Evidence: read_epoch=1→[2] vs head→[2,3]; survives close/reopen; survives 40 writes + 8→94 SSTs; after GC fails loudly ("epoch 1 is not retained"), never silently wrong.
 - Optimizer already falls back to canonical adjacency when read_epoch≠current → CSC generation retention NOT needed. 540 LOC total (188 test). Build on this Mac fine (55s); 325/325 tests pass.
-- Remaining gap for demo: no wire API to CREATE/retain an epoch — ~60 LOC on already-defined-but-unrouted QueryTransportAction::Admin.
+- Remaining gap for demo: CLOSED. Retention wire API shipped (see below).
+- **Engine fork PUBLISHED: https://github.com/kgarg2468/hydradb branch `experiment/historical-reads` (head 258f787), no upstream PR opened yet.**
+  - `POST /v1/graphs/{graph}/cells/{cell}/retained-epochs` → 201 {cell_id, epoch}; writer-gated (421 not_cell_writer on reader; 403 without Admin action).
+  - `GET  …/retained-epochs` → 200 {cell_id, epochs:[…]}.
+  - `POST …/query` now accepts `read_epoch`; unretained epoch → 400 naming the retained set.
+  - Tests: 464 lib + 2 integration, 0 failed; clippy -D warnings clean on all 6 CI feature sets. Evidence line: `http read_epoch=1 -> [2] (head -> [2,3])`, survives restart.
+  - +563/−25 LOC across 7 files.
+  - **CORRECTION to earlier analysis:** HTTP read_epoch did NOT reach the shard — http.rs refused it AND ClientQueryService cleared context.read_epoch on every read. Both fixed. (The "3 ifs" framing was wrong in a second way.)
+  - Not done / flagged: no TTL on retain, no drop/GC route (gc_retained_epochs is library-only); multi-node retain + Bolt historical reads untested; tree-wide `cargo fmt --check` fails on 5 pre-existing untouched files.
 - Mac build recipe: brew tap cleishm/neo4j for libcypher-parser; BINDGEN_EXTRA_CLANG_ARGS/LIBRARY_PATH exports per README.
 
 ### Gates 1–3 — data/bitemporal/oracle PoC: **ALL PASS** ✅ (full: poc/POC-RESULTS.md)
