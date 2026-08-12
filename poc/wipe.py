@@ -23,7 +23,7 @@ import time
 from hydra import HydraError, query, scalars
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-LABELS = ["Repo", "PackageVersion", "Package", "Maintainer", "BatchProbe", "Probe"]
+LABELS = ["DepRepo", "DepPackageVersion", "DepPackage", "DepMaintainer", "BatchProbe", "Probe"]
 EDGE_BATCH = 400
 NODE_BATCH = 400
 
@@ -63,12 +63,12 @@ def main():
     with gzip.open(os.path.join(HERE, "graph.json.gz"), "rt") as fh:
         g = json.load(fh)
 
-    run_batches(DEL_EDGE.format(rel="RESOLVES"),
-                [e["id"] for e in g["resolves"]], EDGE_BATCH, "RESOLVES")
-    run_batches(DEL_EDGE.format(rel="VERSION_OF"),
-                [e["id"] for e in g["version_of"]], EDGE_BATCH, "VERSION_OF")
-    run_batches(DEL_EDGE.format(rel="MAINTAINS"),
-                list(range(400_000_000, 400_001_000)), EDGE_BATCH, "MAINTAINS")
+    run_batches(DEL_EDGE.format(rel="DEP_RESOLVES"),
+                [e["id"] for e in g["resolves"]], EDGE_BATCH, "DEP_RESOLVES")
+    run_batches(DEL_EDGE.format(rel="DEP_VERSION_OF"),
+                [e["id"] for e in g["version_of"]], EDGE_BATCH, "DEP_VERSION_OF")
+    run_batches(DEL_EDGE.format(rel="DEP_MAINTAINS"),
+                list(range(400_000_000, 400_001_000)), EDGE_BATCH, "DEP_MAINTAINS")
 
     node_ids = [n["id"] for key in ("repos", "packages", "versions") for n in g[key]]
     node_ids += list(range(50_000_000, 50_000_400))

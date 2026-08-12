@@ -15,6 +15,8 @@ Each run uses fresh random ids/keys so reruns and pre-existing data cannot colli
 
 import secrets
 
+import pytest
+
 from hydra import query
 
 FAR_FUTURE = 9_999_999_999
@@ -23,6 +25,7 @@ BASE = secrets.randbelow(1_000_000_000) + 2_000_000_000
 REPO_ID, V1_ID, V2_ID = BASE, BASE + 1, BASE + 2
 
 
+@pytest.fixture(scope="module", autouse=True)
 def _seed():
     query(
         "UNWIND $rows AS row MERGE (n {id: row.id}) SET n:CITestRepo, n.name = row.name",
@@ -65,7 +68,6 @@ def _asof(t):
 
 
 def test_asof_returns_different_states_at_different_times():
-    _seed()
     assert _asof(500) == {f"pkg@1.0.0#{RUN}"}
     assert _asof(1500) == {f"pkg@2.0.0#{RUN}"}
 

@@ -28,7 +28,7 @@ docker run -d --name "$NAME" \
   -e GRAPH_AUTH_TOKEN_FILE=/data/auth-token \
   -e GRAPH_ALLOW_PLAINTEXT=true \
   -e RUST_MIN_STACK=33554432 \
-  ghcr.io/hydra-db/hydradb:latest
+  "${HYDRADB_IMAGE:-ghcr.io/hydra-db/hydradb@sha256:db78309a233be54662db29744047e985a39b51c45a270d1a1f47c31a62cdb709}"
 
 # Wait for a real round-tripped write, not just a listening port.
 for i in $(seq 1 60); do

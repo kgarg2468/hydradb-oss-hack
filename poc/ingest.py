@@ -209,5 +209,5 @@ if __name__ == "__main__":
         run_maintainers(int(sys.argv[2]) if len(sys.argv) > 2 else 1000,
                         int(sys.argv[3]) if len(sys.argv) > 3 else 1)
     else:
-        run(int(sys.argv[2]) if len(sys.argv) > 2 else 2000,
+        run(int(sys.argv[2]) if len(sys.argv) > 2 else 1000,
             int(sys.argv[3]) if len(sys.argv) > 3 else 1)
