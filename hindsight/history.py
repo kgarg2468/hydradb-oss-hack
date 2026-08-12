@@ -83,6 +83,8 @@ class RepoHistory:
     intervals: list[Interval] = field(default_factory=list)
     lockfiles: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+    #: commits dropped because one of their lockfiles would not parse
+    skipped_commits: list[str] = field(default_factory=list)
 
     @property
     def first_ts(self) -> int:
@@ -211,16 +213,18 @@ def extract_snapshots(
     lockfiles: list[str] | None = None,
     since: str | None = None,
     until: str | None = None,
-) -> tuple[list[Snapshot], list[str]]:
+) -> tuple[list[Snapshot], list[str], list[str]]:
     """One snapshot per commit that touched any lockfile, oldest first.
 
-    Returns ``(snapshots, errors)``; ``errors`` holds human-readable notes about
-    blobs that would not parse, which happens in real history.
+    Returns ``(snapshots, errors, skipped_commits)``. ``errors`` holds
+    human-readable notes; ``skipped_commits`` lists commits dropped because one
+    of their lockfiles would not parse, which happens in real history and must
+    never be mistaken for a commit that deleted those dependencies.
     """
     lockfiles = lockfiles or discover_lockfiles(repo)
     errors: list[str] = []
     if not lockfiles:
-        return [], ["no lockfiles found"]
+        return [], ["no lockfiles found"], []
 
     commit_ts: dict[str, int] = {}
     aliases: list[set[str]] = []
@@ -230,7 +234,7 @@ def extract_snapshots(
         aliases.append(names)
 
     if not commit_ts:
-        return [], ["no commits touch any lockfile in the requested window"]
+        return [], ["no commits touch any lockfile in the requested window"], []
 
     order = sorted(commit_ts, key=lambda sha: (commit_ts[sha], sha))
 
@@ -242,11 +246,15 @@ def extract_snapshots(
     unique_oids = list(dict.fromkeys(resolved.values()))
     blobs = _batch_blobs(repo, unique_oids)
 
-    parsed: dict[str, frozenset[tuple[str, str]]] = {}
+    # `None` marks a blob that could not be read or parsed, which is *not* the
+    # same as a lockfile that legitimately resolves nothing.
+    parsed: dict[str, frozenset[tuple[str, str]] | None] = {}
     snapshots: list[Snapshot] = []
+    skipped: list[str] = []
     for sha in order:
         entries: set[tuple[str, str]] = set()
         used: list[str] = []
+        broken = ""
         for name in every_name:
             oid = resolved.get(f"{sha}:{name}")
             if oid is None:
@@ -255,7 +263,7 @@ def extract_snapshots(
                 raw = blobs.get(oid)
                 if raw is None:
                     errors.append(f"{sha[:8]} {name}: blob unreadable")
-                    parsed[oid] = frozenset()
+                    parsed[oid] = None
                 else:
                     try:
                         parsed[oid] = frozenset(
@@ -263,10 +271,25 @@ def extract_snapshots(
                         )
                     except (ValueError, KeyError) as exc:
                         errors.append(f"{sha[:8]} {name}: parse failed: {exc}")
-                        parsed[oid] = frozenset()
-            if parsed[oid]:
-                entries |= parsed[oid]
+                        parsed[oid] = None
+            content = parsed[oid]
+            if content is None:
+                broken = name
+                break
+            if content:
+                entries |= content
                 used.append(name)
+        if broken:
+            # Emitting the readable half of a commit would be worse than
+            # emitting nothing: every dependency recorded in the unreadable
+            # lockfile would look deliberately removed at this commit and
+            # re-added at the next good one, closing intervals that never
+            # closed and inventing a gap in the middle of the timeline. A
+            # missing snapshot merely stretches the previous one, which is
+            # already the semantics between any two commits.
+            skipped.append(sha)
+            errors.append(f"{sha[:8]}: skipped, {broken} did not parse")
+            continue
         if entries:
             snapshots.append(
                 Snapshot(
@@ -276,7 +299,7 @@ def extract_snapshots(
                     entries=frozenset(entries),
                 )
             )
-    return snapshots, errors
+    return snapshots, errors, skipped
 
 
 def build_intervals(snapshots: list[Snapshot]) -> list[Interval]:
@@ -309,7 +332,7 @@ def load_history(
     since: str | None = None,
     until: str | None = None,
 ) -> RepoHistory:
-    snapshots, errors = extract_snapshots(repo, lockfiles, since, until)
+    snapshots, errors, skipped = extract_snapshots(repo, lockfiles, since, until)
     used = sorted({p for s in snapshots for p in s.paths})
     return RepoHistory(
         slug=slug,
@@ -317,4 +340,5 @@ def load_history(
         intervals=build_intervals(snapshots),
         lockfiles=used or (lockfiles or []),
         errors=errors,
+        skipped_commits=skipped,
     )

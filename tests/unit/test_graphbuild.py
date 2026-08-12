@@ -9,6 +9,7 @@ from hindsight.graphbuild import (
     Schema,
     build_rowsets,
     filter_by_watermark,
+    stale_repos,
     stamp_tx,
 )
 from hindsight.history import SENTINEL, Interval
@@ -142,6 +143,21 @@ def test_watermark_absent_for_a_repo_keeps_everything():
     kept, skipped = filter_by_watermark(rows.resolves, {repo_id("acme/api"): 10**12})
     assert skipped == 2  # both of api's intervals are below its watermark
     assert {row["s"] for row in kept} == {repo_id("acme/web")}
+
+
+def test_stale_repos_are_those_behind_the_stored_watermark():
+    horizons = {repo_id("acme/web"): 900, repo_id("acme/api"): 900}
+    marks = {repo_id("acme/web"): 5000, repo_id("acme/api"): 100}
+    assert stale_repos(horizons, marks) == {repo_id("acme/web")}
+
+
+def test_a_repo_level_with_its_watermark_is_not_stale():
+    rid = repo_id("acme/web")
+    assert stale_repos({rid: 900}, {rid: 900}) == set()
+
+
+def test_a_repo_with_no_watermark_is_never_stale():
+    assert stale_repos({repo_id("acme/web"): 0}, {}) == set()
 
 
 def test_no_watermarks_is_a_pass_through():

@@ -88,8 +88,9 @@ def test_discover_finds_the_lockfile(repo):
 
 
 def test_three_commits_produce_three_snapshots(repo):
-    snapshots, errors = extract_snapshots(repo)
+    snapshots, errors, skipped = extract_snapshots(repo)
     assert errors == []
+    assert skipped == []
     assert [s.ts for s in snapshots] == [T0, T1, T2]
     assert snapshots[0].entries == frozenset({("chalk", "5.0.0"), ("debug", "4.3.4")})
     assert snapshots[2].entries == frozenset({("chalk", "5.3.0")})
@@ -164,8 +165,62 @@ def test_empty_history_is_reported_not_raised(tmp_path):
     assert history.errors
 
 
+def test_unparseable_lockfile_does_not_close_intervals(repo):
+    """A commit whose lockfile will not parse must not read as a deletion.
+
+    Emitting the readable part of such a commit would close every interval it
+    could not see and reopen it at the next good commit — a fabricated gap in
+    the middle of the timeline, which is exactly the sort of thing an AS-OF
+    audit would then report as "this dependency was absent that week".
+    """
+    (repo / "package-lock.json").write_text('{"lockfileVersion": 3, "packa')  # truncated
+    commit(repo, "corrupt lockfile lands in history", T2 + 100)
+    (repo / "package-lock.json").write_text(lock(chalk="5.3.0"))
+    commit(repo, "back to normal", T2 + 200)
+
+    snapshots, errors, skipped = extract_snapshots(repo)
+    assert len(skipped) == 1
+    assert any("did not parse" in note for note in errors)
+    assert [s.ts for s in snapshots] == [T0, T1, T2, T2 + 200]
+
+    intervals = as_tuples(build_intervals(snapshots))
+    # One unbroken interval to the sentinel, not [T1, T2+100) plus [T2+200, ...).
+    assert ("chalk", "5.3.0", T1, SENTINEL) in intervals
+    assert not any(iv[1] == "5.3.0" and iv[3] != SENTINEL for iv in intervals)
+
+
+def test_a_skipped_commit_is_reported_on_the_history(repo):
+    (repo / "package-lock.json").write_text("not json at all")
+    commit(repo, "corrupt", T2 + 100)
+
+    history = load_history(repo, slug="acme/fixture")
+    assert len(history.skipped_commits) == 1
+    assert history.skipped_commits[0] == run(repo, "rev-parse", "HEAD").strip()
+    # The dependency dropped at T2 stays dropped; nothing else is disturbed.
+    assert as_tuples(history.intervals) == {
+        ("chalk", "5.0.0", T0, T1),
+        ("chalk", "5.3.0", T1, SENTINEL),
+        ("debug", "4.3.4", T0, T2),
+    }
+
+
+def test_a_corrupt_second_lockfile_does_not_publish_the_readable_one(repo):
+    """Partial visibility is worse than none: skip the whole commit."""
+    (repo / "api").mkdir()
+    (repo / "api" / "package-lock.json").write_text(lock(express="4.19.2"))
+    commit(repo, "add api lockfile", T2 + 100)
+    (repo / "api" / "package-lock.json").write_text("{{{ truncated")
+    commit(repo, "corrupt only the api lockfile", T2 + 200)
+
+    history = load_history(repo, slug="acme/fixture")
+    assert len(history.skipped_commits) == 1
+    express = [iv for iv in history.intervals if iv.package == "express"]
+    assert len(express) == 1
+    assert express[0].valid_to == SENTINEL  # not closed by the corrupt commit
+
+
 def test_build_intervals_is_pure_and_order_independent(repo):
-    snapshots, _ = extract_snapshots(repo)
+    snapshots, _, _ = extract_snapshots(repo)
     forward = as_tuples(build_intervals(snapshots))
     shuffled = as_tuples(build_intervals(list(reversed(snapshots))))
     assert forward == shuffled

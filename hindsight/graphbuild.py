@@ -239,6 +239,25 @@ def filter_by_watermark(
     return kept, skipped
 
 
+def stale_repos(repo_last_ts: dict[int, int], watermarks: dict[int, int]) -> set[int]:
+    """Repos whose build horizon is behind what the server already knows.
+
+    A build that only walked history up to H cannot assert anything about the
+    timeline after H: its open intervals mean "still open *as of H*", not
+    "open forever". Writing them anyway would reopen intervals that a later,
+    better-informed run had already closed — the watermark alone does not
+    prevent this, because an open interval always sorts above any watermark.
+
+    So a build that knows strictly less than the store is dropped rather than
+    merged. Nothing is lost: it has no fact the store does not already hold.
+    """
+    return {
+        rid
+        for rid, mark in watermarks.items()
+        if repo_last_ts.get(rid, 0) < mark
+    }
+
+
 def stamp_tx(rows: list[dict], tx_from: int, tx_to: int = SENTINEL) -> list[dict]:
     """Attach transaction time to interval edges.
 

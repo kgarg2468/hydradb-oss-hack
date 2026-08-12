@@ -212,3 +212,29 @@ def test_a_new_commit_closes_the_open_interval_in_place(
     assert _edge_count(ingestor) == 4
     assert ingestor.resolved_as_of(repo_id(SLUG), T2 + 10) == {f"chalk-{RUN}@5.3.0"}
     assert ingestor.resolved_as_of(repo_id(SLUG), T2 + 2000) == {f"chalk-{RUN}@5.4.0"}
+
+
+def _stored_watermark(ingestor):
+    rows = ingestor.client.rows(
+        f"MATCH (n:{TEST_SCHEMA.watermark} {{id: $id}}) RETURN n.last_commit_ts",
+        {"id": watermark_id(SLUG)},
+    )
+    return rows[0][0] if rows else None
+
+
+def test_a_narrower_rebuild_cannot_walk_the_watermark_backwards(
+    ingestor, rowsets, first_run
+):
+    """Re-running an older/partial extraction must not undo recorded progress."""
+    assert _stored_watermark(ingestor) == T2 + 1000
+
+    # `rowsets` was built before the last commit existed, so it only reaches T2.
+    report = ingestor.run(rowsets, tx_from=T2 + 3000)
+    assert _stored_watermark(ingestor) == T2 + 1000
+    assert report.stale_repos == [SLUG]
+
+    # And the newer fact is still there, unrevised: the stale build still holds
+    # chalk@5.3.0 as open, and writing it would have reopened a closed interval.
+    assert _edge_count(ingestor) == 4
+    assert ingestor.resolved_as_of(repo_id(SLUG), T2 + 2000) == {f"chalk-{RUN}@5.4.0"}
+    assert ingestor.resolved_as_of(repo_id(SLUG), T2 + 10) == {f"chalk-{RUN}@5.3.0"}

@@ -33,7 +33,14 @@ import time
 from dataclasses import dataclass, field
 
 from .client import HydraClient
-from .graphbuild import DEFAULT_SCHEMA, RowSets, Schema, filter_by_watermark, stamp_tx
+from .graphbuild import (
+    DEFAULT_SCHEMA,
+    RowSets,
+    Schema,
+    filter_by_watermark,
+    stale_repos,
+    stamp_tx,
+)
 from .history import SENTINEL
 from .ids import watermark_id
 
@@ -96,6 +103,8 @@ class IngestReport:
     batch: int
     steps: list[StepReport] = field(default_factory=list)
     skipped_resolves: int = 0
+    skipped_stale: int = 0
+    stale_repos: list[str] = field(default_factory=list)
     watermarks_before: dict[str, int] = field(default_factory=dict)
     watermarks_after: dict[str, int] = field(default_factory=dict)
 
@@ -119,6 +128,8 @@ class IngestReport:
             "nodes": self.nodes_written,
             "edges": self.edges_written,
             "skipped_resolves": self.skipped_resolves,
+            "skipped_stale": self.skipped_stale,
+            "stale_repos": self.stale_repos,
             "seconds": round(self.seconds, 3),
             "steps": [s.as_dict() for s in self.steps],
             "watermarks_before": self.watermarks_before,
@@ -204,7 +215,15 @@ class Ingestor:
         by_id = {
             rid: before[slug] for rid, slug in rows.repo_slugs.items() if slug in before
         }
-        resolves, skipped = filter_by_watermark(rows.resolves, by_id)
+        # A build that saw less history than the store already holds is dropped
+        # wholesale: its still-open intervals would otherwise reopen facts a
+        # better-informed run had closed.
+        stale = stale_repos(rows.repo_last_ts, by_id)
+        fresh = [row for row in rows.resolves if row["s"] not in stale]
+        skipped_stale = len(rows.resolves) - len(fresh)
+        repo_nodes = [row for row in rows.repos if row["id"] not in stale]
+
+        resolves, skipped = filter_by_watermark(fresh, by_id)
         stamp_tx(resolves, tx_from)
 
         s = self.schema
@@ -222,7 +241,7 @@ class Ingestor:
                         "snapshots": "snapshots",
                     },
                 ),
-                rows.repos,
+                repo_nodes,
                 "node",
             ),
             Step("package nodes", node_upsert(s.package, {"name": "name"}), rows.packages, "node"),
@@ -283,6 +302,8 @@ class Ingestor:
             dry_run=True,
             batch=self.batch,
             skipped_resolves=skipped,
+            skipped_stale=skipped_stale,
+            stale_repos=sorted(rows.repo_slugs[rid] for rid in stale),
             watermarks_before=before,
             watermarks_after=after,
         )
@@ -326,13 +347,20 @@ class Ingestor:
 
         # The watermark is written last: if the run dies partway the next one
         # redoes the work rather than skipping it.
+        #
+        # It is `watermarks_after`, i.e. max(existing, this build), and never
+        # this build's own `repo_last_ts`. That number can move *backwards* --
+        # a narrower `since:`, a shallow clone, a repo whose newest lockfile
+        # commit was rewritten away -- and a watermark that regresses stops
+        # suppressing settled intervals, so the next run resends history it has
+        # already written. A watermark is a high-water mark or it is nothing.
         self.write_watermarks(
             [
                 {
                     "id": watermark_id(slug),
                     "slug": slug,
                     "repo_id": rid,
-                    "last_ts": rows.repo_last_ts.get(rid, 0),
+                    "last_ts": report.watermarks_after.get(slug, 0),
                     "txf": report.tx_from,
                 }
                 for rid, slug in sorted(rows.repo_slugs.items())

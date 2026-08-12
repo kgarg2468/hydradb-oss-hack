@@ -173,10 +173,13 @@ def collect(config: OrgConfig, fetch: bool, log) -> tuple[list[RepoInput], list[
             continue
         for note in history.errors:
             problems.append(f"{spec.slug}: {note}")
+        skipped = (
+            f" skipped={len(history.skipped_commits)}" if history.skipped_commits else ""
+        )
         log(
             f"  {spec.slug:<28} snapshots={len(history.snapshots):>5,d} "
             f"intervals={len(history.intervals):>7,d} "
-            f"lockfiles={','.join(history.lockfiles) or '-'}"
+            f"lockfiles={','.join(history.lockfiles) or '-'}{skipped}"
         )
         inputs.append(RepoInput.from_history(history, name=spec.slug, service=spec.service))
     return inputs, problems
@@ -227,6 +230,12 @@ def cmd_ingest(args: argparse.Namespace) -> int:
     log(f"{verb} {report.nodes_written:,d} nodes and {report.edges_written:,d} edges")
     if report.skipped_resolves:
         log(f"skipped {report.skipped_resolves:,d} settled interval(s) below the watermark")
+    if report.stale_repos:
+        log(
+            f"skipped {report.skipped_stale:,d} interval(s) from "
+            f"{len(report.stale_repos)} repo(s) whose history is behind the graph: "
+            + ", ".join(report.stale_repos)
+        )
     if not report.dry_run:
         log(f"in {report.seconds:.2f}s, tx_from={report.tx_from}")
     if problems:

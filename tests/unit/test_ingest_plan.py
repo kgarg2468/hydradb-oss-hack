@@ -113,6 +113,59 @@ def test_watermark_row_records_the_newest_commit_seen():
     ]
 
 
+def test_watermark_never_regresses_when_a_build_sees_less_history():
+    """A narrower `since:`, a shallow clone or an interrupted extraction must
+    not walk the watermark backwards. If it did, the next run would stop
+    suppressing settled intervals and resend history already written."""
+    client = FakeClient(watermarks={watermark_id("acme/web"): 5000})
+    # This build only reaches T=500, far behind what the server already has.
+    report = Ingestor(client, schema=TEST_SCHEMA).run(
+        build_rowsets([WEB], schema=TEST_SCHEMA), tx_from=888
+    )
+    _, params = client.sent[-1]
+    assert params["rows"][0]["last_ts"] == 5000
+    # ...and the stale build contributes no interval edges at all.
+    assert report.stale_repos == ["acme/web"]
+    assert report.skipped_stale == 2
+    assert not any(TEST_SCHEMA.resolves in cypher for cypher, _ in client.sent)
+
+
+def test_watermark_advances_when_a_build_sees_new_history():
+    client = FakeClient(watermarks={watermark_id("acme/web"): 200})
+    report = Ingestor(client, schema=TEST_SCHEMA).run(
+        build_rowsets([WEB], schema=TEST_SCHEMA), tx_from=888
+    )
+    _, params = client.sent[-1]
+    assert params["rows"][0]["last_ts"] == 500
+    assert report.stale_repos == []
+
+
+def test_a_build_at_exactly_the_watermark_is_not_stale():
+    # Equal horizons mean the same knowledge, so a plain re-run still writes.
+    client = FakeClient(watermarks={watermark_id("acme/web"): 500})
+    report = Ingestor(client, schema=TEST_SCHEMA).run(
+        build_rowsets([WEB], schema=TEST_SCHEMA), tx_from=888
+    )
+    assert report.stale_repos == []
+    assert report.edges_written == 3  # 2 VERSION_OF + the one open interval
+
+
+def test_reingest_after_an_interrupted_run_does_not_resend_settled_history():
+    """An interrupted run writes no watermark, so the retry redoes everything;
+    once it lands, a third run is back to sending only the open interval."""
+    rows = build_rowsets([WEB], schema=TEST_SCHEMA)
+
+    interrupted = FakeClient()  # nothing persisted: the run died before step 1
+    first = Ingestor(interrupted, schema=TEST_SCHEMA).run(rows, dry_run=True)
+    assert first.skipped_resolves == 0
+    assert first.edges_written == 4  # full replay, nothing assumed written
+
+    completed = FakeClient(watermarks={watermark_id("acme/web"): 500})
+    third = Ingestor(completed, schema=TEST_SCHEMA).run(rows, dry_run=True)
+    assert third.skipped_resolves == 1
+    assert third.watermarks_after == {"acme/web": 500}
+
+
 def test_an_existing_watermark_suppresses_settled_intervals():
     client = FakeClient(watermarks={watermark_id("acme/web"): 500})
     ingestor = Ingestor(client, schema=TEST_SCHEMA)
