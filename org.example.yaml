@@ -1,0 +1,60 @@
+# Hindsight ingest configuration.
+#
+#   python -m hindsight ingest --config org.example.yaml --dry-run
+#   python -m hindsight ingest --config org.example.yaml --execute
+#   python -m hindsight status --config org.example.yaml
+#
+# Connection details come from the environment, not from this file, so the same
+# config can point at a laptop node or a cluster:
+#   HINDSIGHT_HYDRA_URL    default http://127.0.0.1:8443
+#   HINDSIGHT_HYDRA_TOKEN  default local-development-token-32-bytes
+#   HINDSIGHT_HYDRA_NS     default default
+#   HINDSIGHT_HYDRA_GRAPH  default default
+#   HINDSIGHT_HYDRA_CELL   default cell-0
+
+# Where remote repositories are cloned (blobless partial clones) and refreshed.
+cache_dir: .hindsight/repos
+
+# Valid-time window for the git walk. Both are optional; omit for full history.
+since: "2024-01-01"
+until: "2025-12-31"
+
+# Label namespace. Change only to run a second, isolated dataset on one node —
+# HydraDB deletes at ~3 nodes/sec, so labels are the practical isolation unit.
+schema:
+  node_prefix: Hs
+  rel_prefix: HS
+
+repos:
+  # A repo whose lockfile sits at the root; lockfiles are auto-discovered when
+  # the key is omitted. `service` is the optional business-facing name that the
+  # blast-radius queries report on.
+  - url: https://github.com/axios/axios
+    service: http-client
+
+  # Pinning `lockfiles` skips discovery, which is worth doing on monorepos where
+  # only one workspace is interesting.
+  - url: https://github.com/webpack/webpack
+    service: build
+    lockfiles:
+      - yarn.lock
+
+  # A lockfile nested under a sub-directory, and an explicit slug.
+  - url: https://github.com/apache/superset
+    slug: apache/superset
+    service: analytics
+    lockfiles:
+      - superset-frontend/package-lock.json
+
+  # Local checkouts work too; nothing is cloned or fetched for these.
+  # - path: ~/src/internal-dashboard
+  #   slug: acme/internal-dashboard
+  #   service: dashboard
+
+# Optional present-tense maintainer overlay: maintainer -> packages they own.
+# The npm registry only exposes current maintainers, so these edges are not
+# bitemporal; they are a present-day lens on a historical graph.
+# maintainers:
+#   qix:
+#     - chalk
+#     - ansi-styles

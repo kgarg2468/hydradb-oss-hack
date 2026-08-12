@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hindsight"
+version = "0.1.0"
+description = "Bitemporal npm dependency and maintainer graph on HydraDB"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+dependencies = ["PyYAML>=6.0"]
+
+[project.scripts]
+hindsight = "hindsight.cli:main"
+
+[tool.setuptools]
+packages = ["hindsight"]
+
+[tool.pytest.ini_options]
+markers = [
+  "integration: requires a live HydraDB node (see scripts/start-hydradb.sh)",
+]
+
+# Ruff is intentionally left on its defaults: poc/ is a frozen artefact that the
+# PoC write-up references line by line, and a stricter rule set would demand
+# edits to it.
