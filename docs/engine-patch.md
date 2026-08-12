@@ -17,7 +17,9 @@ that historical reads are genuinely achievable:
 
 ## Wire API (shipped)
 
-Published fork: **https://github.com/kgarg2468/hydradb**, branch `experiment/historical-reads`.
+Published fork: **https://github.com/kgarg2468/hydradb** at commit
+[`258f787`](https://github.com/kgarg2468/hydradb/commit/258f787) (branch `experiment/historical-reads`).
+All results below are from that commit; the branch may move.
 Auth matches `/query` (bearer + `x-graph-namespace`) and additionally requires the
 `QueryTransportAction::Admin` capability.
 
