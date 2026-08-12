@@ -1,7 +1,7 @@
 # Engine-level time travel (`read_epoch`) — HydraDB patch
 
 HydraDB's HTTP API accepts a `read_epoch` field but rejects it ("read_epoch is not a storage
-snapshot selector"). We validated (and implemented, on a fork branch `experiment/historical-reads`)
+snapshot selector"). We validated (and implemented, on a public fork, see below)
 that historical reads are genuinely achievable:
 
 - A `read_epoch` **is** a SlateDB sequence; retaining an epoch = creating a named SlateDB
