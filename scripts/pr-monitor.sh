@@ -14,14 +14,17 @@ GREPTILE_GRACE=$(( $(date +%s) + 8 * 60 ))  # stop waiting for greptile alone af
 
 echo "[pr-monitor] watching PR #$PR (timeout ${TIMEOUT_MIN}m)" >&2
 
+HEADSHA=$(gh pr view "$PR" --json headRefOid --jq .headRefOid)
+
 while :; do
   NOW=$(date +%s)
+  TOTAL_CHECKS=$(gh pr checks "$PR" --json state --jq 'length' 2>/dev/null || echo 0)
   PENDING=$(gh pr checks "$PR" --json state --jq '[.[] | select(.state=="PENDING" or .state=="QUEUED" or .state=="IN_PROGRESS")] | length' 2>/dev/null || echo 1)
-  GREPTILE=$( { gh api "repos/{owner}/{repo}/pulls/$PR/reviews" --jq '[.[] | select(.user.login | test("greptile"; "i"))] | length' 2>/dev/null || echo 0; } )
-  GREPTILE_IC=$( { gh api "repos/{owner}/{repo}/issues/$PR/comments" --jq '[.[] | select(.user.login | test("greptile"; "i"))] | length' 2>/dev/null || echo 0; } )
-  TOTAL_GREPTILE=$(( GREPTILE + GREPTILE_IC ))
+  # Only count Greptile reviews of the CURRENT head commit; stale reviews of
+  # earlier commits must not satisfy the wait (or pollute the action items).
+  GREPTILE=$( { gh api "repos/{owner}/{repo}/pulls/$PR/reviews" --jq "[.[] | select((.user.login | test(\"greptile\"; \"i\")) and .commit_id==\"$HEADSHA\")] | length" 2>/dev/null || echo 0; } )
 
-  if [ "$PENDING" -eq 0 ] && { [ "$TOTAL_GREPTILE" -gt 0 ] || [ "$NOW" -gt "$GREPTILE_GRACE" ]; }; then
+  if [ "$TOTAL_CHECKS" -gt 0 ] && [ "$PENDING" -eq 0 ] && { [ "$GREPTILE" -gt 0 ] || [ "$NOW" -gt "$GREPTILE_GRACE" ]; }; then
     break
   fi
   if [ "$NOW" -gt "$DEADLINE" ]; then
@@ -43,11 +46,11 @@ MAT="/tmp/pr-$PR-materials.md"
     gh run view "$RUN_ID" --log-failed 2>/dev/null | tail -150
   done
   echo
-  echo "## Greptile review bodies"
-  gh api "repos/{owner}/{repo}/pulls/$PR/reviews" --jq '.[] | select(.user.login | test("greptile"; "i")) | .body' 2>/dev/null
+  echo "## Greptile review bodies (head commit $HEADSHA only)"
+  gh api "repos/{owner}/{repo}/pulls/$PR/reviews" --jq ".[] | select((.user.login | test(\"greptile\"; \"i\")) and .commit_id==\"$HEADSHA\") | .body" 2>/dev/null
   echo
-  echo "## Greptile inline comments (path:line + body)"
-  gh api "repos/{owner}/{repo}/pulls/$PR/comments" --paginate --jq '.[] | select(.user.login | test("greptile"; "i")) | "- \(.path):\(.line // .original_line): \(.body)"' 2>/dev/null
+  echo "## Greptile inline comments on head commit (path:line + body)"
+  gh api "repos/{owner}/{repo}/pulls/$PR/comments" --paginate --jq ".[] | select((.user.login | test(\"greptile\"; \"i\")) and .commit_id==\"$HEADSHA\") | \"- \(.path):\(.line // .original_line): \(.body)\"" 2>/dev/null
   echo
   echo "## Greptile issue comments"
   gh api "repos/{owner}/{repo}/issues/$PR/comments" --jq '.[] | select(.user.login | test("greptile"; "i")) | .body' 2>/dev/null
