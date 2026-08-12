@@ -1,3 +1,7 @@
 pytest==8.4.1
 ruff==0.12.7
 PyYAML==6.0.2
+# Official MCP Python SDK. Pinned exactly: 2.x renamed the server class
+# (FastMCP -> MCPServer) and switched result fields to snake_case, so an
+# unpinned install silently breaks hindsight_mcp.server and its tests.
+mcp==2.0.0
