@@ -52,8 +52,13 @@ MAT="/tmp/pr-$PR-materials.md"
   echo "## Greptile inline comments on head commit (path:line + body)"
   gh api "repos/{owner}/{repo}/pulls/$PR/comments" --paginate --jq ".[] | select((.user.login | test(\"greptile\"; \"i\")) and .commit_id==\"$HEADSHA\") | \"- \(.path):\(.line // .original_line): \(.body)\"" 2>/dev/null
   echo
-  echo "## Greptile issue comments"
-  gh api "repos/{owner}/{repo}/issues/$PR/comments" --jq '.[] | select(.user.login | test("greptile"; "i")) | .body' 2>/dev/null
+  # Issue comments carry no commit_id, so they cannot be filtered to the head
+  # commit; including them resurfaces findings that were already fixed. They are
+  # deliberately omitted — Greptile's substantive output arrives as a review.
+  if [ "${GREPTILE:-0}" -eq 0 ]; then
+    echo "## NOTE: no Greptile review of the head commit ($HEADSHA) arrived before the grace period."
+    echo "Report CI status only; do not invent Greptile findings."
+  fi
 } > "$MAT"
 
 OUT="/tmp/pr-$PR-action-items.md"
