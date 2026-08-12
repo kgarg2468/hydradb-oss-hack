@@ -11,11 +11,18 @@ requires-python = ">=3.11"
 license = { file = "LICENSE" }
 dependencies = ["PyYAML>=6.0"]
 
+# The MCP server is an optional surface: hindsight_mcp's guard, query builders
+# and schema document are plain Python and import without the SDK, so only
+# hindsight_mcp.server needs this.
+[project.optional-dependencies]
+mcp = ["mcp>=2.0.0,<3"]
+
 [project.scripts]
 hindsight = "hindsight.cli:main"
+hindsight-mcp = "hindsight_mcp.server:main"
 
 [tool.setuptools]
-packages = ["hindsight"]
+packages = ["hindsight", "hindsight_mcp"]
 
 [tool.pytest.ini_options]
 markers = [
