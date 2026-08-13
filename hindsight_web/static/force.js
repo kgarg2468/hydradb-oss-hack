@@ -14,7 +14,7 @@
  * Integration is velocity Verlet with a cooling alpha, the same scheme d3 uses,
  * because it settles predictably and never explodes on a disconnected node.
  *
- * Exported as window.Force — no modules, no build.
+ * Exported as window.Force, no modules, no build.
  */
 (function (global) {
   'use strict';
@@ -104,6 +104,14 @@
     this.width = width;
     this.height = height;
     this.alpha = Math.max(this.alpha, 0.4);
+  };
+
+  /* The caller measures the labels and decides where the columns go, because
+   * only the caller knows how wide "storybookjs/storybook" is in the font it is
+   * about to draw. The simulation just honours the columns it is given. */
+  Sim.prototype.setColumns = function (columns) {
+    if (columns && columns.length) { this.columns = columns; }
+    return this;
   };
 
   Sim.prototype.columnX = function (layer) {
