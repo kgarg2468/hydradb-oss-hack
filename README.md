@@ -60,6 +60,15 @@ lockfile entry is not proof of build or deployment. See `docs/mcp.md`.
 - Blast radius / maintainer reach: **5.9 ms p50**.
 - All 24 malicious version publish timestamps verified against the npm registry `time` map.
 
+Scaling, measured to 250 synthetic repos / 2.36 M interval edges
+(`benchmarks/RESULTS.md`): the incident sweep is **46.3 ms p95 at 250 repos
+warm** — the same sweep cold is **1,090 ms**, and the first question of an
+incident is asked cold. The general per-package exposure query is **36.3 ms p95
+at 100 repos warm** and degrades sharply above ~1 M edges of one relationship
+type. That ceiling, why it happens, and the mitigation we built and then
+measured as ineffective are all in that document — including ten threats to
+validity, worst first.
+
 ## Running locally
 
 ```bash
