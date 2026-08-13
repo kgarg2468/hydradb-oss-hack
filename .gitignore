@@ -14,3 +14,7 @@ hydradb-data/
 # Conductor workspace scratch
 .context/
 .hindsight/
+
+# Stray artifacts from browser-based UI verification
+.playwright-mcp/
+*.png
