@@ -46,6 +46,11 @@ class FakeClient:
         )
         key = self._key(cypher)
         rows = self.answers.get(key, [])
+        # Coverage asks the graph to count, not to list. The fixtures still
+        # describe those two labels as the rows they hold, because that is what
+        # a dataset *is*; the fake does the counting the engine would.
+        if "count(*)" in cypher:
+            rows = [[len(rows)]]
         return {
             "columns": ["c"] * (len(rows[0]) if rows else 0),
             "rows": [[{"type": "any", "value": cell} for cell in row] for row in rows],
@@ -54,6 +59,11 @@ class FakeClient:
 
     @staticmethod
     def _key(cypher):
+        # Before the node check: a count is also a `MATCH (n:...)`, and reading
+        # it as a node lookup would hand coverage an empty answer for every
+        # dataset.
+        if "count(*)" in cypher:
+            return "watermarks" if "Watermark" in cypher else "repos"
         if "MATCH (n:" in cypher:
             return "node"
         if "MCPTEST_MAINTAINS" in cypher and "MCPTEST_RESOLVES" in cypher:
@@ -543,10 +553,27 @@ def test_one_watermarked_repository_is_enough_to_answer():
     assert out["coverage"] == {"repo_count": 2, "ingested_repo_count": 1}
 
 
-def test_a_watermark_for_a_repository_the_directory_does_not_list_is_not_coverage():
-    """The intersection, not either count: a stray watermark loads no history."""
-    hindsight, _ = build(answers={"watermarks": [["repo/gone", 100]]})
-    assert hindsight.coverage().reason == coverage.NO_INGESTED_HISTORY
+def test_coverage_counts_rather_than_intersecting_two_capped_reads():
+    """The trade this predicate makes, stated where it can be argued with.
+
+    Intersecting the directory with the watermarks is the more precise question
+    and it inverts at scale: past the row cap the two reads can return pages
+    with no slug in common, and a graph holding a hundred thousand repositories
+    is declared to hold no ingested history at all. Two counts cannot be
+    truncated, so the answer no longer depends on how big the dataset is.
+
+    What is given up is the stray-watermark case: a watermark whose repository
+    the directory does not list now counts as history. That state needs a
+    hand-built graph -- the ingest writes both, in one namespace, and nothing
+    deletes on an append-only node -- while the truncation it replaces needs
+    only a customer larger than the demo.
+    """
+    hindsight, client = build(answers={"watermarks": [["repo/gone", 100]]})
+    assert hindsight.coverage().answerable is True
+
+    counted = [c["cypher"] for c in client.calls if "count(*)" in c["cypher"]]
+    assert len(counted) == 2
+    assert not any("RETURN w.slug" in c["cypher"] for c in client.calls)
 
 
 def test_coverage_and_truncation_are_separate_states_and_do_not_collapse():

@@ -196,9 +196,9 @@ class Hindsight:
     cache_ttl: float = 30.0
     #: Injected so the expiry is testable without sleeping.
     clock: Callable[[], float] = time.monotonic
-    _repos: set[str] | None = field(default=None, repr=False)
+    _repos: int | None = field(default=None, repr=False)
     _repos_at: float = field(default=0.0, repr=False)
-    _ingested: set[str] | None = field(default=None, repr=False)
+    _ingested: int | None = field(default=None, repr=False)
     _ingested_at: float = field(default=0.0, repr=False)
 
     # ------------------------------------------------------------------ plumbing
@@ -250,55 +250,46 @@ class Hindsight:
         """Is a cached dataset read still inside its window?"""
         return self.clock() - read_at < self.cache_ttl
 
-    def _repo_slugs(self) -> set[str]:
-        """Every repository slug in the dataset, cached once the read finds one.
-
-        Nothing is cached while the answer is *nothing*. The two directions of
-        staleness are not equivalent — a directory short by one repository costs
-        a count, an empty one withholds every answer this server has — and an
-        agent session outliving an ingest must not be stuck refusing questions
-        the graph can now answer. So the empty read is repeated, at the price of
-        one label scan over a handful of nodes, and only until the graph fills.
-
-        Truncation is not tracked here for once, because the row cap cannot turn
-        a populated dataset into an empty one, and "is there anything at all" is
-        the only question this read is being asked.
-        """
-        if self._repos is not None and self._fresh(self._repos_at):
-            return self._repos
-        rows, _ = self._dicts(queries.repo_directory(self.schema))
-        found = {str(row["slug"]) for row in rows if row.get("slug")}
-        self._repos = found or None
-        self._repos_at = self.clock()
-        return found
-
-    def _ingested_slugs(self) -> set[str]:
-        """Repositories whose ingest actually finished, cached like the directory.
-
-        The watermark is written *after* a successful run, so its presence is
-        evidence that lockfile history was loaded rather than that a node exists.
-        """
-        if self._ingested is not None and self._fresh(self._ingested_at):
-            return self._ingested
-        rows, _ = self._dicts(queries.watermarks(self.schema))
-        found = {str(row["slug"]) for row in rows if row.get("slug")}
-        self._ingested = found or None
-        self._ingested_at = self.clock()
-        return found
+    def _count(self, query: Query) -> int:
+        rows, _ = self._dicts(query)
+        return int(rows[0]["count"]) if rows else 0
 
     def coverage(self) -> Coverage:
         """Can this dataset answer a question at all, and if not, why not.
 
-        Two label scans over a handful of nodes, cached, because every tool below
-        needs the same verdict and an agent works through several of them in a
-        row. A failed read is deliberately not caught: the server already turns a
+        Two ``count(*)`` reads, cached, because every tool below needs the same
+        verdict and an agent works through several of them in a row.
+
+        Counts and not lists. Reading the directory and the watermarks as rows
+        and intersecting their slugs is the obvious implementation and it breaks
+        at exactly the scale where it matters: past the row cap the two reads
+        can return pages with nothing in common, and a dataset holding a hundred
+        thousand repositories is declared to hold no ingested history at all.
+        Nothing about "is there anything here" needs the rows, and a count of
+        one row cannot be truncated.
+
+        Nothing is cached while the answer is *nothing*, matching the console:
+        the two directions of staleness are not equivalent, since a count short
+        by one costs a number and an empty one withholds every answer this
+        server has. An agent session outliving an ingest must not be stuck
+        refusing questions the graph can now answer.
+
+        A failed read is deliberately not caught: the server already turns a
         :class:`HydraError` into a tool error the agent can act on, which is
         itself a refusal to answer, whereas swallowing it here would manufacture
         exactly the confident-sounding empty result this method exists to
         prevent.
         """
-        slugs = self._repo_slugs()
-        return coverage_of(len(slugs), len(self._ingested_slugs() & slugs))
+        repos_q, marks_q = queries.dataset_counts(self.schema)
+        if self._repos is None or not self._fresh(self._repos_at):
+            found = self._count(repos_q)
+            self._repos = found or None
+            self._repos_at = self.clock()
+        if self._ingested is None or not self._fresh(self._ingested_at):
+            found = self._count(marks_q)
+            self._ingested = found or None
+            self._ingested_at = self.clock()
+        return coverage_of(self._repos or 0, self._ingested or 0)
 
     # --------------------------------------------------------------------- tools
 

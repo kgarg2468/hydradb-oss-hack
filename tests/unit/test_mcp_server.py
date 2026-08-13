@@ -30,7 +30,7 @@ EXPECTED_TOOLS = {
 
 
 class FakeClient:
-    """One row for anything, plus the two scans behind the coverage verdict.
+    """One row for anything, plus the two counts behind the coverage verdict.
 
     Without those two the dataset reads as empty and every tool below would be
     exercised on its refusal path, which is not what these tests are about.
@@ -41,7 +41,9 @@ class FakeClient:
 
     def query(self, cypher, parameters=None, **kw):
         self.calls.append(cypher)
-        if "RETURN r.id" in cypher:
+        if "count(*)" in cypher:
+            rows = [[1]]
+        elif "RETURN r.id" in cypher:
             rows = [[1, "repo/a"]]
         elif "RETURN w.slug" in cypher:
             rows = [["repo/a", 100]]

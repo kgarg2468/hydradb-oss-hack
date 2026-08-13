@@ -168,6 +168,13 @@ class Console:
     #: is not stuck refusing to answer.
     _ingested: set[str] | None = field(default=None, repr=False)
     _ingested_at: float = field(default=0.0, repr=False)
+    #: The two counts behind the coverage verdict, cached separately from the
+    #: lists above because they answer a different question -- "is there
+    #: anything here", which a row cap must not be able to answer wrongly.
+    _repo_count: int | None = field(default=None, repr=False)
+    _repo_count_at: float = field(default=0.0, repr=False)
+    _mark_count: int | None = field(default=None, repr=False)
+    _mark_count_at: float = field(default=0.0, repr=False)
     _watermarks_truncated: bool = field(default=False, repr=False)
 
     # ------------------------------------------------------------------ plumbing
@@ -260,20 +267,41 @@ class Console:
         self._watermarks_truncated = truncated
         return found
 
+    def dataset_counts(self, *, refresh: bool = False) -> tuple[int, int]:
+        """How many repositories exist, and how many finished an ingest.
+
+        Two ``count(*)`` reads rather than the directory and watermark *lists*,
+        because the verdict built on them is the one a row cap can silently
+        invert: past the cap the two lists can come back with no slug in common,
+        and a dataset large enough to matter reports that none of its
+        repositories carry any history. A count returns one row whatever the
+        label holds, so there is nothing to truncate.
+
+        Cached on the same terms as the directory: a populated read expires, an
+        empty one is not cached at all.
+        """
+        repos_q, marks_q = queries.dataset_counts(self.schema)
+        if self._repo_count is None or refresh or not self._fresh(self._repo_count_at):
+            rows, _ = self._rows(repos_q)
+            self._repo_count = (int(rows[0]["count"]) if rows else 0) or None
+            self._repo_count_at = self.clock()
+        if self._mark_count is None or refresh or not self._fresh(self._mark_count_at):
+            rows, _ = self._rows(marks_q)
+            self._mark_count = (int(rows[0]["count"]) if rows else 0) or None
+            self._mark_count_at = self.clock()
+        return self._repo_count or 0, self._mark_count or 0
+
     def coverage(self, *, refresh: bool = False) -> Coverage:
         """Can this dataset answer a question, and if not, why not.
 
-        Two cached reads, shared with :meth:`health`, so threading this through
+        Two cached counts, shared with :meth:`health`, so threading this through
         the answer path costs the scrubber nothing after the first request.
         Errors are *not* swallowed here: a node that refuses the query already
         reaches the browser as a 502, which is itself a refusal to answer.
         :meth:`health` is the one place a failed read becomes a reported state
         rather than an exception.
         """
-        repos = self.repositories(refresh=refresh)
-        slugs = {r.slug for r in repos}
-        ingested = self.ingested_slugs(refresh=refresh)
-        return coverage_of(len(repos), len(ingested & slugs))
+        return coverage_of(*self.dataset_counts(refresh=refresh))
 
     def maintainers(self) -> tuple[list[dict], bool]:
         """Every maintainer account, and whether that list is complete."""
@@ -735,6 +763,7 @@ class Console:
         try:
             repos = self.repositories(refresh=True)
             ingested = self.ingested_slugs(refresh=True)
+            counts = self.dataset_counts(refresh=True)
             truncated = self._repos_truncated or self._watermarks_truncated
             if count_edges:
                 edges = 0
@@ -746,11 +775,9 @@ class Console:
             reachable = True
             error = None
         except Exception as exc:  # noqa: BLE001 - reported, never raised, to the UI
-            repos, ingested, reachable, error = [], set(), False, str(exc)
+            repos, ingested, counts, reachable, error = [], set(), (0, 0), False, str(exc)
         slugs = {r.slug for r in repos}
-        coverage = coverage_of(
-            len(repos), len(ingested & slugs), reachable=reachable
-        )
+        coverage = coverage_of(*counts, reachable=reachable)
         return {
             "reachable": reachable,
             "error": error,
@@ -765,9 +792,13 @@ class Console:
                 "watermark": self.schema.watermark,
                 "resolves": self.schema.resolves,
             },
-            "repo_count": len(repos),
+            # The counts are the counted ones, not the lengths of two lists a
+            # row cap may have shortened. ``unwatermarked_repos`` stays
+            # list-derived because it is a list of names and can only be as
+            # complete as the read that produced it, which ``truncated`` says.
+            "repo_count": counts[0],
             "synthetic_repo_count": sum(1 for r in repos if r.synthetic),
-            "ingested_repo_count": len(ingested & slugs),
+            "ingested_repo_count": counts[1],
             "unwatermarked_repos": sorted(slugs - ingested),
             "resolves_edges": edges,
             "incident": self.incident.title,
@@ -775,7 +806,7 @@ class Console:
             # is the same predicate, reached through the same function the
             # answer path uses, so the header and the answer strip cannot
             # disagree about whether this dataset holds anything.
-            "seeded": bool(repos) and bool(ingested & slugs),
+            "seeded": coverage.answerable,
             **completeness(truncated),
             **coverage.as_dict(),
         }

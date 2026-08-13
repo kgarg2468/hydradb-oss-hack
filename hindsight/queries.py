@@ -320,6 +320,28 @@ def watermarks(schema: Schema) -> Query:
     )
 
 
+def dataset_counts(schema: Schema) -> tuple[Query, Query]:
+    """How many repositories exist, and how many finished an ingest.
+
+    Two numbers rather than two lists, because the question behind them --
+    :func:`hindsight.coverage.coverage_of`, "is this dataset in a position to
+    answer anything" -- is the one question a row cap can silently invert.
+    Reading the directory and the watermarks as *rows* and intersecting them
+    means a dataset large enough to hit the cap can return two pages with no
+    slug in common, and a graph holding a hundred thousand repositories reports
+    that none of them carry any history. That is the false all-clear again,
+    wearing the opposite mask: an unanswerable verdict on a dataset that can
+    answer perfectly well.
+
+    ``count(*)`` returns one row whatever the label holds, so there is nothing
+    to truncate. ``count(n)`` is not accepted by the engine; the star form is.
+    """
+    return (
+        Query(f"MATCH (n:{schema.repo}) RETURN count(*)", {}, ("count",)),
+        Query(f"MATCH (n:{schema.watermark}) RETURN count(*)", {}, ("count",)),
+    )
+
+
 def resolves_edge_count(schema: Schema, repo_id: int) -> Query:
     """RESOLVES edges for one repository. Anchored, and still not cheap.
 
