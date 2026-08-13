@@ -12,6 +12,8 @@ import pytest
 from starlette.testclient import TestClient
 
 from hindsight.client import HydraError
+from hindsight.ids import version_id
+from hindsight_web.analysis import TRUNCATION_CAVEAT
 from hindsight_web.app import DEFAULT_PACKAGE, build_app
 
 from test_web_service import AT, FakeReader, console  # noqa: E402
@@ -192,3 +194,61 @@ def test_no_endpoint_writes_to_the_graph():
     for cypher, _ in reader.statements:
         for verb in ("CREATE", "MERGE", "SET ", "DELETE", "REMOVE"):
             assert verb not in cypher.upper()
+
+
+# ------------------------------------------------------------------ truncation
+
+#: Every endpoint whose answer is derived from a paged read, with the read whose
+#: truncation must reach the client. A partial answer that serialises as a whole
+#: one is the failure this list exists to prevent.
+PAGED = [
+    ("/api/exposure?package=chalk", "repos_resolving"),
+    ("/api/blast-radius?package=chalk", "repos_resolving"),
+    ("/api/blast-radius?package=chalk", "maintainers_of_package"),
+    ("/api/maintainer-reach?name=qix", "maintainer_reach"),
+    ("/api/maintainer-reach", "maintainer_reach"),
+    ("/api/version-footprint?package=chalk&version=5.6.1", "repos_resolving"),
+    ("/api/health", "repo_directory"),
+    ("/api/incident", "repo_directory"),
+]
+
+
+@pytest.mark.parametrize(("path", "kind"), PAGED)
+def test_truncation_reaches_the_client_as_json(path, kind):
+    reader = FakeReader(versions={version_id("chalk", "5.6.1")}, cut={kind})
+    with TestClient(build_app(console(reader=reader))) as c:
+        body = c.get(path).json()
+    assert body["truncated"] is True, f"{path} dropped the flag from {kind}"
+    assert body["truncation_note"] == TRUNCATION_CAVEAT
+
+
+@pytest.mark.parametrize(("path", "_kind"), PAGED)
+def test_a_complete_answer_is_labelled_complete(path, _kind):
+    reader = FakeReader(versions={version_id("chalk", "5.6.1")})
+    with TestClient(build_app(console(reader=reader))) as c:
+        body = c.get(path).json()
+    assert body["truncated"] is False
+    assert body["truncation_note"] is None
+
+
+def test_a_truncated_exposure_is_still_a_200_with_usable_rows():
+    """Partial is not an error: it is an answer that has to be labelled."""
+    reader = FakeReader(cut={"repos_resolving"})
+    with TestClient(build_app(console(reader=reader))) as c:
+        response = c.get(f"/api/exposure?package=chalk&at={AT}")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["repos"]
+    assert body["truncated"] is True
+
+
+def test_the_page_is_shipped_the_words_it_renders_truncation_with():
+    with TestClient(build_app(console())) as c:
+        overview = c.get("/api/incident").json()
+        script = c.get("/static/app.js").text
+        style = c.get("/static/app.css").text
+    assert overview["truncation_caveat"] == TRUNCATION_CAVEAT
+    # The count itself must carry the qualifier, not just a banner beside it.
+    assert "'≥ ' + value" in script
+    assert "truncation_note" in script
+    assert ".truncated {" in style

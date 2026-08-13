@@ -15,7 +15,13 @@ import pytest
 from hindsight.client import ClientConfig, HydraClient
 from hindsight.history import SENTINEL
 from hindsight.ids import maintainer_id, package_id, version_id
-from hindsight_web.analysis import CAVEAT, EVIDENCE, MAINTAINER_CAVEAT
+from hindsight_web import service
+from hindsight_web.analysis import (
+    CAVEAT,
+    EVIDENCE,
+    MAINTAINER_CAVEAT,
+    TRUNCATION_CAVEAT,
+)
 from hindsight_web.incident import build_incident
 from hindsight_web.queries import TEST_SCHEMA
 from hindsight_web.service import Console, ConsoleError
@@ -87,54 +93,84 @@ class FakeReader:
     tests, while swapping one query *kind* for another still does.
     """
 
+    #: Every distinct query kind the fake can answer, by the name this suite
+    #: uses in ``cut``. Listing them here rather than inferring keeps a new
+    #: builder from silently escaping the truncation tests.
+    KINDS = (
+        "repo_directory",
+        "maintainer_directory",
+        "watermarks",
+        "resolves_edge_count",
+        "maintainers_of_package",
+        "package_exists",
+        "maintained_packages",
+        "version_exists",
+        "maintainer_reach",
+        "repos_resolving",
+    )
+
     def __init__(
         self,
         *,
         packages=(CHALK, DEBUG),
         versions=(),
         watermarked=("acme/checkout-web", "webpack/webpack"),
+        cut=(),
     ):
         self.statements: list[tuple[str, dict]] = []
         self.packages = set(packages)
         self.versions = set(versions)
         self.watermarked = tuple(watermarked)
+        #: Query kinds to report as having hit the row cap.
+        self.cut = set(cut)
+        assert self.cut <= set(self.KINDS), f"unknown kind in cut: {self.cut}"
 
     def __call__(self, client, cypher, parameters=None, **kw):
         parameters = dict(parameters or {})
         self.statements.append((cypher, parameters))
         assert "ReplayTest" in cypher, "the fake is only wired for the test schema"
-        return self._answer(cypher, parameters), False
+        kind, rows = self._answer(cypher, parameters)
+        return rows, kind in self.cut
 
     def _answer(self, cypher, p):
+        kind, rows = self._dispatch(cypher, p)
+        assert kind in self.KINDS, f"undeclared kind {kind!r}"
+        return kind, rows
+
+    def _dispatch(self, cypher, p):
         projection = cypher.split("RETURN", 1)[1].replace("DISTINCT", "").strip()
         keys = set(p)
 
         if projection.startswith("r.id"):  # repo_directory
-            return [list(row) for row in REPOS]
-        if projection.startswith("m.id"):  # maintainer_directory
-            return [list(row) for row in MAINTAINERS]
-        if projection.startswith("w.slug"):  # watermarks
-            return [[slug, 1_700_000_000] for slug in self.watermarked]
-        if projection == "count(*)":  # resolves_edge_count
+            return "repo_directory", [list(row) for row in REPOS]
+        if projection.startswith("m.id"):
+            return "maintainer_directory", [list(row) for row in MAINTAINERS]
+        if projection.startswith("w.slug"):
+            return "watermarks", [[slug, 1_700_000_000] for slug in self.watermarked]
+        if projection == "count(*)":
             assert keys == {"rid"}
-            return [[RESOLVES_PER_REPO]]
-        if projection == "m.name":  # maintainers_of_package
-            return [list(r) for r in MAINTAINED_BY_PACKAGE.get(p["pid"], [])]
+            return "resolves_edge_count", [[RESOLVES_PER_REPO]]
+        if projection == "m.name":
+            return "maintainers_of_package", [
+                list(r) for r in MAINTAINED_BY_PACKAGE.get(p["pid"], [])
+            ]
         if projection == "p.name":  # package_exists / maintained_packages
             if "mid" in keys:
-                return [list(r) for r in OWNS.get(p["mid"], [])]
-            return [["chalk"]] if p["pid"] in self.packages else []
-        if projection.startswith("v.pkg, v.version"):  # version_exists
-            return [["chalk", "5.6.1"]] if p["vid"] in self.versions else []
-        if projection.startswith("p.name, r.slug"):  # maintainer_reach
-            return self._live(REACH.get(p["mid"], []), p["t"], 4)
+                return "maintained_packages", [list(r) for r in OWNS.get(p["mid"], [])]
+            return "package_exists", [["chalk"]] if p["pid"] in self.packages else []
+        if projection.startswith("v.pkg, v.version"):
+            return "version_exists", (
+                [["chalk", "5.6.1"]] if p["vid"] in self.versions else []
+            )
+        if projection.startswith("p.name, r.slug"):
+            return "maintainer_reach", self._live(REACH.get(p["mid"], []), p["t"], 4)
         if projection.startswith("r.slug"):  # repos_resolving_{package,version}
             source = (
                 VERSION_RESOLUTIONS.get(p["vid"], [])
                 if "vid" in keys
                 else RESOLUTIONS.get(p["pid"], [])
             )
-            return self._live(source, p["t"], 4)
+            return "repos_resolving", self._live(source, p["t"], 4)
         raise AssertionError(f"unexpected statement: {cypher}")
 
     @staticmethod
@@ -408,3 +444,134 @@ def test_overview_carries_every_caveat_the_page_renders():
     assert "not a real git history" in payload["synthetic_caveat"]
     assert len(payload["repositories"]) == 3
     assert payload["incident"]["window"]["duration"] == "2 h 17 min"
+
+
+# ------------------------------------------------------------------ truncation
+#
+# A read that hit the row cap produces counts that are floors. Presenting one of
+# those as a total is the worst thing this console has available to it — "0 other
+# repositories affected" when the result set was cut off — so every method that
+# touches a paged read is checked here for carrying the flag out, and the
+# UI-facing wording is checked for never claiming a proven negative from a
+# partial read.
+
+
+def test_exposure_carries_truncation_out_of_the_traversal():
+    result = console(reader=FakeReader(cut={"repos_resolving"})).exposure("chalk", AT)
+    assert result["truncated"] is True
+    assert result["truncation_note"] == TRUNCATION_CAVEAT
+    assert "lower bound" in result["truncation_note"]
+
+
+def test_a_truncated_empty_result_is_not_reported_as_a_proven_negative():
+    """The claim the console must not make: an empty cut page proves nothing."""
+    whole = console().exposure("chalk", 500)
+    partial = console(reader=FakeReader(cut={"repos_resolving"})).exposure("chalk", 500)
+
+    expected = {"repos": 3, "exposed": 0, "resolved_clean": 0, "not_resolved": 3}
+    assert whole["counts"] == partial["counts"] == expected
+    assert "proven negative" in whole["note"]
+    assert "proven negative" not in partial["note"]
+    assert partial["note"] == TRUNCATION_CAVEAT
+
+
+def test_a_truncated_repository_directory_poisons_every_exposure_count():
+    """Repos missing from the directory are missing from all three tallies."""
+    result = console(reader=FakeReader(cut={"repo_directory"})).exposure("chalk", AT)
+    assert result["truncated"] is True
+    assert result["counts"]["repos"] == 3  # what we saw, not what exists
+
+
+def test_version_footprint_marks_its_count_as_a_lower_bound():
+    reader = FakeReader(versions={version_id("chalk", "5.6.1")}, cut={"repos_resolving"})
+    result = console(reader=reader).version_footprint("chalk", "5.6.1", AT)
+    assert result["truncated"] is True
+    assert result["repo_count_is_lower_bound"] is True
+    assert result["note"] == TRUNCATION_CAVEAT
+
+
+def test_an_untruncated_footprint_makes_no_lower_bound_claim():
+    reader = FakeReader(versions={version_id("chalk", "5.6.1")})
+    result = console(reader=reader).version_footprint("chalk", "5.6.1", AT)
+    assert result["truncated"] is False
+    assert result["repo_count_is_lower_bound"] is False
+    assert result["truncation_note"] is None
+    assert result["note"] is None
+
+
+def test_a_missing_version_node_is_still_a_strong_negative_when_complete():
+    result = console().version_footprint("chalk", "5.6.1", AT)
+    assert result["truncated"] is False
+    assert "no lockfile in the dataset ever resolved it" in result["note"]
+
+
+@pytest.mark.parametrize("kind", ["repos_resolving", "maintainers_of_package"])
+def test_blast_radius_is_truncated_if_either_of_its_reads_was(kind):
+    result = console(reader=FakeReader(cut={kind})).blast_radius("chalk", AT)
+    assert result["truncated"] is True
+    assert result["truncation_note"] == TRUNCATION_CAVEAT
+
+
+def test_a_complete_blast_radius_says_so():
+    assert console().blast_radius("chalk", AT)["truncated"] is False
+
+
+@pytest.mark.parametrize("kind", ["maintainer_reach", "maintained_packages"])
+def test_maintainer_reach_is_truncated_if_either_of_its_reads_was(kind):
+    result = console(reader=FakeReader(cut={kind})).maintainer_reach("sindresorhus", AT)
+    assert result["truncated"] is True
+    assert result["counts_are_lower_bounds"] is True
+
+
+def test_one_truncated_account_makes_the_whole_ranking_untrustworthy():
+    """A floor for one score means the *order* is not reliable either."""
+    ranked = console(reader=FakeReader(cut={"maintainer_reach"})).maintainer_ranking(AT)
+    assert ranked["truncated"] is True
+    assert all(entry["truncated"] for entry in ranked["ranking"])
+
+
+def test_a_truncated_account_list_truncates_the_ranking():
+    reader = FakeReader(cut={"maintainer_directory"})
+    ranked = console(reader=reader).maintainer_ranking(AT)
+    assert ranked["truncated"] is True
+    assert ranked["ranked_all_accounts"] is True  # the cap was not what cut it
+
+
+def test_the_cached_ranking_keeps_its_truncation_flag():
+    """A cache hit must not launder a partial answer into a complete one."""
+    view = console(reader=FakeReader(cut={"maintainer_reach"}))
+    first = view.maintainer_ranking(AT)
+    second = view.maintainer_ranking(AT)
+    assert second["cached"] is True
+    assert second["truncated"] is first["truncated"] is True
+
+
+def test_the_account_cap_is_reported_as_incompleteness(monkeypatch):
+    monkeypatch.setattr(service, "MAX_RANKED_MAINTAINERS", 1)
+    ranked = console().maintainer_ranking(AT)
+    assert ranked["scored_accounts"] == 1
+    assert ranked["ranked_all_accounts"] is False
+    assert ranked["max_ranked_accounts"] == 1
+    assert ranked["truncated"] is True
+
+
+def test_a_complete_ranking_claims_completeness():
+    ranked = console().maintainer_ranking(AT)
+    assert ranked["truncated"] is False
+    assert ranked["ranked_all_accounts"] is True
+    assert ranked["truncation_note"] is None
+
+
+def test_health_and_overview_report_a_truncated_directory():
+    for payload in (
+        console(reader=FakeReader(cut={"repo_directory"})).health(),
+        console(reader=FakeReader(cut={"repo_directory"})).overview(),
+    ):
+        assert payload["truncated"] is True
+        assert payload["truncation_note"] == TRUNCATION_CAVEAT
+
+
+def test_overview_ships_the_truncation_wording_to_the_page():
+    payload = console().overview()
+    assert payload["truncation_caveat"] == TRUNCATION_CAVEAT
+    assert payload["truncated"] is False

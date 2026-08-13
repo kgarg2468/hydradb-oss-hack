@@ -299,6 +299,25 @@
       '  ·  ' + exposure.counts.repos + ' repositories  ·  ' + exposure.elapsed_ms + ' ms';
   }
 
+  /* A count from a truncated read is a floor and has to read as one. "0 other
+     repositories affected" when the result set was cut off is the single worst
+     thing this console could say, so the number itself carries the qualifier
+     rather than relying on a banner the eye can skip. */
+  function count(value, truncated) {
+    return truncated ? '≥ ' + value : String(value);
+  }
+
+  /* Prepends a warning strip to `box` when `data` came back incomplete.
+     Returns true so callers can branch on it. */
+  function renderTruncation(box, data) {
+    if (!data || !data.truncated) { return false; }
+    var warn = el('div', 'truncated');
+    warn.appendChild(el('b', null, 'INCOMPLETE READ'));
+    warn.appendChild(el('span', null, data.truncation_note));
+    box.insertBefore(warn, box.firstChild);
+    return true;
+  }
+
   function renderTally(data) {
     var wrap = $('tally');
     wrap.innerHTML = '';
@@ -307,9 +326,9 @@
       ['t-clean', data.counts.resolved_clean, 'RESOLVED, NOT MALICIOUS'],
       ['t-absent', data.counts.not_resolved, 'PACKAGE NOT RESOLVED']
     ].forEach(function (row) {
-      var cell = el('div', row[0]);
-      cell.appendChild(el('b', null, String(row[1])));
-      cell.appendChild(el('span', null, row[2]));
+      var cell = el('div', row[0] + (data.truncated ? ' partial' : ''));
+      cell.appendChild(el('b', null, count(row[1], data.truncated)));
+      cell.appendChild(el('span', null, row[2] + (data.truncated ? ' (AT LEAST)' : '')));
       wrap.appendChild(cell);
     });
   }
@@ -321,14 +340,22 @@
     box.className = 'verdict ' + (hit ? 'hit' : 'miss');
 
     var lead = el('strong', null, hit
-      ? data.counts.exposed + ' of ' + data.counts.repos +
+      ? count(data.counts.exposed, data.truncated) + ' of ' +
+        count(data.counts.repos, data.truncated) +
         ' repositories had a lockfile resolving a malicious ' + data.package + ' version'
-      : 'No repository resolved a malicious ' + data.package + ' version at this instant');
+      : data.truncated
+        ? 'No malicious ' + data.package + ' version was found before this read was cut off'
+        : 'No repository resolved a malicious ' + data.package + ' version at this instant');
     box.appendChild(lead);
     box.appendChild(document.createTextNode(' '));
 
     var tail;
-    if (hit) {
+    if (data.truncated) {
+      /* The negative is the whole point of this panel, and a truncated read
+         cannot establish one. Never claim a proven negative from a cut read. */
+      tail = 'at ' + data.at_iso + '. This is NOT a proven negative: the result set was ' +
+        'truncated, so repositories may be missing from every count above.';
+    } else if (hit) {
       tail = 'at ' + data.at_iso + '. Evidence is lockfile resolution — this is the scope to ' +
         'investigate, not a list of compromised systems.';
     } else if (!data.package_in_graph) {
@@ -338,6 +365,7 @@
         'negative for ' + data.at_iso + ', not an empty result set.';
     }
     box.appendChild(el('span', 'dim', tail));
+    renderTruncation(box, data);
 
     if (data.malicious_versions.length) {
       var list = el('div', 'dim');
@@ -414,12 +442,22 @@
   }
 
   function renderGraph(blast) {
-    $('graph-stats').textContent = [
+    var stats = $('graph-stats');
+    stats.textContent = [
       plural(blast.nodes.length, 'node'),
       plural(blast.edges.length, 'edge'),
       plural(blast.version_count, 'version'),
       plural(blast.maintainers.length, 'maintainer')
     ].join(' · ');
+    /* A truncated blast radius is a drawing with nodes missing from it, which
+       looks exactly like a small blast radius. Say so on the panel. */
+    stats.className = blast.truncated ? 'mono partial' : 'mono dim';
+    if (blast.truncated) {
+      stats.textContent = '≥ ' + stats.textContent + ' — INCOMPLETE';
+      stats.title = blast.truncation_note;
+    } else {
+      stats.title = '';
+    }
     sim.setGraph(blast.nodes, blast.edges);
     requestAnimationFrame(frame);
   }
@@ -536,11 +574,18 @@
   /* ----------------------------------------------------------------- reach */
 
   function renderReach(data) {
-    $('reach-stats').textContent =
-      data.scored_accounts + ' accounts scored · ' +
-      (data.elapsed_ms < 1 ? 'cached' : Math.round(data.elapsed_ms) + ' ms');
+    var stats = $('reach-stats');
+    stats.className = data.truncated ? 'mono partial' : 'mono dim';
+    stats.textContent =
+      count(data.scored_accounts, data.truncated) + ' accounts scored · ' +
+      (data.elapsed_ms < 1 ? 'cached' : Math.round(data.elapsed_ms) + ' ms') +
+      (data.truncated ? ' · RANKING INCOMPLETE' : '');
+    stats.title = data.truncated ? data.truncation_note : '';
     var wrap = $('reach');
     wrap.innerHTML = '';
+    /* An account whose own reach read was cut has a floor for a score, so the
+       order is not trustworthy — say that before the leaderboard, not after. */
+    renderTruncation(wrap, data);
     var top = data.ranking.length ? data.ranking[0].repo_package_pairs : 1;
 
     data.ranking.forEach(function (entry) {
@@ -548,11 +593,11 @@
       row.appendChild(el('div', 'reach-rank', String(entry.rank)));
       row.appendChild(el('div', 'reach-name', entry.maintainer));
 
-      var pkgs = el('div', 'reach-num', String(entry.reached_package_count));
+      var pkgs = el('div', 'reach-num', count(entry.reached_package_count, entry.truncated));
       pkgs.appendChild(el('small', null, 'PKGS'));
       row.appendChild(pkgs);
 
-      var repos = el('div', 'reach-num', String(entry.reached_repo_count));
+      var repos = el('div', 'reach-num', count(entry.reached_repo_count, entry.truncated));
       repos.appendChild(el('small', null, 'REPOS'));
       row.appendChild(repos);
 

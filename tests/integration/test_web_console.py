@@ -418,3 +418,84 @@ def test_the_http_surface_answers_the_same_way_the_console_does(console):
 
         reach = http.get(f"/api/maintainer-reach?name={OWNER}&at={REINSTALL}").json()
         assert reach["reached_repo_count"] == 2
+
+
+# ------------------------------------------------------------------ truncation
+
+
+@pytest.fixture(scope="module")
+def capped(client, seeded):
+    """A console whose RESOLVES traversals are cut off after one row.
+
+    Only the traversals, so the repository directory stays whole and the
+    truncation under test is the interesting one — the answer still names every
+    repository, it just cannot vouch for what they resolved. One row is a
+    genuinely partial answer here: at the reinstall, two repositories resolve
+    this package. And it is the real engine and the real cursor protocol that
+    produce the flag, not a fake that was told to say so.
+    """
+
+    def clipped(hydra, cypher, parameters=None, **kw):
+        if TEST_SCHEMA.resolves in cypher:
+            kw.update(page_size=1, row_cap=1)
+        return fetch_all(hydra, cypher, parameters, **kw)
+
+    return Console(
+        client=client, schema=TEST_SCHEMA, incident=INCIDENT, reader=clipped
+    )
+
+
+def test_a_real_truncated_read_is_labelled_all_the_way_out(capped):
+    result = capped.exposure(CHALK, REINSTALL + 10)
+    assert result["truncated"] is True
+    assert "lower bound" in result["truncation_note"]
+    # The directory read was not capped, so every repository is still named —
+    # what is missing is the evidence about them, which is exactly the case
+    # where a bare count would be most misleading.
+    assert len(mine(result["repos"])) == 3
+
+
+def test_a_truncated_read_never_claims_a_proven_negative(capped, console):
+    """The claim that would be actively dangerous on a security console."""
+    complete = console.exposure(CHALK, REINSTALL + 10)
+    partial = capped.exposure(CHALK, REINSTALL + 10)
+    assert complete["truncated"] is False
+    assert complete["counts"]["exposed"] == 1
+    # Same instant, same question, fewer rows: the counts may disagree, and only
+    # the complete one is allowed to be read as a total.
+    assert partial["counts"]["exposed"] <= complete["counts"]["exposed"]
+    assert partial["truncation_note"]
+
+
+def test_an_empty_result_is_a_proven_negative_only_because_nothing_was_cut(
+    capped, console
+):
+    """A cap that did not bite must not raise a false alarm either."""
+    before_anything = BEFORE - 1_000
+    for view in (console, capped):
+        result = view.exposure(CHALK, before_anything)
+        assert result["counts"]["exposed"] == 0
+        assert result["truncated"] is False
+        assert "proven negative" in result["note"]
+
+
+def test_truncation_survives_the_blast_radius(capped):
+    result = capped.blast_radius(CHALK, REINSTALL + 10)
+    assert result["truncated"] is True
+    assert result["truncation_note"]
+
+
+def test_a_footprint_the_cap_did_not_reach_is_not_flagged(capped):
+    """Only one repository ever held this version, so one row is the whole answer."""
+    footprint = capped.version_footprint(CHALK, "5.6.1", REINSTALL + 10)
+    assert footprint["version_in_graph"] is True
+    assert footprint["truncated"] is False
+    assert footprint["repo_count_is_lower_bound"] is False
+
+
+def test_truncation_reaches_the_browser_over_http(capped):
+    with TestClient(build_app(capped)) as http:
+        body = http.get(f"/api/exposure?package={CHALK}&at={REINSTALL}").json()
+    assert body["truncated"] is True
+    assert body["truncation_note"]
+    assert body["repos"], "a partial answer is still an answer, just a labelled one"

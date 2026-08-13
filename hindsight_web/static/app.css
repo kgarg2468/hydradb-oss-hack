@@ -260,6 +260,30 @@ select {
 .verdict.miss { background: var(--clean-d); border-left: 2px solid var(--clean); }
 .verdict strong { font-weight: 600; }
 
+/* Incomplete reads. Deliberately the loudest thing on the page after an
+   exposure: a number the reader trusts as a total when it is only a floor is a
+   worse outcome than any missed detection, so this outranks the layout. */
+.truncated {
+  display: flex;
+  gap: 9px;
+  align-items: baseline;
+  margin: 0 0 9px;
+  padding: 7px 10px;
+  background: #2a1c05;
+  border-left: 2px solid var(--marker);
+  font-size: 11.5px;
+  color: var(--ink-dim);
+}
+.truncated b {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.13em;
+  color: var(--marker);
+}
+.partial, .tally .partial b { color: var(--marker) !important; }
+.tally .partial span { color: var(--marker); }
+
 .repos { overflow-y: auto; flex: 1; min-height: 0; }
 
 .repo {

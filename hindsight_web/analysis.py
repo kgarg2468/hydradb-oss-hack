@@ -49,6 +49,17 @@ MAINTAINER_CAVEAT = (
     "rights then."
 )
 
+#: Every count derived from a read that hit the row cap is a *floor*, and has to
+#: read as one. A security console that answers "0 other repositories affected"
+#: when the result set was cut off is worse than one that refuses to answer, so
+#: this string travels with the flag and the UI renders both.
+TRUNCATION_CAVEAT = (
+    "This read hit the row cap, so the result is incomplete and every count "
+    "below is a lower bound, not a total. Narrow the question — a single "
+    "package, a single repository, a single instant — before drawing any "
+    "conclusion from it, and in particular do not read a zero here as an absence."
+)
+
 SYNTHETIC_CAVEAT = (
     "This repository is a constructed example, not a real git history. It exists "
     "because none of the real repositories in this dataset regenerated a lockfile "
@@ -300,6 +311,20 @@ def sort_key(repo: dict) -> tuple:
     return (STATUS_ORDER.get(repo["status"], 9), str(repo.get("slug")))
 
 
+def completeness(truncated: bool) -> dict:
+    """The two fields every answer that touched a paged read must carry.
+
+    A single helper rather than a literal at each call site, because the failure
+    this guards against is *forgetting* — the flag existed and was simply dropped
+    on the way out of three methods, and a partial answer then rendered as a
+    complete one.
+    """
+    return {
+        "truncated": bool(truncated),
+        "truncation_note": TRUNCATION_CAVEAT if truncated else None,
+    }
+
+
 __all__ = [
     "CAVEAT",
     "EVIDENCE",
@@ -309,9 +334,11 @@ __all__ = [
     "NOT_RESOLVED",
     "RESOLVED_CLEAN",
     "SYNTHETIC_CAVEAT",
+    "TRUNCATION_CAVEAT",
     "TimestampError",
     "Window",
     "classify",
+    "completeness",
     "covers",
     "describe_interval",
     "humanize",

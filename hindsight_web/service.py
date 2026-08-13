@@ -42,8 +42,10 @@ from .analysis import (
     EXPOSED,
     MAINTAINER_CAVEAT,
     SYNTHETIC_CAVEAT,
+    TRUNCATION_CAVEAT,
     Window,
     classify,
+    completeness,
     humanize,
     iso,
     sort_key,
@@ -114,10 +116,19 @@ class Console:
     #: fields — off canned rows without a database, and so that there is exactly
     #: one seam to fake rather than a mock per method.
     reader: Callable[..., tuple[list[list[object]], bool]] = fetch_all
-    #: instant -> cached maintainer ranking. Bounded because the scrubber can
-    #: generate a lot of distinct instants in a minute of dragging.
-    _rank_cache: dict[int, list[dict]] = field(default_factory=dict, repr=False)
+    #: instant -> ``(ranking, truncated, capped)``. Bounded because the scrubber
+    #: can generate a lot of distinct instants in a minute of dragging. The
+    #: completeness flags are cached *with* the ranking rather than recomputed,
+    #: so a cache hit cannot serve a partial answer as a whole one.
+    _rank_cache: dict[int, tuple[list[dict], bool, bool]] = field(
+        default_factory=dict, repr=False
+    )
     _repos: list[RepoRecord] | None = field(default=None, repr=False)
+    #: Did the cached repository directory itself hit the row cap? A short
+    #: directory is not merely a slow answer: every exposure verdict is a join
+    #: against this list, so a truncated one silently drops repositories from
+    #: *all* three counts rather than from one of them.
+    _repos_truncated: bool = field(default=False, repr=False)
 
     # ------------------------------------------------------------------ plumbing
 
@@ -150,7 +161,7 @@ class Console:
         """Every repository in the dataset, cached after the first read."""
         if self._repos is not None and not refresh:
             return self._repos
-        rows, _ = self._rows(queries.repo_directory(self.schema))
+        rows, truncated = self._rows(queries.repo_directory(self.schema))
         records = []
         for row in rows:
             slug = str(row.get("slug") or "")
@@ -172,17 +183,19 @@ class Console:
             )
         records.sort(key=lambda r: r.slug)
         self._repos = records
+        self._repos_truncated = truncated
         return records
 
-    def maintainers(self) -> list[dict]:
-        rows, _ = self._rows(queries.maintainer_directory(self.schema))
+    def maintainers(self) -> tuple[list[dict], bool]:
+        """Every maintainer account, and whether that list is complete."""
+        rows, truncated = self._rows(queries.maintainer_directory(self.schema))
         out = [
             {"id": int(row["id"]), "name": str(row["name"])}
             for row in rows
             if row.get("name")
         ]
         out.sort(key=lambda m: m["name"])
-        return out
+        return out, truncated
 
     # ----------------------------------------------------------------- exposure
 
@@ -215,7 +228,9 @@ class Console:
             by_slug.setdefault(str(row.get("slug")), []).append(row)
 
         repos = []
-        for record in self.repositories():
+        directory = self.repositories()
+        truncated = truncated or self._repos_truncated
+        for record in directory:
             verdict = classify(
                 record.slug, by_slug.get(record.slug, []), malicious, window, at
             )
@@ -246,10 +261,10 @@ class Console:
             "malicious_versions": sorted(malicious),
             "counts": summarize(repos),
             "repos": repos,
-            "truncated": truncated,
             "elapsed_ms": round(elapsed_ms, 2),
             "evidence": EVIDENCE,
             "caveat": CAVEAT,
+            **completeness(truncated),
         }
         if not exists_rows:
             out["note"] = (
@@ -258,9 +273,13 @@ class Console:
                 "absence, not a lookup failure"
             )
         elif not rows:
+            # Only a *complete* empty result is a proven negative. If the read
+            # was cut short, an empty page says nothing at all.
             out["note"] = (
-                "the package is in the graph but no repository resolved any version "
-                "of it at this instant — a proven negative for this timestamp"
+                TRUNCATION_CAVEAT
+                if truncated
+                else "the package is in the graph but no repository resolved any "
+                "version of it at this instant — a proven negative for this timestamp"
             )
         return out
 
@@ -270,12 +289,27 @@ class Console:
         The sharpest form of the negative: a malicious version that was never
         resolved by anything has no node in the graph at all, and the console can
         say so after a single id lookup rather than a scan.
+
+        Which is exactly why ``truncated`` has to come back with the answer. The
+        whole value of this method is the strength of its negative, and a cut-off
+        read produces a *weak* negative wearing a strong one's clothes.
         """
         vid = version_id(package, version)
         exists, _ = self._rows(queries.version_exists(self.schema, vid))
         rows: list[dict] = []
+        truncated = False
         if exists:
-            rows, _ = self._rows(queries.repos_resolving_version(self.schema, vid, at))
+            rows, truncated = self._rows(
+                queries.repos_resolving_version(self.schema, vid, at)
+            )
+        slugs = sorted({str(r.get("slug")) for r in rows})
+        if exists:
+            note = TRUNCATION_CAVEAT if truncated else None
+        else:
+            note = (
+                "this version has no node in the graph: no lockfile in the dataset "
+                "ever resolved it, at any instant in the ingested history"
+            )
         return {
             "package": package,
             "version": version,
@@ -283,16 +317,14 @@ class Console:
             "at": at,
             "at_iso": iso(at),
             "version_in_graph": bool(exists),
-            "repo_count": len({str(r.get("slug")) for r in rows}),
-            "repos": sorted({str(r.get("slug")) for r in rows}),
+            "repo_count": len(slugs),
+            # A truncated read can only establish a floor on the footprint.
+            "repo_count_is_lower_bound": truncated,
+            "repos": slugs,
             "evidence": EVIDENCE,
             "caveat": CAVEAT,
-            "note": (
-                None
-                if exists
-                else "this version has no node in the graph: no lockfile in the "
-                "dataset ever resolved it, at any instant in the ingested history"
-            ),
+            "note": note,
+            **completeness(truncated),
         }
 
     # ------------------------------------------------------------- blast radius
@@ -306,9 +338,11 @@ class Console:
         silently lose precision.
         """
         exposure = self.exposure(package, at)
-        maint_rows, _ = self._rows(
+        maint_rows, maint_truncated = self._rows(
             queries.maintainers_of_package(self.schema, package_id(package))
         )
+        # Either read can be cut, and either way the drawing is missing nodes.
+        truncated = bool(exposure["truncated"]) or maint_truncated
         maintainers = sorted({str(r.get("maintainer")) for r in maint_rows if r.get("maintainer")})
 
         nodes: list[dict] = [
@@ -405,6 +439,7 @@ class Console:
             "evidence": EVIDENCE,
             "caveat": CAVEAT,
             "maintainer_caveat": MAINTAINER_CAVEAT,
+            **completeness(truncated),
         }
 
     # --------------------------------------------------------- maintainer reach
@@ -415,8 +450,13 @@ class Console:
         if not name:
             raise ConsoleError("maintainer name is required")
         mid = maintainer_id(name)
-        owned, _ = self._rows(queries.maintained_packages(self.schema, mid))
-        rows, truncated = self._rows(queries.maintainer_reach(self.schema, mid, at))
+        owned, owned_truncated = self._rows(
+            queries.maintained_packages(self.schema, mid)
+        )
+        rows, reach_truncated = self._rows(
+            queries.maintainer_reach(self.schema, mid, at)
+        )
+        truncated = owned_truncated or reach_truncated
 
         packages: set[str] = set()
         pairs: set[tuple[str, str]] = set()
@@ -456,10 +496,12 @@ class Console:
             # Repo count saturates once a package is ubiquitous; the finer
             # repo x package surface is what actually ranks accounts apart.
             "repo_package_pairs": len(pairs),
-            "truncated": truncated,
+            # Every count above is a floor when this is set.
+            "counts_are_lower_bounds": truncated,
             "evidence": EVIDENCE,
             "caveat": CAVEAT,
             "maintainer_caveat": MAINTAINER_CAVEAT,
+            **completeness(truncated),
         }
 
     def maintainer_ranking(self, at: int, limit: int = 12) -> dict:
@@ -486,7 +528,12 @@ class Console:
         cached = self._rank_cache.get(at)
         started = time.perf_counter()
         if cached is None:
-            accounts = self.maintainers()[:MAX_RANKED_MAINTAINERS]
+            everyone, truncated = self.maintainers()
+            # Two separate ways to end up with a short leaderboard: the account
+            # list itself was cut, or this policy capped it. Both mean an account
+            # that is not on the board may still outrank the one at the top.
+            capped = len(everyone) > MAX_RANKED_MAINTAINERS
+            accounts = everyone[:MAX_RANKED_MAINTAINERS]
             forks = [self._fork() for _ in range(RANK_WORKERS)]
             with ThreadPoolExecutor(max_workers=RANK_WORKERS) as pool:
                 scored = list(
@@ -495,6 +542,9 @@ class Console:
                         enumerate(accounts),
                     )
                 )
+            # One account's reach being cut means that account's score is a
+            # floor, which means the *order* is not trustworthy either.
+            truncated = truncated or capped or any(s["truncated"] for s in scored)
             scored.sort(
                 key=lambda s: (
                     -s["repo_package_pairs"],
@@ -504,10 +554,11 @@ class Console:
             )
             for position, entry in enumerate(scored, start=1):
                 entry["rank"] = position
-            self._rank_cache[at] = scored
+            self._rank_cache[at] = (scored, truncated, capped)
             if len(self._rank_cache) > 64:
                 self._rank_cache.pop(next(iter(self._rank_cache)))
-            cached = scored
+            cached = (scored, truncated, capped)
+        ranking, truncated, capped = cached
         elapsed_ms = (time.perf_counter() - started) * 1000
 
         return {
@@ -517,17 +568,22 @@ class Console:
             ),
             "at": at,
             "at_iso": iso(at),
-            "scored_accounts": len(cached),
-            "ranking": cached[: max(1, int(limit))],
+            "scored_accounts": len(ranking),
+            "ranking": ranking[: max(1, int(limit))],
+            "ranked_all_accounts": not capped,
+            "max_ranked_accounts": MAX_RANKED_MAINTAINERS,
             "cached": bool(elapsed_ms < 1.0),
             "elapsed_ms": round(elapsed_ms, 2),
             "evidence": EVIDENCE,
             "caveat": CAVEAT,
             "maintainer_caveat": MAINTAINER_CAVEAT,
+            **completeness(truncated),
         }
 
     def _score(self, account: dict, at: int) -> dict:
-        rows, _ = self._rows(queries.maintainer_reach(self.schema, account["id"], at))
+        rows, truncated = self._rows(
+            queries.maintainer_reach(self.schema, account["id"], at)
+        )
         packages: set[str] = set()
         repos: set[str] = set()
         pairs: set[tuple[str, str]] = set()
@@ -544,6 +600,7 @@ class Console:
             "repo_package_pairs": len(pairs),
             "reached_packages": sorted(packages)[:12],
             "reached_repos": sorted(repos),
+            "truncated": truncated,
         }
 
     # ------------------------------------------------------------------- health
@@ -562,9 +619,11 @@ class Console:
         some edges exist.
         """
         edges = None
+        truncated = False
         try:
             repos = self.repositories(refresh=True)
-            marks, _ = self._rows(queries.watermarks(self.schema))
+            marks, marks_truncated = self._rows(queries.watermarks(self.schema))
+            truncated = self._repos_truncated or marks_truncated
             ingested = {str(row["slug"]) for row in marks if row.get("slug")}
             if count_edges:
                 edges = 0
@@ -599,17 +658,21 @@ class Console:
             "resolves_edges": edges,
             "incident": self.incident.title,
             "seeded": bool(repos) and bool(ingested & slugs),
+            **completeness(truncated),
         }
 
     def overview(self) -> dict:
         """Everything the page needs before the first scrub."""
+        repositories = [r.as_dict() for r in self.repositories()]
         return {
             "incident": self.incident.as_dict(),
-            "repositories": [r.as_dict() for r in self.repositories()],
+            "repositories": repositories,
             "evidence": EVIDENCE,
             "caveat": CAVEAT,
             "maintainer_caveat": MAINTAINER_CAVEAT,
             "synthetic_caveat": SYNTHETIC_CAVEAT,
+            "truncation_caveat": TRUNCATION_CAVEAT,
+            **completeness(self._repos_truncated),
         }
 
 
