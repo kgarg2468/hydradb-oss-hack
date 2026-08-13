@@ -1,0 +1,156 @@
+{
+  "generated_at": "2026-08-13T00:41:51Z",
+  "corpus": "real",
+  "package": "debug",
+  "at": 1757340300,
+  "at_iso": "2025-09-08T14:05:00Z",
+  "runs_requested": 50,
+  "warmup": 5,
+  "budget_s": 180.0,
+  "row_cap": 20000,
+  "truncations": 0,
+  "corpus_stats": {
+    "node_prefix": "Replay",
+    "repos": 9,
+    "packages": 6383,
+    "versions": 24959,
+    "maintainers": 154,
+    "resolves_edges": 86380,
+    "resolves_count_seconds": 9.31,
+    "nodes": 31505
+  },
+  "environment": {
+    "platform": "macOS-26.2-arm64-arm-64bit",
+    "python": "3.12.2",
+    "chip": "Apple M5",
+    "memory": "32 GB",
+    "hydradb_image": "ghcr.io/hydra-db/hydradb@sha256:db78309a233be54662db29744047e985a39b51c45a270d1a1f47c31a62cdb709",
+    "docker": "27.4.0",
+    "docker_cpus_mem": "10 cpu / 8217968640 B"
+  },
+  "wall_seconds": 168.85,
+  "measurements": [
+    {
+      "label": "exposure-as-of (org-wide, fixed T)",
+      "n": 50,
+      "warmup_runs": 5,
+      "cold_ms": 6.39,
+      "min_ms": 5.382,
+      "mean_ms": 6.317,
+      "max_ms": 11.759,
+      "p50_ms": 6.283,
+      "p95_ms": 7.745,
+      "p99_ms": 11.759,
+      "meta": {
+        "result_rows_min": 36,
+        "result_rows_max": 36,
+        "invocations": 55
+      }
+    },
+    {
+      "label": "exposure-as-of (scrub, T varies every run)",
+      "n": 50,
+      "warmup_runs": 5,
+      "cold_ms": 7.034,
+      "min_ms": 5.345,
+      "mean_ms": 6.069,
+      "max_ms": 7.147,
+      "p50_ms": 6.053,
+      "p95_ms": 6.681,
+      "p99_ms": 7.147,
+      "meta": {
+        "result_rows_min": 25,
+        "result_rows_max": 37,
+        "invocations": 55
+      }
+    },
+    {
+      "label": "exposure-as-of (engine only, one statement)",
+      "n": 50,
+      "warmup_runs": 5,
+      "cold_ms": 4.722,
+      "min_ms": 4.56,
+      "mean_ms": 5.102,
+      "max_ms": 5.794,
+      "p50_ms": 5.114,
+      "p95_ms": 5.56,
+      "p99_ms": 5.794,
+      "meta": {
+        "result_rows_min": 36,
+        "result_rows_max": 36,
+        "invocations": 55
+      }
+    },
+    {
+      "label": "blast radius (repos + versions + maintainers)",
+      "n": 50,
+      "warmup_runs": 5,
+      "cold_ms": 7.359,
+      "min_ms": 6.048,
+      "mean_ms": 7.343,
+      "max_ms": 9.341,
+      "p50_ms": 7.368,
+      "p95_ms": 8.152,
+      "p99_ms": 9.341,
+      "meta": {
+        "result_rows_min": 36,
+        "result_rows_max": 36,
+        "invocations": 55
+      }
+    },
+    {
+      "label": "maintainer reach (one account: sindresorhus)",
+      "n": 50,
+      "warmup_runs": 5,
+      "cold_ms": 385.935,
+      "min_ms": 354.52,
+      "mean_ms": 369.69,
+      "max_ms": 448.848,
+      "p50_ms": 365.023,
+      "p95_ms": 408.998,
+      "p99_ms": 448.848,
+      "meta": {
+        "result_rows_min": 799,
+        "result_rows_max": 799,
+        "invocations": 55,
+        "accounts": 154
+      }
+    },
+    {
+      "label": "maintainer reach (ranked sweep, all accounts, UNCACHED)",
+      "n": 50,
+      "warmup_runs": 5,
+      "cold_ms": 2472.899,
+      "min_ms": 2450.047,
+      "mean_ms": 2581.572,
+      "max_ms": 3016.494,
+      "p50_ms": 2518.861,
+      "p95_ms": 2907.771,
+      "p99_ms": 3016.494,
+      "meta": {
+        "result_rows_min": 6922,
+        "result_rows_max": 7357,
+        "invocations": 55,
+        "accounts": 154
+      }
+    },
+    {
+      "label": "maintainer reach (ranked sweep, in-process CACHE HIT)",
+      "n": 50,
+      "warmup_runs": 5,
+      "cold_ms": 2630.116,
+      "min_ms": 0.0,
+      "mean_ms": 0.0,
+      "max_ms": 0.001,
+      "p50_ms": 0.0,
+      "p95_ms": 0.001,
+      "p99_ms": 0.001,
+      "meta": {
+        "result_rows_min": 0,
+        "result_rows_max": 0,
+        "invocations": 1,
+        "accounts": 154
+      }
+    }
+  ]
+}
