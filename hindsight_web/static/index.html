@@ -3,114 +3,150 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hindsight — incident console</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%2308090b'/%3E%3Crect x='3' y='3' width='4' height='10' fill='%23ff4b3a'/%3E%3Crect x='9' y='6' width='4' height='7' fill='%2346b98a'/%3E%3C/svg%3E">
+<title>Hindsight, incident console</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%230A0B0E'/%3E%3Crect x='3' y='3' width='3' height='10' rx='1.5' fill='%23F0524D'/%3E%3Crect x='8.5' y='6' width='3' height='7' rx='1.5' fill='%233ECF8E'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
 
-<header class="bar">
-  <div class="brand">
-    <span class="mark">HINDSIGHT</span>
-    <span class="sub">blast radius time machine</span>
+<header class="topbar">
+  <div class="topbar-left">
+    <span class="wordmark">Hindsight</span>
+    <span class="incident-title" id="incident-title">loading incident</span>
   </div>
-  <div class="incident-head">
-    <span class="k">INCIDENT</span>
-    <span id="incident-title" class="v">loading…</span>
-  </div>
-  <div class="node-state" id="node-state">
-    <span class="dot" id="node-dot"></span>
-    <span id="node-text" class="mono">connecting</span>
+  <div class="topbar-right">
+    <button type="button" class="pill-btn" id="demo-btn" aria-haspopup="dialog" aria-expanded="false">Demo data</button>
+    <div class="health" id="health">
+      <span class="health-dot" id="health-dot" aria-hidden="true"></span>
+      <span class="health-text" id="health-text">connecting</span>
+    </div>
+    <button type="button" class="ghost-btn" id="diag-btn" aria-haspopup="dialog" aria-expanded="false">Diagnostics</button>
   </div>
 </header>
 
-<section class="scrub" aria-label="Timeline">
-  <div class="scrub-head">
-    <div>
-      <span class="k">AS OF</span>
-      <span id="instant" class="instant mono">—</span>
-      <span id="instant-rel" class="dim mono"></span>
-    </div>
-    <div class="scrub-controls">
-      <span class="k">JUMP</span>
-      <div id="jumps" class="jumps"></div>
-      <span class="k pad">RANGE</span>
-      <button class="btn" data-zoom="day">full day</button>
-      <button class="btn" data-zoom="window">compromise window</button>
-    </div>
-  </div>
+<div class="popover" id="demo-pop" role="dialog" aria-label="Demo data provenance" hidden>
+  <h3>Demo data</h3>
+  <div id="demo-body"></div>
+</div>
 
-  <div class="track-wrap">
-    <svg id="track" class="track" preserveAspectRatio="none" aria-hidden="true"></svg>
-    <div id="marker-labels" class="marker-labels"></div>
-    <input id="slider" class="slider" type="range" min="0" max="1000" value="0" step="1"
-           aria-label="Instant to query the graph at">
-  </div>
-  <p class="marker-detail dim">
-    <span id="marker-detail"></span>
-    <span id="track-note" class="track-note"></span>
-  </p>
-</section>
+<main class="page">
 
-<main class="grid">
-
-  <section class="panel exposure" aria-label="Exposure">
-    <div class="panel-head">
-      <h2>EXPOSURE <span class="dim">/ resolved lockfile state</span></h2>
-      <div class="pkg-picker">
-        <label class="k" for="package">PACKAGE</label>
-        <select id="package" class="mono"></select>
+  <section class="answer" aria-label="Answer">
+    <div class="answer-top">
+      <div class="answer-head">
+        <p class="answer-line" id="answer-line">Reading the graph</p>
+        <p class="answer-meta">
+          <span class="mono" id="answer-when"></span>
+          <span class="dot-sep" id="answer-sep" hidden>·</span>
+          <span class="answer-rel" id="answer-rel"></span>
+          <span class="latency mono" id="answer-latency" hidden></span>
+        </p>
+      </div>
+      <div class="pkg-pick">
+        <label for="package">Exposure to</label>
+        <span class="select-wrap"><select id="package" class="mono"></select></span>
       </div>
     </div>
 
-    <div id="tally" class="tally"></div>
-    <div id="verdict" class="verdict"></div>
-    <div id="repos" class="repos"></div>
+    <div class="stats" id="stats"></div>
 
-    <p class="evidence">
-      <span class="tag tag-evidence">RESOLVED</span>
-      <span id="caveat" class="dim"></span>
+    <p class="caveat" id="caveat">
+      <svg class="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        <circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.2"></circle>
+        <path d="M8 7.1v4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></path>
+        <circle cx="8" cy="4.9" r="0.85" fill="currentColor"></circle>
+      </svg>
+      <span id="caveat-text">Evidence is lockfile resolution: the scope to investigate, not proof of install, build, or compromise.</span>
     </p>
   </section>
 
-  <section class="panel graph" aria-label="Impact graph">
-    <div class="panel-head">
-      <h2>IMPACT GRAPH <span class="dim">/ repo → version → package → maintainer</span></h2>
-      <div id="graph-stats" class="mono dim"></div>
-    </div>
-    <div class="canvas-wrap">
-      <canvas id="canvas"></canvas>
-      <div id="tooltip" class="tooltip" hidden></div>
-      <div class="legend mono">
-        <span><i class="sw sw-exposed"></i>exposed repo</span>
-        <span><i class="sw sw-clean"></i>clean repo</span>
-        <span><i class="sw sw-mal"></i>malicious version</span>
-        <span><i class="sw sw-ver"></i>version</span>
-        <span><i class="sw sw-pkg"></i>package</span>
-        <span><i class="sw sw-maint"></i>maintainer</span>
+  <div id="banner-slot"></div>
+
+  <section class="rail" aria-label="Timeline">
+    <div class="rail-top">
+      <div class="step-group">
+        <button type="button" class="icon-btn" id="prev-event" aria-label="Previous event">
+          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M10 3.5 5.5 8l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </button>
+        <button type="button" class="icon-btn" id="next-event" aria-label="Next event">
+          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </button>
+      </div>
+      <div class="chips" id="event-chips" role="group" aria-label="Jump to event"></div>
+      <div class="segmented" role="group" aria-label="Timeline range">
+        <button type="button" data-zoom="day" aria-pressed="true">Full day</button>
+        <button type="button" data-zoom="window" aria-pressed="false">Compromise window</button>
       </div>
     </div>
-  </section>
-
-  <section class="panel reach" aria-label="Maintainer reach">
-    <div class="panel-head">
-      <h2>MAINTAINER REACH <span class="dim">/ trust radius at this instant</span></h2>
-      <div id="reach-stats" class="mono dim"></div>
+    <div class="track-wrap" id="track-wrap">
+      <div class="track-labels" id="track-labels"></div>
+      <svg id="track" class="track" preserveAspectRatio="none" aria-hidden="true"></svg>
+      <input id="slider" class="slider" type="range" min="0" max="1000" value="0" step="1"
+             aria-label="Instant to query the graph at">
     </div>
-    <div class="reach-q">If one npm account were phished tomorrow, which one reaches the most of our repositories?</div>
-    <div id="reach" class="reach-list"></div>
-    <p class="evidence">
-      <span class="tag tag-note">PRESENT TENSE</span>
-      <span id="maint-caveat" class="dim"></span>
-    </p>
   </section>
 
+  <div class="grid">
+
+    <section class="card evidence" aria-label="Repositories">
+      <div class="card-head">
+        <h2 id="evidence-title">Repositories</h2>
+        <span class="card-note" id="evidence-note"></span>
+      </div>
+      <div class="repo-list" id="repos"></div>
+    </section>
+
+    <div class="tabbar" id="tabbar" role="tablist" aria-label="Context panels">
+      <button type="button" role="tab" data-tab="graph" aria-selected="true">Impact graph</button>
+      <button type="button" role="tab" data-tab="reach" aria-selected="false">Standing risk</button>
+    </div>
+
+    <div class="col-right">
+
+      <section class="card graph-card" id="panel-graph" aria-label="Impact graph">
+        <div class="card-head">
+          <h2>Impact graph</h2>
+          <button type="button" class="text-btn" id="graph-toggle" aria-pressed="false">Show all</button>
+        </div>
+        <p class="card-sub" id="graph-sub"></p>
+        <div class="canvas-wrap">
+          <canvas id="canvas"></canvas>
+          <div id="tooltip" class="tooltip" hidden></div>
+        </div>
+        <div class="legend" id="legend"></div>
+      </section>
+
+      <section class="card reach-card" id="panel-reach" aria-label="Standing risk">
+        <div class="card-head">
+          <h2>Standing risk</h2>
+          <span class="card-note" id="reach-note"></span>
+        </div>
+        <p class="card-sub">Present-tense registry ownership, not incident-time state.</p>
+        <div class="search">
+          <svg class="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <circle cx="7" cy="7" r="4.25" fill="none" stroke="currentColor" stroke-width="1.4"></circle>
+            <path d="M10.2 10.2 13.5 13.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></path>
+          </svg>
+          <input type="search" id="reach-search" placeholder="Search accounts" aria-label="Search maintainer accounts" autocomplete="off">
+        </div>
+        <div class="reach-list" id="reach"></div>
+        <p class="card-foot" id="maint-caveat"></p>
+      </section>
+
+    </div>
+  </div>
 </main>
 
-<footer class="foot mono dim">
-  <span id="foot-left"></span>
-  <span id="foot-right"></span>
-</footer>
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" role="dialog" aria-label="Diagnostics" aria-modal="false" hidden>
+  <div class="drawer-head">
+    <h2>Diagnostics</h2>
+    <button type="button" class="icon-btn" id="drawer-close" aria-label="Close diagnostics">
+      <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg>
+    </button>
+  </div>
+  <dl class="diag" id="diag"></dl>
+</aside>
 
 <script src="/static/force.js"></script>
 <script src="/static/app.js"></script>
