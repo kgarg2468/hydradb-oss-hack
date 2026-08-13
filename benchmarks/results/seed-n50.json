@@ -1,0 +1,193 @@
+{
+  "seed": {
+    "corpus_repos": 50,
+    "node_prefix": "BenchN50",
+    "repos_written": 50,
+    "nodes_written": 94538,
+    "edges_written": 525502,
+    "resolves_edges_written": 449227,
+    "wall_seconds": 119.389,
+    "edge_write_seconds": 113.819,
+    "edges_per_sec": 4617.0,
+    "chunks": 3,
+    "steps": [
+      {
+        "label": "repo nodes",
+        "kind": "node",
+        "rows": 20,
+        "seconds": 0.034,
+        "rows_per_sec": 596.3,
+        "batches": 1
+      },
+      {
+        "label": "package nodes",
+        "kind": "node",
+        "rows": 6383,
+        "seconds": 0.274,
+        "rows_per_sec": 23275.8,
+        "batches": 7
+      },
+      {
+        "label": "version nodes",
+        "kind": "node",
+        "rows": 24959,
+        "seconds": 1.101,
+        "rows_per_sec": 22664.5,
+        "batches": 25
+      },
+      {
+        "label": "maintainer nodes",
+        "kind": "node",
+        "rows": 154,
+        "seconds": 0.043,
+        "rows_per_sec": 3545.2,
+        "batches": 1
+      },
+      {
+        "label": "VERSION_OF edges",
+        "kind": "edge",
+        "rows": 24959,
+        "seconds": 9.022,
+        "rows_per_sec": 2766.5,
+        "batches": 25
+      },
+      {
+        "label": "MAINTAINS edges",
+        "kind": "edge",
+        "rows": 466,
+        "seconds": 0.139,
+        "rows_per_sec": 3344.9,
+        "batches": 1
+      },
+      {
+        "label": "RESOLVES edges",
+        "kind": "edge",
+        "rows": 181665,
+        "seconds": 39.842,
+        "rows_per_sec": 4559.7,
+        "batches": 182
+      },
+      {
+        "label": "repo nodes",
+        "kind": "node",
+        "rows": 20,
+        "seconds": 0.028,
+        "rows_per_sec": 708.5,
+        "batches": 1
+      },
+      {
+        "label": "package nodes",
+        "kind": "node",
+        "rows": 6383,
+        "seconds": 0.657,
+        "rows_per_sec": 9710.4,
+        "batches": 7
+      },
+      {
+        "label": "version nodes",
+        "kind": "node",
+        "rows": 24959,
+        "seconds": 1.098,
+        "rows_per_sec": 22727.1,
+        "batches": 25
+      },
+      {
+        "label": "maintainer nodes",
+        "kind": "node",
+        "rows": 154,
+        "seconds": 0.019,
+        "rows_per_sec": 7901.9,
+        "batches": 1
+      },
+      {
+        "label": "VERSION_OF edges",
+        "kind": "edge",
+        "rows": 24959,
+        "seconds": 3.147,
+        "rows_per_sec": 7932.0,
+        "batches": 25
+      },
+      {
+        "label": "MAINTAINS edges",
+        "kind": "edge",
+        "rows": 466,
+        "seconds": 0.061,
+        "rows_per_sec": 7631.4,
+        "batches": 1
+      },
+      {
+        "label": "RESOLVES edges",
+        "kind": "edge",
+        "rows": 178085,
+        "seconds": 38.927,
+        "rows_per_sec": 4574.9,
+        "batches": 179
+      },
+      {
+        "label": "repo nodes",
+        "kind": "node",
+        "rows": 10,
+        "seconds": 0.024,
+        "rows_per_sec": 414.8,
+        "batches": 1
+      },
+      {
+        "label": "package nodes",
+        "kind": "node",
+        "rows": 6383,
+        "seconds": 0.4,
+        "rows_per_sec": 15960.6,
+        "batches": 7
+      },
+      {
+        "label": "version nodes",
+        "kind": "node",
+        "rows": 24959,
+        "seconds": 1.019,
+        "rows_per_sec": 24482.9,
+        "batches": 25
+      },
+      {
+        "label": "maintainer nodes",
+        "kind": "node",
+        "rows": 154,
+        "seconds": 0.023,
+        "rows_per_sec": 6714.6,
+        "batches": 1
+      },
+      {
+        "label": "VERSION_OF edges",
+        "kind": "edge",
+        "rows": 24959,
+        "seconds": 3.358,
+        "rows_per_sec": 7433.3,
+        "batches": 25
+      },
+      {
+        "label": "MAINTAINS edges",
+        "kind": "edge",
+        "rows": 466,
+        "seconds": 0.075,
+        "rows_per_sec": 6223.2,
+        "batches": 1
+      },
+      {
+        "label": "RESOLVES edges",
+        "kind": "edge",
+        "rows": 89477,
+        "seconds": 19.249,
+        "rows_per_sec": 4648.4,
+        "batches": 90
+      }
+    ]
+  },
+  "environment": {
+    "platform": "macOS-26.2-arm64-arm-64bit",
+    "python": "3.12.2",
+    "chip": "Apple M5",
+    "memory": "32 GB",
+    "hydradb_image": "ghcr.io/hydra-db/hydradb@sha256:db78309a233be54662db29744047e985a39b51c45a270d1a1f47c31a62cdb709",
+    "docker": "27.4.0",
+    "docker_cpus_mem": "10 cpu / 8217968640 B"
+  }
+}

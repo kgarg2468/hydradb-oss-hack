@@ -1,0 +1,81 @@
+{
+  "seed": {
+    "corpus_repos": 10,
+    "node_prefix": "BenchN10",
+    "repos_written": 10,
+    "nodes_written": 31506,
+    "edges_written": 111866,
+    "resolves_edges_written": 86441,
+    "wall_seconds": 23.652,
+    "edge_write_seconds": 22.108,
+    "edges_per_sec": 5059.9,
+    "chunks": 1,
+    "steps": [
+      {
+        "label": "repo nodes",
+        "kind": "node",
+        "rows": 10,
+        "seconds": 0.028,
+        "rows_per_sec": 362.3,
+        "batches": 1
+      },
+      {
+        "label": "package nodes",
+        "kind": "node",
+        "rows": 6383,
+        "seconds": 0.255,
+        "rows_per_sec": 25022.2,
+        "batches": 7
+      },
+      {
+        "label": "version nodes",
+        "kind": "node",
+        "rows": 24959,
+        "seconds": 1.061,
+        "rows_per_sec": 23535.0,
+        "batches": 25
+      },
+      {
+        "label": "maintainer nodes",
+        "kind": "node",
+        "rows": 154,
+        "seconds": 0.022,
+        "rows_per_sec": 6960.2,
+        "batches": 1
+      },
+      {
+        "label": "VERSION_OF edges",
+        "kind": "edge",
+        "rows": 24959,
+        "seconds": 7.164,
+        "rows_per_sec": 3483.9,
+        "batches": 25
+      },
+      {
+        "label": "MAINTAINS edges",
+        "kind": "edge",
+        "rows": 466,
+        "seconds": 0.131,
+        "rows_per_sec": 3569.5,
+        "batches": 1
+      },
+      {
+        "label": "RESOLVES edges",
+        "kind": "edge",
+        "rows": 86441,
+        "seconds": 14.814,
+        "rows_per_sec": 5835.2,
+        "batches": 87
+      }
+    ]
+  },
+  "environment": {
+    "platform": "macOS-26.2-arm64-arm-64bit",
+    "python": "3.12.2",
+    "chip": "Apple M5",
+    "memory": "32 GB",
+    "hydradb_image": "ghcr.io/hydra-db/hydradb@sha256:db78309a233be54662db29744047e985a39b51c45a270d1a1f47c31a62cdb709",
+    "docker": "27.4.0",
+    "docker_cpus_mem": "10 cpu / 8217968640 B"
+  }
+}

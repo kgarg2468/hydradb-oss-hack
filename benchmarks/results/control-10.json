@@ -1,0 +1,113 @@
+{
+  "generated_at": "2026-08-13T03:41:50Z",
+  "corpus": "10",
+  "package": "debug",
+  "at": 1757340300,
+  "at_iso": "2025-09-08T14:05:00Z",
+  "runs_requested": 30,
+  "warmup": 5,
+  "budget_s": 90.0,
+  "row_cap": 20000,
+  "truncations": 0,
+  "corpus_stats": {
+    "node_prefix": "BenchN10",
+    "resolves_edges": null
+  },
+  "environment": {
+    "platform": "macOS-26.2-arm64-arm-64bit",
+    "python": "3.12.2",
+    "chip": "Apple M5",
+    "memory": "32 GB",
+    "hydradb_image": "ghcr.io/hydra-db/hydradb@sha256:db78309a233be54662db29744047e985a39b51c45a270d1a1f47c31a62cdb709",
+    "docker": "27.4.0",
+    "docker_cpus_mem": "10 cpu / 8217968640 B"
+  },
+  "wall_seconds": 2.32,
+  "measurements": [
+    {
+      "label": "exposure-as-of (org-wide, fixed T)",
+      "n": 30,
+      "warmup_runs": 5,
+      "cold_ms": 7.012,
+      "min_ms": 6.761,
+      "mean_ms": 7.667,
+      "max_ms": 9.14,
+      "p50_ms": 7.56,
+      "p95_ms": 8.938,
+      "p99_ms": 9.14,
+      "meta": {
+        "result_rows_min": 37,
+        "result_rows_max": 37,
+        "invocations": 35
+      }
+    },
+    {
+      "label": "exposure-as-of (scrub, T varies every run)",
+      "n": 30,
+      "warmup_runs": 5,
+      "cold_ms": 6.666,
+      "min_ms": 6.428,
+      "mean_ms": 7.489,
+      "max_ms": 9.078,
+      "p50_ms": 7.4,
+      "p95_ms": 8.952,
+      "p99_ms": 9.078,
+      "meta": {
+        "result_rows_min": 26,
+        "result_rows_max": 38,
+        "invocations": 35
+      }
+    },
+    {
+      "label": "exposure-as-of (engine only, one statement)",
+      "n": 30,
+      "warmup_runs": 5,
+      "cold_ms": 5.713,
+      "min_ms": 5.736,
+      "mean_ms": 6.406,
+      "max_ms": 8.166,
+      "p50_ms": 6.257,
+      "p95_ms": 7.736,
+      "p99_ms": 8.166,
+      "meta": {
+        "result_rows_min": 37,
+        "result_rows_max": 37,
+        "invocations": 35
+      }
+    },
+    {
+      "label": "blast radius (repos + versions + maintainers)",
+      "n": 30,
+      "warmup_runs": 5,
+      "cold_ms": 7.967,
+      "min_ms": 7.352,
+      "mean_ms": 8.516,
+      "max_ms": 11.561,
+      "p50_ms": 8.494,
+      "p95_ms": 9.876,
+      "p99_ms": 11.561,
+      "meta": {
+        "result_rows_min": 37,
+        "result_rows_max": 37,
+        "invocations": 35
+      }
+    },
+    {
+      "label": "incident sweep (all malicious versions, version-anchored)",
+      "n": 30,
+      "warmup_runs": 5,
+      "cold_ms": 26.019,
+      "min_ms": 22.276,
+      "mean_ms": 24.324,
+      "max_ms": 28.862,
+      "p50_ms": 24.169,
+      "p95_ms": 28.263,
+      "p99_ms": 28.862,
+      "meta": {
+        "result_rows_min": 13,
+        "result_rows_max": 13,
+        "invocations": 35
+      }
+    }
+  ]
+}
