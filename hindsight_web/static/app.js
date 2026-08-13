@@ -450,13 +450,23 @@
     if (push) { api.pushState(null, '', url); } else { api.replaceState(null, '', url); }
   }
 
+  /* `decodeURIComponent('%')` throws, and a link that arrives mangled -- copied
+     out of a chat client that ate the last character, truncated by an email
+     footer -- is exactly the link that must not take the page down with it. A
+     value that will not decode is kept in its raw form, which then fails the
+     same checks a nonsense value fails and reaches the operator as the notice
+     it deserves rather than as a blank screen. */
+  function decodeOrRaw(text) {
+    try { return decodeURIComponent(text); } catch (err) { return text; }
+  }
+
   function readView() {
     var raw = {};
     location.search.replace(/^\?/, '').split('&').forEach(function (pair) {
       if (!pair) { return; }
       var eq = pair.indexOf('=');
-      var key = decodeURIComponent(pair.slice(0, eq < 0 ? pair.length : eq));
-      raw[key] = eq < 0 ? '' : decodeURIComponent(pair.slice(eq + 1).replace(/\+/g, ' '));
+      var key = decodeOrRaw(pair.slice(0, eq < 0 ? pair.length : eq));
+      raw[key] = eq < 0 ? '' : decodeOrRaw(pair.slice(eq + 1).replace(/\+/g, ' '));
     });
     var readable = /^-?\d+$/.test(raw.at || '');
     return {

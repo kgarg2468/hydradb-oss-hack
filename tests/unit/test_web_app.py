@@ -355,6 +355,12 @@ def test_the_page_is_shipped_the_code_that_disowns_a_clamped_link():
     # A third state, distinct from the amber cut read and the dashed refusal.
     assert ".link-notice {" in style
     assert "var(--acc-line)" in style.split(".link-notice {")[1].split("}")[0]
+    # A mangled link -- one a chat client truncated -- reaches the operator as
+    # that notice too. `decodeURIComponent` throws on a stray percent, and the
+    # one link that must not take the page down with it is the broken one.
+    assert "function decodeOrRaw(" in script
+    assert "catch (err) { return text; }" in script
+    assert "decodeURIComponent(pair.slice" not in script
 
 
 def test_the_copy_control_has_a_path_that_works_on_an_insecure_origin():
