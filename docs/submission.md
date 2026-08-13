@@ -110,7 +110,7 @@ places where that shaped the code:
 scripts/start-hydradb.sh          # local node, docker
 pip install -e '.[web]' -r requirements-dev.txt
 python3 scripts/demo-seed.py --execute
-python3 -m hindsight_web          # http://127.0.0.1:8000
+python3 -m hindsight_web          # http://127.0.0.1:8080
 ```
 
 Full walkthrough: [`demo.md`](demo.md). Agent surface: [`mcp.md`](mcp.md).
