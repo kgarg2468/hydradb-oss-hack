@@ -416,6 +416,7 @@
       renderReach();
       renderDiagnostics();
     }).catch(function (err) {
+      if (at === state.at) { state.rankingMeta = null; renderDiagnostics(); }
       $('reach-note').textContent = 'failed';
       $('reach-note').className = 'card-note partial';
       $('reach-note').title = clean(err.message);
