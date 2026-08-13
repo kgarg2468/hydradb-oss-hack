@@ -8,13 +8,20 @@ should get a 502 with an actionable hint, and a typo in ``?at=`` should get a
 
 from __future__ import annotations
 
+import importlib
+import sys
+from types import SimpleNamespace
+
 import pytest
 from starlette.testclient import TestClient
 
 from hindsight.client import HydraError
+from hindsight.graphbuild import DEFAULT_SCHEMA
 from hindsight.ids import version_id
 from hindsight_web.analysis import TRUNCATION_CAVEAT
 from hindsight_web.app import DEFAULT_PACKAGE, build_app
+from hindsight_web import queries as web_queries
+from hindsight_web.queries import resolve_schema
 
 from test_web_service import AT, FakeReader, console  # noqa: E402
 
@@ -50,6 +57,56 @@ def test_health_reports_the_schema_the_console_is_pointed_at(client):
     assert body["reachable"] is True
     assert body["seeded"] is True
     assert body["labels"]["repo"] == "ReplayTestRepo"
+
+
+def test_web_schema_defaults_to_the_ingest_namespace():
+    assert web_queries.resolve_schema(env={}) == DEFAULT_SCHEMA
+
+
+def test_web_schema_reads_the_mcp_prefix_environment_variables():
+    schema = web_queries.resolve_schema(
+        env={
+            "HINDSIGHT_MCP_NODE_PREFIX": "Replay",
+            "HINDSIGHT_MCP_REL_PREFIX": "REPLAY",
+        }
+    )
+    assert schema.repo == "ReplayRepo"
+    assert schema.resolves == "REPLAY_RESOLVES"
+
+
+def test_default_app_uses_the_environment_configured_schema(monkeypatch):
+    import hindsight_web.app as web_app
+
+    def console_for_schema(*, schema, incident):
+        view = console()
+        view.schema = schema
+        view.incident = incident
+        return view
+
+    monkeypatch.setenv("HINDSIGHT_MCP_NODE_PREFIX", "WebTest")
+    monkeypatch.setenv("HINDSIGHT_MCP_REL_PREFIX", "WEBTEST")
+    monkeypatch.setattr(web_app, "Console", console_for_schema)
+
+    with TestClient(web_app.build_app()) as configured_client:
+        body = configured_client.get("/api/health").json()
+
+    assert body["labels"]["repo"] == "WebTestRepo"
+    assert body["labels"]["resolves"] == "WEBTEST_RESOLVES"
+
+
+def test_startup_prints_the_environment_resolved_labels(monkeypatch, capsys):
+    web_main = importlib.import_module("hindsight_web.__main__")
+    monkeypatch.setenv("HINDSIGHT_MCP_NODE_PREFIX", "Replay")
+    monkeypatch.setenv("HINDSIGHT_MCP_REL_PREFIX", "REPLAY")
+    monkeypatch.setitem(sys.modules, "uvicorn", SimpleNamespace(run=lambda *a, **kw: None))
+
+    assert web_main.main(["--port", "8092"]) == 0
+
+    assert capsys.readouterr().out == (
+        "Hindsight console  http://127.0.0.1:8092\n"
+        "Label namespace    ReplayRepo / ReplayPkg / ReplayVer / ReplayMaint / "
+        "ReplayWatermark; REPLAY_RESOLVES / REPLAY_VERSION_OF / REPLAY_MAINTAINS\n"
+    )
 
 
 def test_incident_endpoint_carries_the_markers_the_scrubber_draws(client):
@@ -252,3 +309,55 @@ def test_the_page_is_shipped_the_words_it_renders_truncation_with():
     assert "'≥ ' + value" in script
     assert "truncation_note" in script
     assert ".truncated {" in style
+
+
+def test_the_console_reads_the_dataset_the_org_config_declares(tmp_path):
+    """org.yaml's schema block is what ingest writes, so it is what we read.
+
+    Consulting only the environment would agree with the pipeline's default and
+    diverge from every custom prefix: declare ``node_prefix: Acme``, ingest to
+    ``Acme*``, read an empty ``Hs*``. That is the original namespace bug one
+    layer up.
+    """
+    config = tmp_path / "org.yaml"
+    config.write_text(
+        "schema:\n  node_prefix: Acme\n  rel_prefix: ACME\n"
+        "repos:\n  - url: https://github.com/axios/axios\n"
+    )
+    schema = resolve_schema(str(config), env={})
+    assert schema.repo == "AcmeRepo"
+    assert schema.resolves == "ACME_RESOLVES"
+
+
+def test_an_explicit_prefix_overrides_the_org_config(tmp_path):
+    """Deployment-time env beats the declared dataset; it is the more specific act.
+
+    Per prefix, though. If either variable handed the whole decision to the
+    environment, setting one would build a namespace out of two datasets --
+    ``ReplayRepo`` joined by ``HS_RESOLVES`` -- which matches nothing on read
+    and is indistinguishable from an empty graph.
+    """
+    config = tmp_path / "org.yaml"
+    config.write_text("schema:\n  node_prefix: Acme\n  rel_prefix: ACME\nrepos: []\n")
+    schema = resolve_schema(str(config), env={"HINDSIGHT_MCP_NODE_PREFIX": "Replay"})
+    assert schema.repo == "ReplayRepo"
+    assert schema.resolves == "ACME_RESOLVES"
+
+    other = resolve_schema(str(config), env={"HINDSIGHT_MCP_REL_PREFIX": "REPLAY"})
+    assert other.repo == "AcmeRepo"
+    assert other.resolves == "REPLAY_RESOLVES"
+
+
+def test_an_empty_prefix_variable_is_not_a_prefix(tmp_path):
+    """``NODE_PREFIX= hindsight-web`` says "not this one", not "label me Repo"."""
+    config = tmp_path / "org.yaml"
+    config.write_text("schema:\n  node_prefix: Acme\n  rel_prefix: ACME\nrepos: []\n")
+    schema = resolve_schema(str(config), env={"HINDSIGHT_MCP_NODE_PREFIX": ""})
+    assert schema.repo == "AcmeRepo"
+    assert resolve_schema(None, env={"HINDSIGHT_MCP_REL_PREFIX": ""}).resolves == (
+        "HS_RESOLVES"
+    )
+
+
+def test_without_a_config_the_console_defaults_to_what_ingest_writes():
+    assert resolve_schema(None, env={}).repo == "HsRepo"

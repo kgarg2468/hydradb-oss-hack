@@ -112,10 +112,20 @@ as real.
 
 ## 4. Run the console
 
+The console defaults to the ingest pipeline's `Hs*` / `HS_*` labels. The seeded
+demo is intentionally isolated under `Replay*` / `REPLAY_*`, so select it with
+the same prefix variables used by the MCP server:
+
 ```bash
+export HINDSIGHT_MCP_NODE_PREFIX=Replay
+export HINDSIGHT_MCP_REL_PREFIX=REPLAY
 python3 -m hindsight_web                  # http://127.0.0.1:8080
 python3 -m hindsight_web --port 9000 --reload
 ```
+
+Startup prints every resolved node label and relationship type. If the exports
+are missing or misspelled, the namespace mismatch is visible before the first
+request instead of looking like an empty dataset.
 
 Measured against the seeded dataset:
 
@@ -210,7 +220,7 @@ you want them on screen.
 ## 7. Tests
 
 ```bash
-pytest tests/unit                    # 893 tests, no node required
+pytest tests/unit                    # 900 tests, no node required
 pytest tests/integration             # 86 against a live node
 ruff check .
 ```
