@@ -14,10 +14,30 @@ GREPTILE_GRACE=$(( $(date +%s) + 8 * 60 ))  # stop waiting for greptile alone af
 
 echo "[pr-monitor] watching PR #$PR (timeout ${TIMEOUT_MIN}m)" >&2
 
-HEADSHA=$(gh pr view "$PR" --json headRefOid --jq .headRefOid)
+HEADSHA=""
 
 while :; do
   NOW=$(date +%s)
+  # Re-read the head every poll. A push takes a moment to become visible to the
+  # API, so a SHA sampled once at startup can be one commit stale for the whole
+  # run — and then every filter below keys off the wrong commit and the report
+  # is a list of findings that are already fixed. When the head moves, the
+  # Greptile clock restarts: the new commit deserves its own review.
+  SEEN=$(gh pr view "$PR" --json headRefOid --jq .headRefOid 2>/dev/null || echo "")
+  if [ -n "$SEEN" ] && [ "$SEEN" != "$HEADSHA" ]; then
+    [ -n "$HEADSHA" ] && echo "[pr-monitor] head moved $HEADSHA -> $SEEN; restarting greptile grace" >&2
+    HEADSHA="$SEEN"
+    GREPTILE_GRACE=$(( NOW + 8 * 60 ))
+  fi
+  if [ -z "$HEADSHA" ]; then
+    if [ "$NOW" -gt "$DEADLINE" ]; then
+      echo "[pr-monitor] timeout with no readable head SHA; giving up" >&2
+      exit 1
+    fi
+    sleep 15
+    continue
+  fi
+
   TOTAL_CHECKS=$(gh pr checks "$PR" --json state --jq 'length' 2>/dev/null || echo 0)
   PENDING=$(gh pr checks "$PR" --json state --jq '[.[] | select(.state=="PENDING" or .state=="QUEUED" or .state=="IN_PROGRESS")] | length' 2>/dev/null || echo 1)
   # Only count Greptile reviews of the CURRENT head commit; stale reviews of
