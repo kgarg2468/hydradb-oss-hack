@@ -50,7 +50,9 @@ from __future__ import annotations
 import argparse
 import gzip
 import json
+import os
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -487,8 +489,17 @@ def write_dataset(path: Path, dataset: Dataset, rowset_summary: dict[str, int]) 
     # a source that raises on the last repository -- would otherwise leave a
     # truncated gzip there, and the failure a user meets is not the export they
     # cancelled but a seed that reads short and demonstrates less than it should.
+    # The staging name is unique per run rather than a fixed ".partial". Two
+    # exports to one destination are unlikely by hand, but a shared name makes
+    # them corrupt each other rather than merely race: the cleanup below would
+    # delete the other run's file, and its rename would land a half-written gzip
+    # on the destination this staging step exists to protect.
     path.parent.mkdir(parents=True, exist_ok=True)
-    staging = path.with_name(path.name + ".partial")
+    handle, name = tempfile.mkstemp(
+        dir=path.parent, prefix=path.name + ".", suffix=".partial"
+    )
+    os.close(handle)
+    staging = Path(name)
     try:
         with staging.open("wb") as raw:
             with gzip.GzipFile(

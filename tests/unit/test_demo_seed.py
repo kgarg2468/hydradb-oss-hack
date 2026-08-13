@@ -323,6 +323,32 @@ def test_a_failed_export_leaves_the_previous_artifact_intact(tmp_path):
     assert not list(tmp_path.glob("*.partial"))
 
 
+def test_two_exports_to_one_destination_do_not_share_a_staging_file(
+    tmp_path, monkeypatch
+):
+    """A fixed staging name turns an unlikely race into a corrupted artifact.
+
+    Both runs would write the same file, the first to finish would rename a
+    half-written gzip into place, and the loser's cleanup would delete a file it
+    did not create.
+    """
+    path = tmp_path / "demo.jsonl.gz"
+    seen = []
+
+    class Watching(gzip.GzipFile):
+        def __init__(self, *a, fileobj=None, **kw):
+            seen.append(Path(fileobj.name))
+            super().__init__(*a, fileobj=fileobj, **kw)
+
+    monkeypatch.setattr(seed.gzip, "GzipFile", Watching)
+    seed.write_dataset(path, _tiny_dataset(), {"repos": 2})
+    seed.write_dataset(path, _tiny_dataset(), {"repos": 2})
+
+    assert len(seen) == 2
+    assert seen[0] != seen[1]
+    assert not list(tmp_path.glob("*.partial"))
+
+
 class EmptySourceClient:
     def paged_rows(self, *args, **kwargs):
         return [], False
