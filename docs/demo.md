@@ -113,7 +113,7 @@ as real.
 ## 4. Run the console
 
 ```bash
-python3 -m hindsight_web                  # http://127.0.0.1:8000
+python3 -m hindsight_web                  # http://127.0.0.1:8080
 python3 -m hindsight_web --port 9000 --reload
 ```
 
