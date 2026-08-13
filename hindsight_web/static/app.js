@@ -413,10 +413,14 @@
       if (at !== state.at) { return; }
       state.ranking = data.ranking;
       state.rankingMeta = data;
+      state.rankingMetaAt = at;
       renderReach();
       renderDiagnostics();
     }).catch(function (err) {
-      if (at === state.at) { state.rankingMeta = null; renderDiagnostics(); }
+      if (at !== state.at) { return; }
+      state.rankingMeta = null;
+      state.rankingMetaAt = null;
+      renderDiagnostics();
       $('reach-note').textContent = 'failed';
       $('reach-note').className = 'card-note partial';
       $('reach-note').title = clean(err.message);
@@ -1202,7 +1206,7 @@
     var wrap = $('diag');
     var health = state.health;
     var exposure = state.exposure;
-    var rank = state.rankingMeta;
+    var rank = state.rankingMetaAt === state.at ? state.rankingMeta : null;
     wrap.innerHTML = '';
 
     function row(key, value, cls) {
