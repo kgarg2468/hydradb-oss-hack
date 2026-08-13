@@ -21,10 +21,17 @@ Full qualifying context, because every one of these changes the number:
 - the corpus is **synthetic**, replayed from 86,380 real lockfile intervals; the
   real-data corpus is 9 repositories and answers in **8.1 ms p95**.
 
-A second result worth the same attention: the **version-anchored** form of the
-same question stays flat all the way to 250 repositories — **46.3 ms p95 across
-250 repos / 2,364,161 edges** — and it is the shape the product should ship for
-large orgs.
+A second result worth the same attention: the **incident sweep** — "did any repo
+resolve one of these 24 compromised versions at T" — stays flat all the way to
+250 repositories, **46.3 ms p95 across 250 repos / 2,364,161 edges**. That is
+the question this product exists to answer, so it is the one that had to scale.
+
+It would be easy to read that as "anchor on versions instead of packages and
+everything is fast." It is not, and we checked: the anchored fan-out over a
+*popular* package is no faster than the join it replaces. The sweep is flat
+because compromised versions are held by almost nobody, not because of the query
+shape. What scales here is low fan-out per version; see
+[The obvious mitigation does not work](#the-obvious-mitigation-does-not-work--we-built-it-and-measured-it).
 
 ---
 
@@ -160,6 +167,13 @@ next point is any kinder.
 `repos_resolving_version` per version. 13 of the 24 have a node in the graph;
 the other 11 are answered as proven absences by an id probe. Same answer as the
 package-anchored route — 7 exposed repositories at N250 by either.
+
+These are warm figures and the gap to cold is wider here than anywhere else in
+this document: re-run against a cache the other benchmarks had churned, the same
+24-version sweep at N250 costs **1,090 ms** — the 11 absent versions 1–12 ms
+each, the 13 present ones 80–122 ms each. Warm is the right number for a console
+where an analyst scrubs a timeline over one instant repeatedly, but the first
+question of an incident is asked cold.
 
 | corpus | repos | RESOLVES edges | rows | exposed repos | n | p50 ms | **p95 ms** | p99 ms | process-cold ms |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -359,19 +373,73 @@ should treat it as unattributed; only the *behaviour* above is measured.
 and 5,164.3 ms when it holds 2,364,161, while the id-anchored
 `MATCH (r:R)-[e:R2]->(v:V {id: $y})` over the same data stays at 9.0 ms.
 
-### The mitigation is already in the product's grain
+### The obvious mitigation does not work — we built it and measured it
 
-The incident question does not need the package-anchored shape.
-`hindsight.ids.version_id(package, version)` is a hash, so the application
-already knows the id of every malicious version without a lookup, and
-`repos_resolving_version` enters through it. That is the version-anchored sweep
-above: flat to 250 repositories, same answer.
+An earlier draft of this document claimed the fix was already in the product's
+grain: resolve the package's version ids in the application, then issue one
+id-anchored `repos_resolving_version` per id, since id-anchored reads were the
+ones that stayed flat. That claim was wrong, and it is left here in corrected
+form rather than quietly deleted, because the reasoning that produced it is the
+reasoning a reader is likely to repeat.
 
-What the package-anchored query buys that the version-anchored one does not is
-the *negative* — "you resolved chalk 5.6.0, which is not on the list, and had
-pinned it four days before the attack". That is the console's most valuable
-output and it is the shape that degrades. Resolving a package's version ids in
-the application and issuing one anchored read per version is the top follow-up.
+We implemented the fan-out and measured it against the same node and corpora:
+
+| corpus | one join | fan-out (1 version-list read + one anchored read per version) |
+|---|---:|---:|
+| N100 | 30.6 ms | 43.4 ms |
+| N250 | 3,693.2 ms | 3,727.4 ms |
+
+Identical answers both ways — 392 rows at N100, 988 at N250 — so this is a
+performance comparison and not a correctness one. The fan-out is **a regression
+at N100** (17 extra HTTP round trips on a client with no keep-alive) and **makes
+no difference at N250**.
+
+The per-version breakdown at N250 says why. `debug` has 17 version nodes; the
+version-list read costs 26.6 ms and the seventeen anchored reads cost 3,711 ms
+between them:
+
+| version | rows | anchored read |
+|---|---:|---:|
+| `debug@4.3.4` | 139 | 417.0 ms |
+| `debug@2.6.9` | 195 | 377.7 ms |
+| `debug@4.4.1` | 167 | 360.9 ms |
+| `debug@4.3.6` | **0** | 219.8 ms |
+| `debug@4.3.3` | **0** | 65.1 ms |
+| `debug@3.1.0` | 28 | 46.2 ms |
+
+The rows that matter most are the ones returning **nothing** for 65–220 ms. A
+read that produces no rows still pays, so the cost is not in the join, not in
+DISTINCT, and not in materialising a result — **it is in expanding the RESOLVES
+relationship type from a bound node once that type is large**, and entering
+through an id does not avoid it. The two-pattern join is not the disease; it is
+one symptom.
+
+**Then why is the version-anchored incident sweep flat?** Because the versions
+it asks about are rare, not because the shape is better. Sweeping all 24
+malicious versions at N250 as separate anchored reads, cold, costs 1,090 ms
+total: 11 of the 24 have no version node in this corpus at all and cost 1–12 ms
+each (a miss is an id lookup, not a scan), and the 13 that exist return 7 rows
+each for 80–122 ms. The sweep is fast because a compromised version is held by
+almost nobody. Warm — which is what the 46.3 ms p95 figure above is — the whole
+sweep sits in cache.
+
+So the honest statement of what scales and what does not is about **fan-out per
+version, not query shape**: reads over versions that few repositories resolved
+stay fast at 2.36 M edges, and reads over versions that many repositories
+resolved do not, however they are anchored. The incident question — "who
+resolved one of these 24 versions" — is intrinsically the first kind, which is
+lucky for this product and is *why* the headline holds. The general question —
+"who resolved any version of `debug`" — is intrinsically the second kind, and no
+rewrite we found makes it fast.
+
+That leaves the negative — "you resolved chalk 5.6.0, which is not on the list,
+and had pinned it four days before the attack" — costly at 250 repositories.
+It is the console's most valuable output and we do not have a fix for it at that
+size. Real candidates, none of them measured: a per-repo entry point (repos are
+few and their edges are anchored), a narrower relationship type per package so
+each type stays small, or an ingest-time materialisation of current resolutions.
+Recording this as unsolved is more useful than shipping a rewrite that moved the
+number by 1 %.
 
 ---
 
