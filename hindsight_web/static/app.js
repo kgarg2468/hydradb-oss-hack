@@ -613,8 +613,11 @@
   function renderRepos(d) {
     var wrap = $('repos');
     wrap.innerHTML = '';
-    $('evidence-title').textContent =
-      'Repositories (' + count(d.counts.repos, d.truncated) + ')';
+    /* Not "(0)": zero is a measurement, and nothing was measured. The stat
+       blocks already render "?" for the same reason. */
+    $('evidence-title').textContent = unanswerable(d)
+      ? 'Repositories'
+      : 'Repositories (' + count(d.counts.repos, d.truncated) + ')';
 
     /* Every row would read "no committed lockfile in this repository resolved
        this package", which is a per-repository negative and would be a lie for
