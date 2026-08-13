@@ -46,6 +46,17 @@ from dataclasses import dataclass, field, replace
 
 from hindsight import queries
 from hindsight.client import HydraClient
+# Re-exported below rather than defined here: whether a dataset can answer at
+# all is a property of the dataset, so the MCP server has to decide it the same
+# way, and core is the only package both surfaces may import.
+from hindsight.coverage import (
+    EMPTY_DATASET,
+    NO_INGESTED_HISTORY,
+    UNANSWERABLE_NOTES,
+    UNREACHABLE,
+    Coverage,
+    coverage_of,
+)
 from hindsight.graphbuild import Schema
 from hindsight.ids import maintainer_id, package_id, version_id
 from hindsight.queries import Query
@@ -78,107 +89,8 @@ MAX_RANKED_MAINTAINERS = 400
 #: numbers the demo quotes.
 RANK_WORKERS = 6
 
-#: Why a dataset cannot answer a question at all. Deliberately a short list:
-#: these are the ways a read comes back with nothing to *say*, as opposed to the
-#: ways it comes back saying "no". They are not verdicts and must never be
-#: rendered as one.
-EMPTY_DATASET = "empty_dataset"
-NO_INGESTED_HISTORY = "no_ingested_history"
-UNREACHABLE = "unreachable"
-
-#: The sentence that replaces the proven-negative prose when coverage is absent.
-#: These strings are the honest counterpart of
-#: :data:`~hindsight_web.analysis.TRUNCATION_CAVEAT` and are held to the same
-#: rule: nothing here may imply anything about a running system.
-UNANSWERABLE_NOTES = {
-    EMPTY_DATASET: (
-        "this dataset contains no repositories, so no question can be answered "
-        "from it. Nothing was checked against this package and nothing was "
-        "found to be absent: the counts below are the size of an empty dataset, "
-        "not a result. Point the console at a seeded dataset before reading "
-        "anything into them"
-    ),
-    NO_INGESTED_HISTORY: (
-        "this dataset lists repositories but not one of them carries a finished "
-        "ingest watermark, so no lockfile history has been loaded for any of "
-        "them. Every repository would read as 'did not resolve this package' "
-        "purely because its history is missing, which is a gap in coverage and "
-        "not a negative result"
-    ),
-    UNREACHABLE: (
-        "the node did not answer, so this dataset could not be read at all. "
-        "Nothing below is a statement about this package"
-    ),
-}
-
-
 class ConsoleError(Exception):
     """A request the console can explain rather than a stack trace."""
-
-
-@dataclass(frozen=True)
-class Coverage:
-    """Whether a dataset is in a position to answer anything at all.
-
-    The console's whole value is the strength of its negative: "no repository
-    resolved this, and here is the interval that proves it". That claim is only
-    available when the dataset is *known to be populated*. Pointed at an empty
-    or mis-pointed label namespace, every count is zero and every repository is
-    NOT_RESOLVED, which renders identically to a genuinely clean estate and, for
-    an incident responder, converts a configuration mistake into an all-clear.
-
-    So coverage travels with the answer, next to ``truncated`` and distinct from
-    it. The two failure modes are not the same shape and must not be collapsed:
-    truncation means *we saw some of the graph*, and absent coverage means *we
-    saw none of it*. A truncated read still knows how many repositories exist;
-    an empty dataset does not know anything.
-    """
-
-    answerable: bool
-    reason: str | None
-    repo_count: int
-    ingested_repo_count: int
-
-    @property
-    def note(self) -> str | None:
-        return UNANSWERABLE_NOTES.get(self.reason) if self.reason else None
-
-    def as_dict(self) -> dict:
-        """The fields every answer carries, additive to the existing shape."""
-        return {
-            "answerable": self.answerable,
-            "unanswerable_reason": self.reason,
-            "unanswerable_note": self.note,
-            "coverage": {
-                "repo_count": self.repo_count,
-                "ingested_repo_count": self.ingested_repo_count,
-            },
-        }
-
-
-def coverage_of(
-    repo_count: int, ingested_repo_count: int, *, reachable: bool = True
-) -> Coverage:
-    """The one place the answerable predicate is decided.
-
-    Identical by construction to ``health()``'s ``seeded``, because a header
-    that reads "0 repos" beside an answer strip that reads "not resolved by any
-    repository" is the contradiction this function exists to remove.
-    """
-    if not reachable:
-        reason = UNREACHABLE
-    elif repo_count <= 0:
-        reason = EMPTY_DATASET
-    elif ingested_repo_count <= 0:
-        reason = NO_INGESTED_HISTORY
-    else:
-        reason = None
-    return Coverage(
-        answerable=reason is None,
-        reason=reason,
-        repo_count=max(0, repo_count),
-        ingested_repo_count=max(0, ingested_repo_count),
-    )
 
 
 @dataclass
@@ -256,6 +168,13 @@ class Console:
     #: is not stuck refusing to answer.
     _ingested: set[str] | None = field(default=None, repr=False)
     _ingested_at: float = field(default=0.0, repr=False)
+    #: The two counts behind the coverage verdict, cached separately from the
+    #: lists above because they answer a different question -- "is there
+    #: anything here", which a row cap must not be able to answer wrongly.
+    _repo_count: int | None = field(default=None, repr=False)
+    _repo_count_at: float = field(default=0.0, repr=False)
+    _mark_count: int | None = field(default=None, repr=False)
+    _mark_count_at: float = field(default=0.0, repr=False)
     _watermarks_truncated: bool = field(default=False, repr=False)
 
     # ------------------------------------------------------------------ plumbing
@@ -348,20 +267,41 @@ class Console:
         self._watermarks_truncated = truncated
         return found
 
+    def dataset_counts(self, *, refresh: bool = False) -> tuple[int, int]:
+        """How many repositories exist, and how many finished an ingest.
+
+        Two ``count(*)`` reads rather than the directory and watermark *lists*,
+        because the verdict built on them is the one a row cap can silently
+        invert: past the cap the two lists can come back with no slug in common,
+        and a dataset large enough to matter reports that none of its
+        repositories carry any history. A count returns one row whatever the
+        label holds, so there is nothing to truncate.
+
+        Cached on the same terms as the directory: a populated read expires, an
+        empty one is not cached at all.
+        """
+        repos_q, marks_q = queries.dataset_counts(self.schema)
+        if self._repo_count is None or refresh or not self._fresh(self._repo_count_at):
+            rows, _ = self._rows(repos_q)
+            self._repo_count = (int(rows[0]["count"]) if rows else 0) or None
+            self._repo_count_at = self.clock()
+        if self._mark_count is None or refresh or not self._fresh(self._mark_count_at):
+            rows, _ = self._rows(marks_q)
+            self._mark_count = (int(rows[0]["count"]) if rows else 0) or None
+            self._mark_count_at = self.clock()
+        return self._repo_count or 0, self._mark_count or 0
+
     def coverage(self, *, refresh: bool = False) -> Coverage:
         """Can this dataset answer a question, and if not, why not.
 
-        Two cached reads, shared with :meth:`health`, so threading this through
+        Two cached counts, shared with :meth:`health`, so threading this through
         the answer path costs the scrubber nothing after the first request.
         Errors are *not* swallowed here: a node that refuses the query already
         reaches the browser as a 502, which is itself a refusal to answer.
         :meth:`health` is the one place a failed read becomes a reported state
         rather than an exception.
         """
-        repos = self.repositories(refresh=refresh)
-        slugs = {r.slug for r in repos}
-        ingested = self.ingested_slugs(refresh=refresh)
-        return coverage_of(len(repos), len(ingested & slugs))
+        return coverage_of(*self.dataset_counts(refresh=refresh))
 
     def maintainers(self) -> tuple[list[dict], bool]:
         """Every maintainer account, and whether that list is complete."""
@@ -823,6 +763,7 @@ class Console:
         try:
             repos = self.repositories(refresh=True)
             ingested = self.ingested_slugs(refresh=True)
+            counts = self.dataset_counts(refresh=True)
             truncated = self._repos_truncated or self._watermarks_truncated
             if count_edges:
                 edges = 0
@@ -834,11 +775,9 @@ class Console:
             reachable = True
             error = None
         except Exception as exc:  # noqa: BLE001 - reported, never raised, to the UI
-            repos, ingested, reachable, error = [], set(), False, str(exc)
+            repos, ingested, counts, reachable, error = [], set(), (0, 0), False, str(exc)
         slugs = {r.slug for r in repos}
-        coverage = coverage_of(
-            len(repos), len(ingested & slugs), reachable=reachable
-        )
+        coverage = coverage_of(*counts, reachable=reachable)
         return {
             "reachable": reachable,
             "error": error,
@@ -853,9 +792,13 @@ class Console:
                 "watermark": self.schema.watermark,
                 "resolves": self.schema.resolves,
             },
-            "repo_count": len(repos),
+            # The counts are the counted ones, not the lengths of two lists a
+            # row cap may have shortened. ``unwatermarked_repos`` stays
+            # list-derived because it is a list of names and can only be as
+            # complete as the read that produced it, which ``truncated`` says.
+            "repo_count": counts[0],
             "synthetic_repo_count": sum(1 for r in repos if r.synthetic),
-            "ingested_repo_count": len(ingested & slugs),
+            "ingested_repo_count": counts[1],
             "unwatermarked_repos": sorted(slugs - ingested),
             "resolves_edges": edges,
             "incident": self.incident.title,
@@ -863,7 +806,7 @@ class Console:
             # is the same predicate, reached through the same function the
             # answer path uses, so the header and the answer strip cannot
             # disagree about whether this dataset holds anything.
-            "seeded": bool(repos) and bool(ingested & slugs),
+            "seeded": coverage.answerable,
             **completeness(truncated),
             **coverage.as_dict(),
         }

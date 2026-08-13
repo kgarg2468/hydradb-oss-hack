@@ -5,7 +5,7 @@ the interesting behaviour — the read-only guard, the row cap, the honesty
 fields — is testable by calling plain Python functions, and the server module
 stays a thin registration layer.
 
-Two rules are enforced at this layer and nowhere else:
+Three rules are enforced at this layer and nowhere else:
 
 **Nothing writes.** Every agent-supplied statement goes through
 :func:`hindsight_mcp.guard.assert_read_only` before it reaches the client, and
@@ -19,16 +19,28 @@ result derived from those edges therefore carries ``evidence: "resolved"`` and
 an explicit caveat, and no field in this module is named or phrased as though it
 described a deployment. That is a product requirement, not decoration: the whole
 value of the tool is being trusted during an incident.
+
+**Nothing states a negative it cannot back.** A tool that answers "nothing
+resolved this, and that is a proven negative" is worth having only when the
+dataset was in a position to say otherwise. Against an empty or mis-pointed
+label namespace every read comes back empty and that sentence turns a
+configuration mistake into "you were not exposed" — which is worse here than in
+the console, because the agent has no screen on which to notice the empty page
+and will relay the sentence verbatim. So every answer below carries the
+:class:`~hindsight.coverage.Coverage` verdict, decided by the same core
+predicate the console uses, and no refusal is dressed up as a result.
 """
 
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from hindsight import queries
 from hindsight.client import HydraClient, HydraError
+from hindsight.coverage import Coverage, coverage_of
 from hindsight.graphbuild import DEFAULT_SCHEMA, Schema
 from hindsight.ids import maintainer_id, package_id, repo_id, version_id
 from hindsight.queries import Query, UnknownKind, normalise_kind
@@ -175,6 +187,19 @@ class Hindsight:
     client: HydraClient = field(default_factory=HydraClient.from_env)
     schema: Schema = DEFAULT_SCHEMA
     limits: Limits = field(default_factory=Limits)
+    #: How long a populated coverage read stays good for. The graph is written
+    #: by a separate ingest process, so a cached count is a claim about when this
+    #: server last looked, and this is how long that is allowed to go unsaid.
+    #: Deliberately the console's window: two surfaces that tolerate different
+    #: amounts of staleness can disagree about whether the same graph is
+    #: answerable, which is the disagreement this whole mechanism exists to stop.
+    cache_ttl: float = 30.0
+    #: Injected so the expiry is testable without sleeping.
+    clock: Callable[[], float] = time.monotonic
+    _repos: int | None = field(default=None, repr=False)
+    _repos_at: float = field(default=0.0, repr=False)
+    _ingested: int | None = field(default=None, repr=False)
+    _ingested_at: float = field(default=0.0, repr=False)
 
     # ------------------------------------------------------------------ plumbing
 
@@ -218,6 +243,53 @@ class Hindsight:
         if rows:
             out["properties"] = rows[0]
         return out
+
+    # ------------------------------------------------------------------ coverage
+
+    def _fresh(self, read_at: float) -> bool:
+        """Is a cached dataset read still inside its window?"""
+        return self.clock() - read_at < self.cache_ttl
+
+    def _count(self, query: Query) -> int:
+        rows, _ = self._dicts(query)
+        return int(rows[0]["count"]) if rows else 0
+
+    def coverage(self) -> Coverage:
+        """Can this dataset answer a question at all, and if not, why not.
+
+        Two ``count(*)`` reads, cached, because every tool below needs the same
+        verdict and an agent works through several of them in a row.
+
+        Counts and not lists. Reading the directory and the watermarks as rows
+        and intersecting their slugs is the obvious implementation and it breaks
+        at exactly the scale where it matters: past the row cap the two reads
+        can return pages with nothing in common, and a dataset holding a hundred
+        thousand repositories is declared to hold no ingested history at all.
+        Nothing about "is there anything here" needs the rows, and a count of
+        one row cannot be truncated.
+
+        Nothing is cached while the answer is *nothing*, matching the console:
+        the two directions of staleness are not equivalent, since a count short
+        by one costs a number and an empty one withholds every answer this
+        server has. An agent session outliving an ingest must not be stuck
+        refusing questions the graph can now answer.
+
+        A failed read is deliberately not caught: the server already turns a
+        :class:`HydraError` into a tool error the agent can act on, which is
+        itself a refusal to answer, whereas swallowing it here would manufacture
+        exactly the confident-sounding empty result this method exists to
+        prevent.
+        """
+        repos_q, marks_q = queries.dataset_counts(self.schema)
+        if self._repos is None or not self._fresh(self._repos_at):
+            found = self._count(repos_q)
+            self._repos = found or None
+            self._repos_at = self.clock()
+        if self._ingested is None or not self._fresh(self._ingested_at):
+            found = self._count(marks_q)
+            self._ingested = found or None
+            self._ingested_at = self.clock()
+        return coverage_of(self._repos or 0, self._ingested or 0)
 
     # --------------------------------------------------------------------- tools
 
@@ -263,12 +335,18 @@ class Hindsight:
     def resolve_id(self, kind: str, name: str) -> dict:
         """Name -> id, so an agent can write id-anchored Cypher of its own."""
         node = self._node(kind, name)
+        coverage = self.coverage()
         node["how_to_use"] = (
             f"pass id={node['id']} as a parameter and anchor the pattern on it, "
             f"e.g. MATCH (n:{node['label']} {{id: $id}}) ..."
         )
+        node.update(coverage.as_dict())
         if not node["exists"]:
-            node["note"] = (
+            # "This name has never been ingested" is a claim about the history
+            # that was loaded, and an empty namespace has none: there, the
+            # sentence is true of every name that has ever existed, which makes
+            # it worthless and, stated to an agent, misleading.
+            node["note"] = coverage.note if not coverage.answerable else (
                 f"the id is well-defined — ids are derived from the name, not "
                 f"allocated — but no {node['label']} node with it is in the "
                 "graph, so this name has never been ingested"
@@ -287,6 +365,11 @@ class Hindsight:
         chalk@5.6.1 during the two-hour window" — and it can prove a negative:
         an empty ``repos`` list with ``version_known: true`` means the version
         exists in the graph and nothing resolved it then.
+
+        That proof is conditional on ``answerable``. Read before the traversal
+        because it decides whether this answer is allowed to contain a verdict at
+        all: an empty ``repos`` list from a dataset holding no repositories is
+        not a negative, it is the absence of a question.
         """
         if at_timestamp is None:
             raise ToolInputError(
@@ -294,6 +377,7 @@ class Hindsight:
                 "no sensible default instant"
             )
         at = to_epoch(at_timestamp, field_name="at_timestamp")
+        coverage = self.coverage()
         if version:
             anchor = self._node("version", f"{package}@{version}")
             query = queries.repos_resolving_version(self.schema, anchor["id"], at)
@@ -325,8 +409,16 @@ class Hindsight:
             "truncated": truncated,
             "evidence": EVIDENCE,
             "caveat": CAVEAT,
+            **coverage.as_dict(),
         }
-        if not anchor["exists"]:
+        if not coverage.answerable:
+            # An absence is only evidence when there was something for it to be
+            # absent from. Without coverage there is no negative to state, proven
+            # or otherwise, so the note says what is missing rather than what was
+            # found — and says it in the console's words, so that an agent and a
+            # responder reading over its shoulder are told the same thing.
+            out["note"] = coverage.note
+        elif not anchor["exists"]:
             out["note"] = (
                 f"no {anchor['label']} node for {anchor['name']!r} is in the graph "
                 "at all, so no repository has ever resolved it. This is a real "
@@ -352,6 +444,7 @@ class Hindsight:
                 "at_timestamp is required: blast radius is only meaningful at an instant"
             )
         at = to_epoch(at_timestamp, field_name="at_timestamp")
+        coverage = self.coverage()
         anchor = self._node("package", package)
         matches, truncated = self._dicts(
             queries.repos_resolving_package(self.schema, anchor["id"], at)
@@ -387,8 +480,14 @@ class Hindsight:
             "truncated": truncated,
             "evidence": EVIDENCE,
             "caveat": CAVEAT,
+            **coverage.as_dict(),
         }
-        if not anchor["exists"]:
+        if not coverage.answerable:
+            # Zero repositories, zero versions, zero resolutions: the shape of a
+            # package that reaches nothing, and the shape of a dataset that holds
+            # nothing. The counts cannot tell them apart, so the note must.
+            out["note"] = coverage.note
+        elif not anchor["exists"]:
             out["note"] = (
                 f"no {anchor['label']} node for {package!r} is in the graph, so its "
                 "blast radius here is empty by construction, not by measurement"
@@ -409,6 +508,7 @@ class Hindsight:
         at = int(time.time()) if at_timestamp is None else to_epoch(
             at_timestamp, field_name="at_timestamp"
         )
+        coverage = self.coverage()
         anchor = self._node("maintainer", maintainer)
         owned, owned_truncated = self._dicts(
             queries.maintained_packages(self.schema, anchor["id"])
@@ -442,7 +542,7 @@ class Hindsight:
             key=lambda r: (-r["package_count"], r["slug"]),
         )
 
-        return {
+        out = {
             "question": "which packages and repositories does this account reach",
             "maintainer": maintainer,
             **_at_instant(at),
@@ -460,7 +560,14 @@ class Hindsight:
             "evidence": EVIDENCE,
             "caveat": CAVEAT,
             "maintainer_caveat": MAINTAINER_CAVEAT,
+            **coverage.as_dict(),
         }
+        if not coverage.answerable:
+            # A reach of zero is the most reassuring number this tool returns —
+            # "if this account were phished tomorrow, nothing of ours moves" —
+            # and it is what an unread dataset returns for every account alike.
+            out["note"] = coverage.note
+        return out
 
 
 __all__ = [

@@ -100,6 +100,8 @@ class FakeReader:
         "repo_directory",
         "maintainer_directory",
         "watermarks",
+        "repo_count",
+        "watermark_count",
         "resolves_edge_count",
         "maintainers_of_package",
         "package_exists",
@@ -153,8 +155,17 @@ class FakeReader:
         if projection.startswith("w.slug"):
             return "watermarks", [[slug, 1_700_000_000] for slug in self.watermarked]
         if projection == "count(*)":
-            assert keys == {"rid"}
-            return "resolves_edge_count", [[RESOLVES_PER_REPO]]
+            # Three statements share this projection. The anchored one carries a
+            # repository id; the other two are the coverage counts, which are
+            # told apart by the label they scan. They are answered from the same
+            # fixtures as the directory and watermark reads, because a fake in
+            # which the count and the list disagree is testing nothing real.
+            if keys == {"rid"}:
+                return "resolves_edge_count", [[RESOLVES_PER_REPO]]
+            assert not keys
+            if "Watermark" in cypher:
+                return "watermark_count", [[len(self.watermarked)]]
+            return "repo_count", [[len(self.repos)]]
         if projection == "m.name":
             return "maintainers_of_package", [
                 list(r) for r in MAINTAINED_BY_PACKAGE.get(p["pid"], [])
@@ -412,16 +423,19 @@ def test_health_reads_watermarks_and_does_not_count_edges():
     assert health["ingested_repo_count"] == 2
     assert health["unwatermarked_repos"] == ["axios/axios"]
     assert health["resolves_edges"] is None
-    assert not [s for s, _ in reader.statements if "count(*)" in s]
+    # The counts health does run are two label scans over a handful of nodes.
+    # The one it must not run is the anchored edge count, which is the ~9 s one
+    # and is the only count that carries a repository id.
+    assert not [p for s, p in reader.statements if "count(*)" in s and "rid" in p]
+    assert len([s for s, _ in reader.statements if "count(*)" in s]) == 2
 
 
 def test_health_counts_edges_only_when_asked():
     reader = FakeReader()
     health = console(reader=reader).health(count_edges=True)
     assert health["resolves_edges"] == RESOLVES_PER_REPO * 3
-    counts = [p for s, p in reader.statements if "count(*)" in s]
+    counts = [p for s, p in reader.statements if "count(*)" in s and "rid" in p]
     assert len(counts) == 3
-    assert all("rid" in p for p in counts)
 
 
 def test_a_dataset_with_no_watermark_is_not_reported_as_seeded():
@@ -772,8 +786,12 @@ def test_coverage_is_read_once_and_shared_with_every_answer():
     view = console(reader=reader)
     for _ in range(3):
         view.exposure("chalk", AT)
-    assert sum(1 for s, _ in reader.statements if "RETURN w.slug" in s) == 1
+    counts = [s for s, p in reader.statements if "count(*)" in s and "rid" not in p]
+    assert len(counts) == 2
     assert sum(1 for s, _ in reader.statements if "RETURN r.id" in s) == 1
+    # The watermark list is not on the answer path at all any more: coverage
+    # counts them, and only health needs to name the ones that are missing.
+    assert not [s for s, _ in reader.statements if "RETURN w.slug" in s]
 
 
 def test_a_populated_dataset_read_expires_rather_than_outliving_the_dataset():

@@ -30,13 +30,38 @@ EXPECTED_TOOLS = {
 
 
 class FakeClient:
+    """One row for anything, plus the two counts behind the coverage verdict.
+
+    Without those two the dataset reads as empty and every tool below would be
+    exercised on its refusal path, which is not what these tests are about.
+    """
+
     def __init__(self):
         self.calls = []
 
     def query(self, cypher, parameters=None, **kw):
         self.calls.append(cypher)
-        return {"columns": ["n.name"], "rows": [[{"type": "string", "value": "chalk"}]],
-                "next_cursor": None}
+        if "count(*)" in cypher:
+            rows = [[1]]
+        elif "RETURN r.id" in cypher:
+            rows = [[1, "repo/a"]]
+        elif "RETURN w.slug" in cypher:
+            rows = [["repo/a", 100]]
+        else:
+            rows = [["chalk"]]
+        return {
+            "columns": ["n.name"],
+            "rows": [[{"type": "any", "value": cell} for cell in row] for row in rows],
+            "next_cursor": None,
+        }
+
+
+class EmptyClient(FakeClient):
+    """A node that answers every statement correctly and holds nothing."""
+
+    def query(self, cypher, parameters=None, **kw):
+        self.calls.append(cypher)
+        return {"columns": [], "rows": [], "next_cursor": None}
 
 
 @pytest.fixture
@@ -173,6 +198,31 @@ def test_a_canned_tool_returns_structured_content_with_its_caveat(server):
     assert result.is_error is False
     assert result.structured_content["evidence"] == "resolved"
     assert "lockfile resolution" in result.structured_content["caveat"]
+    assert result.structured_content["answerable"] is True
+
+
+def test_the_exposure_description_conditions_the_negative_it_promises(tools):
+    """The description is the only place the agent is told, before it calls,
+    that an empty result can also mean nobody ever loaded the dataset."""
+    description = tools["exposure_asof"].description
+    assert "proven negative" in description
+    assert "answerable: true" in description
+    assert "unanswerable_note" in description
+
+
+def test_a_tool_over_an_empty_dataset_refuses_rather_than_reporting_an_all_clear():
+    """The refusal has to survive into structured_content: that, and not the
+    prose the tool body composed, is what the agent reads and relays."""
+    server = build_server(
+        Hindsight(client=EmptyClient(), schema=SCHEMA, limits=Limits())
+    )
+    result = call(server, "exposure_asof", {"package": "chalk", "at_timestamp": 1000})
+    assert result.is_error is False
+    body = result.structured_content
+    assert body["answerable"] is False
+    assert body["unanswerable_reason"] == "empty_dataset"
+    assert "no question can be answered" in body["note"]
+    assert "proven negative" not in body["note"]
 
 
 def test_settings_come_from_the_environment():
