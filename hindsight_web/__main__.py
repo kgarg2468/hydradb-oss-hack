@@ -6,12 +6,16 @@
 Connection details come from the same environment variables the ingest CLI uses
 (``HINDSIGHT_HYDRA_URL`` / ``_TOKEN`` / ``_NS`` / ``_GRAPH`` / ``_CELL``), so the
 console and the pipeline can never be pointed at different nodes by accident.
+Label prefixes come from the MCP server's ``HINDSIGHT_MCP_NODE_PREFIX`` and
+``HINDSIGHT_MCP_REL_PREFIX`` variables and default to the ingest schema.
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
+
+from .queries import schema_from_env
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -35,7 +39,15 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 2
 
-    print(f"Hindsight console  http://{args.host}:{args.port}", flush=True)
+    schema = schema_from_env()
+    print(f"Hindsight console  http://{args.host}:{args.port}")
+    print(
+        "Label namespace    "
+        f"{schema.repo} / {schema.package} / {schema.version} / "
+        f"{schema.maintainer} / {schema.watermark}; "
+        f"{schema.resolves} / {schema.version_of} / {schema.maintains}",
+        flush=True,
+    )
     uvicorn.run(
         "hindsight_web.app:app",
         host=args.host,

@@ -8,13 +8,19 @@ should get a 502 with an actionable hint, and a typo in ``?at=`` should get a
 
 from __future__ import annotations
 
+import importlib
+import sys
+from types import SimpleNamespace
+
 import pytest
 from starlette.testclient import TestClient
 
 from hindsight.client import HydraError
+from hindsight.graphbuild import DEFAULT_SCHEMA
 from hindsight.ids import version_id
 from hindsight_web.analysis import TRUNCATION_CAVEAT
 from hindsight_web.app import DEFAULT_PACKAGE, build_app
+from hindsight_web import queries as web_queries
 
 from test_web_service import AT, FakeReader, console  # noqa: E402
 
@@ -50,6 +56,56 @@ def test_health_reports_the_schema_the_console_is_pointed_at(client):
     assert body["reachable"] is True
     assert body["seeded"] is True
     assert body["labels"]["repo"] == "ReplayTestRepo"
+
+
+def test_web_schema_defaults_to_the_ingest_namespace():
+    assert web_queries.schema_from_env({}) == DEFAULT_SCHEMA
+
+
+def test_web_schema_reads_the_mcp_prefix_environment_variables():
+    schema = web_queries.schema_from_env(
+        {
+            "HINDSIGHT_MCP_NODE_PREFIX": "Replay",
+            "HINDSIGHT_MCP_REL_PREFIX": "REPLAY",
+        }
+    )
+    assert schema.repo == "ReplayRepo"
+    assert schema.resolves == "REPLAY_RESOLVES"
+
+
+def test_default_app_uses_the_environment_configured_schema(monkeypatch):
+    import hindsight_web.app as web_app
+
+    def console_for_schema(*, schema, incident):
+        view = console()
+        view.schema = schema
+        view.incident = incident
+        return view
+
+    monkeypatch.setenv("HINDSIGHT_MCP_NODE_PREFIX", "WebTest")
+    monkeypatch.setenv("HINDSIGHT_MCP_REL_PREFIX", "WEBTEST")
+    monkeypatch.setattr(web_app, "Console", console_for_schema)
+
+    with TestClient(web_app.build_app()) as configured_client:
+        body = configured_client.get("/api/health").json()
+
+    assert body["labels"]["repo"] == "WebTestRepo"
+    assert body["labels"]["resolves"] == "WEBTEST_RESOLVES"
+
+
+def test_startup_prints_the_environment_resolved_labels(monkeypatch, capsys):
+    web_main = importlib.import_module("hindsight_web.__main__")
+    monkeypatch.setenv("HINDSIGHT_MCP_NODE_PREFIX", "Replay")
+    monkeypatch.setenv("HINDSIGHT_MCP_REL_PREFIX", "REPLAY")
+    monkeypatch.setitem(sys.modules, "uvicorn", SimpleNamespace(run=lambda *a, **kw: None))
+
+    assert web_main.main(["--port", "8092"]) == 0
+
+    assert capsys.readouterr().out == (
+        "Hindsight console  http://127.0.0.1:8092\n"
+        "Label namespace    ReplayRepo / ReplayPkg / ReplayVer / ReplayMaint / "
+        "ReplayWatermark; REPLAY_RESOLVES / REPLAY_VERSION_OF / REPLAY_MAINTAINS\n"
+    )
 
 
 def test_incident_endpoint_carries_the_markers_the_scrubber_draws(client):
