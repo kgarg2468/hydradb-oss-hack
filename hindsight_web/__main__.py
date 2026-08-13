@@ -13,9 +13,10 @@ Label prefixes come from the MCP server's ``HINDSIGHT_MCP_NODE_PREFIX`` and
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
-from .queries import schema_from_env
+from .queries import resolve_schema
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -28,6 +29,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--reload", action="store_true", help="restart on source change (development)"
     )
+    parser.add_argument(
+        "--config",
+        help="org.yaml whose schema block names the dataset to read "
+        "(the same file the ingest CLI writes with)",
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -39,7 +45,9 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 2
 
-    schema = schema_from_env()
+    if args.config:
+        os.environ["HINDSIGHT_WEB_CONFIG"] = args.config
+    schema = resolve_schema(args.config)
     print(f"Hindsight console  http://{args.host}:{args.port}")
     print(
         "Label namespace    "

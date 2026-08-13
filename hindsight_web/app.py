@@ -28,7 +28,7 @@ from hindsight.client import HydraError
 
 from .analysis import TimestampError, to_epoch
 from .incident import IncidentError, load_incident
-from .queries import schema_from_env
+from .queries import resolve_schema
 from .service import Console, ConsoleError
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -58,7 +58,7 @@ def _package(request: Request) -> str:
 def build_app(console: Console | None = None) -> Starlette:
     """Construct the ASGI app. Tests pass a console backed by a fake client."""
     state = {"console": console}
-    schema = schema_from_env()
+    schema = resolve_schema(os.environ.get("HINDSIGHT_WEB_CONFIG"))
 
     def current() -> Console:
         if state["console"] is None:

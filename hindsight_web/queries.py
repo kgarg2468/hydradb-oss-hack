@@ -47,4 +47,28 @@ def schema_from_env(env: dict[str, str] | None = None) -> Schema:
     )
 
 
-__all__ = ["DEMO_SCHEMA", "TEST_SCHEMA", "schema_from_env"]
+def resolve_schema(
+    config_path: str | None = None, env: dict[str, str] | None = None
+) -> Schema:
+    """The console's dataset, from the same declaration the ingest CLI reads.
+
+    ``org.yaml`` may carry a ``schema:`` block, and ``hindsight ingest`` writes
+    whatever it says. A console that only consulted the environment would agree
+    with the pipeline's *default* and diverge from every custom prefix, which is
+    the original bug one layer up: the operator declares ``node_prefix: Acme``,
+    ingests to ``Acme*``, and reads an empty ``Hs*``.
+
+    Precedence is explicit-beats-declared: an environment prefix is a
+    deployment-time override and wins, otherwise the org config decides,
+    otherwise the pipeline default.
+    """
+    env = os.environ if env is None else env
+    explicit = "HINDSIGHT_MCP_NODE_PREFIX" in env or "HINDSIGHT_MCP_REL_PREFIX" in env
+    if config_path and not explicit:
+        from hindsight.cli import load_config
+
+        return load_config(config_path).schema
+    return schema_from_env(env)
+
+
+__all__ = ["DEMO_SCHEMA", "TEST_SCHEMA", "resolve_schema", "schema_from_env"]

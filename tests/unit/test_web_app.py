@@ -21,6 +21,7 @@ from hindsight.ids import version_id
 from hindsight_web.analysis import TRUNCATION_CAVEAT
 from hindsight_web.app import DEFAULT_PACKAGE, build_app
 from hindsight_web import queries as web_queries
+from hindsight_web.queries import resolve_schema
 
 from test_web_service import AT, FakeReader, console  # noqa: E402
 
@@ -308,3 +309,33 @@ def test_the_page_is_shipped_the_words_it_renders_truncation_with():
     assert "'≥ ' + value" in script
     assert "truncation_note" in script
     assert ".truncated {" in style
+
+
+def test_the_console_reads_the_dataset_the_org_config_declares(tmp_path):
+    """org.yaml's schema block is what ingest writes, so it is what we read.
+
+    Consulting only the environment would agree with the pipeline's default and
+    diverge from every custom prefix: declare ``node_prefix: Acme``, ingest to
+    ``Acme*``, read an empty ``Hs*``. That is the original namespace bug one
+    layer up.
+    """
+    config = tmp_path / "org.yaml"
+    config.write_text(
+        "schema:\n  node_prefix: Acme\n  rel_prefix: ACME\n"
+        "repos:\n  - url: https://github.com/axios/axios\n"
+    )
+    schema = resolve_schema(str(config), env={})
+    assert schema.repo == "AcmeRepo"
+    assert schema.resolves == "ACME_RESOLVES"
+
+
+def test_an_explicit_prefix_overrides_the_org_config(tmp_path):
+    """Deployment-time env beats the declared dataset; it is the more specific act."""
+    config = tmp_path / "org.yaml"
+    config.write_text("schema:\n  node_prefix: Acme\n  rel_prefix: ACME\nrepos: []\n")
+    schema = resolve_schema(str(config), env={"HINDSIGHT_MCP_NODE_PREFIX": "Replay"})
+    assert schema.repo == "ReplayRepo"
+
+
+def test_without_a_config_the_console_defaults_to_what_ingest_writes():
+    assert resolve_schema(None, env={}).repo == "HsRepo"

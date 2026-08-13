@@ -220,7 +220,7 @@ you want them on screen.
 ## 7. Tests
 
 ```bash
-pytest tests/unit                    # 897 tests, no node required
+pytest tests/unit                    # 900 tests, no node required
 pytest tests/integration             # 86 against a live node
 ruff check .
 ```
