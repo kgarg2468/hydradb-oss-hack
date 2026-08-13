@@ -371,6 +371,67 @@ def test_health_and_exposure_ship_the_same_verdict_to_the_same_page():
     assert health["unanswerable_reason"] == exposure["unanswerable_reason"]
 
 
+# ------------------------------------------------------------- shareable view
+#
+# The console's view is a URL, which makes the URL an interface: an incident
+# link pasted into a ticket has to resolve to the same screen months later. The
+# rules that make that true live in the shipped JS, so they are pinned here the
+# same way the truncation wording is.
+
+
+def test_the_page_is_shipped_the_code_that_makes_its_view_a_link():
+    with TestClient(build_app(console())) as c:
+        script = c.get("/static/app.js").text
+    # Exactly three pieces of state travel, and the instant travels as the unix
+    # second it already is: no formatting, nothing relative, nothing re-derived
+    # from the clock when the link is opened.
+    assert "'?package=' + encodeURIComponent(state.package)" in script
+    assert "'&at=' + encodeURIComponent(String(state.at))" in script
+    assert "'&all=1'" in script
+    # Dragging the scrubber must not fill the back stack; only the package
+    # select, which is discrete, gets a history entry of its own. The API is
+    # reached through `window` because this file has its own `history`.
+    assert "var api = window.history;" in script
+    assert "api.replaceState(null, '', url)" in script
+    assert "api.pushState(null, '', url)" in script
+    assert "window.addEventListener('popstate'" in script
+    # The link is applied inside the incident load, before the first read goes
+    # out, so the default view never flashes on screen first.
+    assert "applyView(readView());" in script
+
+
+def test_the_page_is_shipped_the_code_that_disowns_a_clamped_link():
+    with TestClient(build_app(console())) as c:
+        script = c.get("/static/app.js").text
+        style = c.get("/static/app.css").text
+    # An instant outside the incident's domain is clamped so the rest of the
+    # page keeps working, and then said out loud: the answer on screen is about
+    # the clamped instant, not the one that was asked for.
+    assert "LINK NOT HONOURED" in script
+    assert "is not an answer about the instant " in script
+    # A third state, distinct from the amber cut read and the dashed refusal.
+    assert ".link-notice {" in style
+    assert "var(--acc-line)" in style.split(".link-notice {")[1].split("}")[0]
+    # A mangled link -- one a chat client truncated -- reaches the operator as
+    # that notice too. `decodeURIComponent` throws on a stray percent, and the
+    # one link that must not take the page down with it is the broken one.
+    assert "function decodeOrRaw(" in script
+    assert "catch (err) { return text; }" in script
+    assert "decodeURIComponent(pair.slice" not in script
+
+
+def test_the_copy_control_has_a_path_that_works_on_an_insecure_origin():
+    with TestClient(build_app(console())) as c:
+        page = c.get("/").text
+        script = c.get("/static/app.js").text
+    assert 'id="copy-link"' in page
+    # navigator.clipboard is gated on a secure context and this console is
+    # served over http, so the button falls back rather than doing nothing.
+    assert "navigator.clipboard && navigator.clipboard.writeText" in script
+    assert "document.execCommand('copy')" in script
+    assert "window.prompt('Copy this link', url)" in script
+
+
 def test_the_page_is_shipped_the_code_that_refuses_a_verdict():
     with TestClient(build_app(console())) as c:
         script = c.get("/static/app.js").text

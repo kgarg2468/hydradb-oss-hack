@@ -61,6 +61,7 @@
   --warn-line: rgba(232, 163, 61, 0.34);
   --acc: #7A9FFF;
   --acc-tint: rgba(122, 159, 255, 0.12);
+  --acc-line: rgba(122, 159, 255, 0.34);
 
   --r-card: 8px;
   --r-ctl: 6px;
@@ -179,6 +180,19 @@ button, input, select {
 .pill-btn:hover { background: var(--warn-tint); }
 .pill-btn:active { transform: scale(0.98); }
 .pill-btn[aria-expanded="true"] { background: var(--warn-tint); }
+
+/* Feedback for the copy button, in the bar beside it rather than as a floating
+   card: it is two words, it is gone in two seconds, and a toast would be the
+   only element on this page that moves on its own. Empty means absent, so the
+   top bar does not carry a gap waiting for a message that is usually not
+   there. */
+.copy-note {
+  font-size: 12px;
+  color: var(--t3);
+  white-space: nowrap;
+}
+.copy-note:empty { display: none; }
+.copy-note.bad { color: var(--warn); }
 
 .health {
   display: flex;
@@ -459,6 +473,32 @@ button, input, select {
 }
 .unanswerable b {
   color: var(--t1);
+  font-weight: 600;
+  white-space: nowrap;
+  flex: none;
+}
+
+/* A shared link that could not be honoured exactly. Third state, third
+   treatment: amber is a read that was cut short and the dashed neutral box is a
+   dataset with nothing to say, while this read was complete and simply answers
+   a neighbouring question. It takes the accent, which everywhere else on this
+   page means "where you are in time", because that is exactly what moved. */
+#link-slot:not(:empty) { margin-top: 12px; }
+
+.link-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  border: 1px solid var(--acc-line);
+  border-radius: var(--r-card);
+  background: var(--acc-tint);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--t2);
+}
+.link-notice b {
+  color: var(--acc);
   font-weight: 600;
   white-space: nowrap;
   flex: none;
