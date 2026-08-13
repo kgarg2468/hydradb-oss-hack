@@ -776,6 +776,27 @@ def test_coverage_is_read_once_and_shared_with_every_answer():
     assert sum(1 for s, _ in reader.statements if "RETURN r.id" in s) == 1
 
 
+def test_a_populated_dataset_read_expires_rather_than_outliving_the_dataset():
+    """A cached count is a claim about when we looked; the window bounds it.
+
+    Not the same hazard as the empty read above — a directory short by one
+    repository costs a number, not the answer — but a console that can never
+    see a tenth repository is reporting a nine-repository estate forever.
+    """
+    now = [1000.0]
+    reader = FakeReader()
+    view = console(reader=reader, clock=lambda: now[0], cache_ttl=30.0)
+
+    view.repositories()
+    now[0] += 29.0
+    view.repositories()
+    assert sum(1 for s, _ in reader.statements if "RETURN r.id" in s) == 1
+
+    now[0] += 2.0
+    view.repositories()
+    assert sum(1 for s, _ in reader.statements if "RETURN r.id" in s) == 2
+
+
 def test_the_coverage_predicate_is_decided_in_exactly_one_place():
     assert service.coverage_of(3, 2).answerable is True
     assert service.coverage_of(0, 0).reason == service.EMPTY_DATASET

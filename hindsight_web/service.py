@@ -228,6 +228,13 @@ class Console:
     #: fields — off canned rows without a database, and so that there is exactly
     #: one seam to fake rather than a mock per method.
     reader: Callable[..., tuple[list[list[object]], bool]] = fetch_all
+    #: How long a populated dataset read stays good for. The dataset is written
+    #: by another process, so every cached answer here is a statement about when
+    #: we last looked; this is how long that is allowed to go unsaid. Two
+    #: label-scan queries per window, against an exposure read every 55 ms.
+    cache_ttl: float = 30.0
+    #: Injected so the expiry is testable without sleeping.
+    clock: Callable[[], float] = time.monotonic
     #: instant -> ``(ranking, truncated, capped)``. Bounded because the scrubber
     #: can generate a lot of distinct instants in a minute of dragging. The
     #: completeness flags are cached *with* the ranking rather than recomputed,
@@ -236,6 +243,7 @@ class Console:
         default_factory=dict, repr=False
     )
     _repos: list[RepoRecord] | None = field(default=None, repr=False)
+    _repos_at: float = field(default=0.0, repr=False)
     #: Did the cached repository directory itself hit the row cap? A short
     #: directory is not merely a slow answer: every exposure verdict is a join
     #: against this list, so a truncated one silently drops repositories from
@@ -247,6 +255,7 @@ class Console:
     #: caches stay empty while the dataset is, so a console outliving an ingest
     #: is not stuck refusing to answer.
     _ingested: set[str] | None = field(default=None, repr=False)
+    _ingested_at: float = field(default=0.0, repr=False)
     _watermarks_truncated: bool = field(default=False, repr=False)
 
     # ------------------------------------------------------------------ plumbing
@@ -256,6 +265,10 @@ class Console:
             self.client, query.cypher, query.params, page_size=page_size
         )
         return query.shape(rows), truncated
+
+    def _fresh(self, read_at: float) -> bool:
+        """Is a cached dataset read still inside its window?"""
+        return self.clock() - read_at < self.cache_ttl
 
     def _fork(self) -> Console:
         """A sibling console sharing configuration but not the HTTP client.
@@ -269,6 +282,7 @@ class Console:
             client=HydraClient(config=self.client.config),
             _rank_cache={},
             _repos=self._repos,
+            _repos_at=self._repos_at,
         )
 
     # ---------------------------------------------------------------- directory
@@ -276,15 +290,19 @@ class Console:
     def repositories(self, *, refresh: bool = False) -> list[RepoRecord]:
         """Every repository in the dataset, cached once the first read finds one.
 
-        Nothing is cached while the answer is *nothing*. The dataset is loaded
-        by a separate process, so a console started before ``hindsight ingest``
-        finishes would otherwise hold its empty directory for the life of the
-        server and keep refusing to answer questions the graph can now answer —
-        a permanent no-coverage state that clears only on restart. Re-reading an
-        empty directory costs one anchored query and stops the moment it finds
-        a repository.
+        The dataset is loaded by a separate process, so this cache is a claim
+        about when we last looked, and it expires: a repository ingested into a
+        running console appears within :attr:`cache_ttl` rather than at the next
+        restart.
+
+        Nothing is cached at all while the answer is *nothing*. The two stale
+        directions are not equivalent — a directory short by one repository
+        costs a count, an empty one withholds every answer the console has, as
+        no coverage — so the empty read is re-read immediately and does not wait
+        out the window. It costs one label scan, and only until the graph has
+        anything in it.
         """
-        if self._repos is not None and not refresh:
+        if self._repos is not None and not refresh and self._fresh(self._repos_at):
             return self._repos
         rows, truncated = self._rows(queries.repo_directory(self.schema))
         records = []
@@ -308,6 +326,7 @@ class Console:
             )
         records.sort(key=lambda r: r.slug)
         self._repos = records or None
+        self._repos_at = self.clock()
         self._repos_truncated = truncated
         return records
 
@@ -317,14 +336,15 @@ class Console:
         The watermark is written *after* a successful run, so its presence is
         evidence that history was loaded rather than that a node exists.
         """
-        if self._ingested is not None and not refresh:
+        if self._ingested is not None and not refresh and self._fresh(self._ingested_at):
             return self._ingested
         marks, truncated = self._rows(queries.watermarks(self.schema))
         found = {str(row["slug"]) for row in marks if row.get("slug")}
-        # Not cached while empty, for the reason in :meth:`repositories`: the
-        # watermark is written by another process, and "no history yet" is a
-        # statement about when we looked.
+        # Expires, and is not cached while empty, both for the reasons in
+        # :meth:`repositories`: the watermark is written by another process, and
+        # "no history yet" is a statement about when we looked.
         self._ingested = found or None
+        self._ingested_at = self.clock()
         self._watermarks_truncated = truncated
         return found
 
