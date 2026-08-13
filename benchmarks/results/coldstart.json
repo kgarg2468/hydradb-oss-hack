@@ -1,0 +1,63 @@
+{
+  "container": "hydradb-poc",
+  "restart_to_ready_seconds": 1.01,
+  "at": 1757340300,
+  "at_iso": "2025-09-08T14:05:00Z",
+  "package": "debug",
+  "corpora": [
+    {
+      "corpus": "real",
+      "query_order": 1,
+      "repos": 9,
+      "repo_directory_ms": 70.296,
+      "node_cold_exposure_ms": 236.818,
+      "second_call_ms": 7.747,
+      "result_rows": 36,
+      "counts": {
+        "repos": 9,
+        "exposed": 1,
+        "resolved_clean": 8,
+        "not_resolved": 0
+      }
+    },
+    {
+      "corpus": "100",
+      "query_order": 2,
+      "repos": 100,
+      "repo_directory_ms": 25.859,
+      "node_cold_exposure_ms": 568.458,
+      "second_call_ms": 33.205,
+      "result_rows": 392,
+      "counts": {
+        "repos": 100,
+        "exposed": 3,
+        "resolved_clean": 97,
+        "not_resolved": 0
+      }
+    },
+    {
+      "corpus": "250",
+      "query_order": 3,
+      "repos": 250,
+      "repo_directory_ms": 56.283,
+      "node_cold_exposure_ms": 6703.831,
+      "second_call_ms": 5799.021,
+      "result_rows": 988,
+      "counts": {
+        "repos": 250,
+        "exposed": 7,
+        "resolved_clean": 243,
+        "not_resolved": 0
+      }
+    }
+  ],
+  "environment": {
+    "platform": "macOS-26.2-arm64-arm-64bit",
+    "python": "3.12.2",
+    "chip": "Apple M5",
+    "memory": "32 GB",
+    "hydradb_image": "ghcr.io/hydra-db/hydradb@sha256:db78309a233be54662db29744047e985a39b51c45a270d1a1f47c31a62cdb709",
+    "docker": "27.4.0",
+    "docker_cpus_mem": "10 cpu / 8217968640 B"
+  }
+}

@@ -1,0 +1,473 @@
+{
+  "seed": {
+    "corpus_repos": 150,
+    "node_prefix": "BenchN150",
+    "repos_written": 150,
+    "nodes_written": 252118,
+    "edges_written": 1614121,
+    "resolves_edges_written": 1410721,
+    "wall_seconds": 461.168,
+    "edge_write_seconds": 444.171,
+    "edges_per_sec": 3634.0,
+    "chunks": 8,
+    "steps": [
+      {
+        "label": "repo nodes",
+        "kind": "node",
+        "rows": 20,
+        "seconds": 0.337,
+        "rows_per_sec": 59.3,
+        "batches": 1
+      },
+      {
+        "label": "package nodes",
+        "kind": "node",
+        "rows": 6383,
+        "seconds": 0.365,
+        "rows_per_sec": 17475.1,
+        "batches": 7
+      },
+      {
+        "label": "version nodes",
+        "kind": "node",
+        "rows": 24959,
+        "seconds": 1.307,
+        "rows_per_sec": 19103.2,
+        "batches": 25
+      },
+      {
+        "label": "maintainer nodes",
+        "kind": "node",
+        "rows": 154,
+        "seconds": 0.028,
+        "rows_per_sec": 5489.8,
+        "batches": 1
+      },
+      {
+        "label": "VERSION_OF edges",
+        "kind": "edge",
+        "rows": 24959,
+        "seconds": 9.494,
+        "rows_per_sec": 2628.9,
+        "batches": 25
+      },
+      {
+        "label": "MAINTAINS edges",
+        "kind": "edge",
+        "rows": 466,
+        "seconds": 0.137,
+        "rows_per_sec": 3397.2,
+        "batches": 1
+      },
+      {
+        "label": "RESOLVES edges",
+        "kind": "edge",
+        "rows": 181665,
+        "seconds": 39.44,
+        "rows_per_sec": 4606.1,
+        "batches": 182
+      },
+      {
+        "label": "repo nodes",
+        "kind": "node",
+        "rows": 20,
+        "seconds": 0.03,
+        "rows_per_sec": 658.5,
+        "batches": 1
+      },
+      {
+        "label": "package nodes",
+        "kind": "node",
+        "rows": 6383,
+        "seconds": 0.304,
+        "rows_per_sec": 20982.8,
+        "batches": 7
+      },
+      {
+        "label": "version nodes",
+        "kind": "node",
+        "rows": 24959,
+        "seconds": 1.221,
+        "rows_per_sec": 20443.6,
+        "batches": 25
+      },
+      {
+        "label": "maintainer nodes",
+        "kind": "node",
+        "rows": 154,
+        "seconds": 0.029,
+        "rows_per_sec": 5297.1,
+        "batches": 1
+      },
+      {
+        "label": "VERSION_OF edges",
+        "kind": "edge",
+        "rows": 24959,
+        "seconds": 5.467,
+        "rows_per_sec": 4565.8,
+        "batches": 25
+      },
+      {
+        "label": "MAINTAINS edges",
+        "kind": "edge",
+        "rows": 466,
+        "seconds": 0.094,
+        "rows_per_sec": 4968.2,
+        "batches": 1
+      },
+      {
+        "label": "RESOLVES edges",
+        "kind": "edge",
+        "rows": 178085,
+        "seconds": 39.892,
+        "rows_per_sec": 4464.1,
+        "batches": 179
+      },
+      {
+        "label": "repo nodes",
+        "kind": "node",
+        "rows": 20,
+        "seconds": 0.033,
+        "rows_per_sec": 609.4,
+        "batches": 1
+      },
+      {
+        "label": "package nodes",
+        "kind": "node",
+        "rows": 6383,
+        "seconds": 0.303,
+        "rows_per_sec": 21078.4,
+        "batches": 7
+      },
+      {
+        "label": "version nodes",
+        "kind": "node",
+        "rows": 24959,
+        "seconds": 1.201,
+        "rows_per_sec": 20776.8,
+        "batches": 25
+      },
+      {
+        "label": "maintainer nodes",
+        "kind": "node",
+        "rows": 154,
+        "seconds": 0.027,
+        "rows_per_sec": 5718.7,
+        "batches": 1
+      },
+      {
+        "label": "VERSION_OF edges",
+        "kind": "edge",
+        "rows": 24959,
+        "seconds": 4.592,
+        "rows_per_sec": 5435.2,
+        "batches": 25
+      },
+      {
+        "label": "MAINTAINS edges",
+        "kind": "edge",
+        "rows": 466,
+        "seconds": 0.092,
+        "rows_per_sec": 5085.6,
+        "batches": 1
+      },
+      {
+        "label": "RESOLVES edges",
+        "kind": "edge",
+        "rows": 187171,
+        "seconds": 47.972,
+        "rows_per_sec": 3901.7,
+        "batches": 188
+      },
+      {
+        "label": "repo nodes",
+        "kind": "node",
+        "rows": 20,
+        "seconds": 0.033,
+        "rows_per_sec": 608.9,
+        "batches": 1
+      },
+      {
+        "label": "package nodes",
+        "kind": "node",
+        "rows": 6383,
+        "seconds": 0.32,
+        "rows_per_sec": 19932.3,
+        "batches": 7
+      },
+      {
+        "label": "version nodes",
+        "kind": "node",
+        "rows": 24959,
+        "seconds": 1.283,
+        "rows_per_sec": 19457.8,
+        "batches": 25
+      },
+      {
+        "label": "maintainer nodes",
+        "kind": "node",
+        "rows": 154,
+        "seconds": 0.028,
+        "rows_per_sec": 5430.6,
+        "batches": 1
+      },
+      {
+        "label": "VERSION_OF edges",
+        "kind": "edge",
+        "rows": 24959,
+        "seconds": 4.684,
+        "rows_per_sec": 5328.0,
+        "batches": 25
+      },
+      {
+        "label": "MAINTAINS edges",
+        "kind": "edge",
+        "rows": 466,
+        "seconds": 0.1,
+        "rows_per_sec": 4661.1,
+        "batches": 1
+      },
+      {
+        "label": "RESOLVES edges",
+        "kind": "edge",
+        "rows": 226378,
+        "seconds": 65.148,
+        "rows_per_sec": 3474.8,
+        "batches": 227
+      },
+      {
+        "label": "repo nodes",
+        "kind": "node",
+        "rows": 20,
+        "seconds": 0.05,
+        "rows_per_sec": 398.2,
+        "batches": 1
+      },
+      {
+        "label": "package nodes",
+        "kind": "node",
+        "rows": 6383,
+        "seconds": 0.341,
+        "rows_per_sec": 18711.1,
+        "batches": 7
+      },
+      {
+        "label": "version nodes",
+        "kind": "node",
+        "rows": 24959,
+        "seconds": 1.27,
+        "rows_per_sec": 19650.2,
+        "batches": 25
+      },
+      {
+        "label": "maintainer nodes",
+        "kind": "node",
+        "rows": 154,
+        "seconds": 0.029,
+        "rows_per_sec": 5258.2,
+        "batches": 1
+      },
+      {
+        "label": "VERSION_OF edges",
+        "kind": "edge",
+        "rows": 24959,
+        "seconds": 6.06,
+        "rows_per_sec": 4118.6,
+        "batches": 25
+      },
+      {
+        "label": "MAINTAINS edges",
+        "kind": "edge",
+        "rows": 466,
+        "seconds": 0.111,
+        "rows_per_sec": 4193.4,
+        "batches": 1
+      },
+      {
+        "label": "RESOLVES edges",
+        "kind": "edge",
+        "rows": 176942,
+        "seconds": 47.898,
+        "rows_per_sec": 3694.1,
+        "batches": 177
+      },
+      {
+        "label": "repo nodes",
+        "kind": "node",
+        "rows": 20,
+        "seconds": 0.036,
+        "rows_per_sec": 561.2,
+        "batches": 1
+      },
+      {
+        "label": "package nodes",
+        "kind": "node",
+        "rows": 6383,
+        "seconds": 0.354,
+        "rows_per_sec": 18051.9,
+        "batches": 7
+      },
+      {
+        "label": "version nodes",
+        "kind": "node",
+        "rows": 24959,
+        "seconds": 1.524,
+        "rows_per_sec": 16373.2,
+        "batches": 25
+      },
+      {
+        "label": "maintainer nodes",
+        "kind": "node",
+        "rows": 154,
+        "seconds": 0.029,
+        "rows_per_sec": 5231.4,
+        "batches": 1
+      },
+      {
+        "label": "VERSION_OF edges",
+        "kind": "edge",
+        "rows": 24959,
+        "seconds": 5.508,
+        "rows_per_sec": 4531.2,
+        "batches": 25
+      },
+      {
+        "label": "MAINTAINS edges",
+        "kind": "edge",
+        "rows": 466,
+        "seconds": 0.133,
+        "rows_per_sec": 3504.3,
+        "batches": 1
+      },
+      {
+        "label": "RESOLVES edges",
+        "kind": "edge",
+        "rows": 183665,
+        "seconds": 57.823,
+        "rows_per_sec": 3176.3,
+        "batches": 184
+      },
+      {
+        "label": "repo nodes",
+        "kind": "node",
+        "rows": 20,
+        "seconds": 0.033,
+        "rows_per_sec": 600.3,
+        "batches": 1
+      },
+      {
+        "label": "package nodes",
+        "kind": "node",
+        "rows": 6383,
+        "seconds": 0.359,
+        "rows_per_sec": 17771.2,
+        "batches": 7
+      },
+      {
+        "label": "version nodes",
+        "kind": "node",
+        "rows": 24959,
+        "seconds": 1.587,
+        "rows_per_sec": 15722.5,
+        "batches": 25
+      },
+      {
+        "label": "maintainer nodes",
+        "kind": "node",
+        "rows": 154,
+        "seconds": 0.03,
+        "rows_per_sec": 5210.4,
+        "batches": 1
+      },
+      {
+        "label": "VERSION_OF edges",
+        "kind": "edge",
+        "rows": 24959,
+        "seconds": 7.834,
+        "rows_per_sec": 3186.2,
+        "batches": 25
+      },
+      {
+        "label": "MAINTAINS edges",
+        "kind": "edge",
+        "rows": 466,
+        "seconds": 0.28,
+        "rows_per_sec": 1666.6,
+        "batches": 1
+      },
+      {
+        "label": "RESOLVES edges",
+        "kind": "edge",
+        "rows": 179121,
+        "seconds": 58.081,
+        "rows_per_sec": 3084.0,
+        "batches": 180
+      },
+      {
+        "label": "repo nodes",
+        "kind": "node",
+        "rows": 10,
+        "seconds": 0.031,
+        "rows_per_sec": 319.8,
+        "batches": 1
+      },
+      {
+        "label": "package nodes",
+        "kind": "node",
+        "rows": 6383,
+        "seconds": 0.341,
+        "rows_per_sec": 18740.6,
+        "batches": 7
+      },
+      {
+        "label": "version nodes",
+        "kind": "node",
+        "rows": 24959,
+        "seconds": 1.353,
+        "rows_per_sec": 18452.2,
+        "batches": 25
+      },
+      {
+        "label": "maintainer nodes",
+        "kind": "node",
+        "rows": 154,
+        "seconds": 0.03,
+        "rows_per_sec": 5185.6,
+        "batches": 1
+      },
+      {
+        "label": "VERSION_OF edges",
+        "kind": "edge",
+        "rows": 24959,
+        "seconds": 9.914,
+        "rows_per_sec": 2517.5,
+        "batches": 25
+      },
+      {
+        "label": "MAINTAINS edges",
+        "kind": "edge",
+        "rows": 466,
+        "seconds": 0.114,
+        "rows_per_sec": 4101.8,
+        "batches": 1
+      },
+      {
+        "label": "RESOLVES edges",
+        "kind": "edge",
+        "rows": 97694,
+        "seconds": 33.303,
+        "rows_per_sec": 2933.4,
+        "batches": 98
+      }
+    ]
+  },
+  "environment": {
+    "platform": "macOS-26.2-arm64-arm-64bit",
+    "python": "3.12.2",
+    "chip": "Apple M5",
+    "memory": "32 GB",
+    "hydradb_image": "ghcr.io/hydra-db/hydradb@sha256:db78309a233be54662db29744047e985a39b51c45a270d1a1f47c31a62cdb709",
+    "docker": "27.4.0",
+    "docker_cpus_mem": "10 cpu / 8217968640 B"
+  }
+}

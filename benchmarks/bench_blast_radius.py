@@ -64,7 +64,7 @@ from benchmarks.corpus import (  # noqa: E402
     seed,
 )
 from benchmarks.stats import Timings, run_timed  # noqa: E402
-from hindsight.client import HydraClient  # noqa: E402
+from hindsight.client import HydraClient, HydraError  # noqa: E402
 from hindsight_web import queries  # noqa: E402
 from hindsight_web.analysis import classify, sort_key, summarize  # noqa: E402
 from hindsight_web.incident import load_incident  # noqa: E402
@@ -198,6 +198,41 @@ class Runner:
         hits = self.rows(queries.repos_resolving_package(self.schema, pid, at))
         return {"rows": len(hits)}
 
+    def incident_exposure(self, at: int | None = None) -> dict:
+        """The same question, entered through version ids instead of a package.
+
+        ``repos_resolving_version`` binds one ``Ver`` node by id and walks its
+        incoming RESOLVES edges; ``repos_resolving_package`` binds a ``Pkg`` and
+        has the engine expand every version of it. The second shape is the one
+        that falls over on the 250-repository corpus, and this is the shape that
+        does not — at the cost of one round trip per malicious version rather
+        than one for the whole package.
+
+        It is a complete answer to the incident question because the incident
+        file names every malicious version, and :mod:`hindsight.ids` derives a
+        version id by hashing rather than by lookup. A version with no node was
+        never resolved by anything in the org at any instant; that is a proven
+        absence and it costs one id probe, which is why the row count below
+        matters as much as the latency.
+        """
+        at = self.at if at is None else at
+        rows = 0
+        present = 0
+        exposed: set[str] = set()
+        for malicious in INCIDENT.versions:
+            vid = self.corpus.version_id(malicious.package, malicious.version)
+            found = self.rows(queries.repos_resolving_version(self.schema, vid, at))
+            if found:
+                present += 1
+                rows += len(found)
+                exposed |= {str(r.get("slug")) for r in found}
+        return {
+            "rows": rows,
+            "versions_queried": len(INCIDENT.versions),
+            "versions_resolved_by_someone": present,
+            "exposed_repos": len(exposed),
+        }
+
     def blast_radius(self, at: int | None = None) -> dict:
         """Exposure plus the package's maintainers, shaped as nodes and edges."""
         at = self.at if at is None else at
@@ -245,7 +280,26 @@ class Runner:
         }
 
     def _score(self, account: dict, at: int, client: HydraClient) -> dict:
-        rows = self.rows(queries.maintainer_reach(self.schema, account["id"], at), client=client)
+        """Score one account, recording an engine refusal rather than raising.
+
+        On a large corpus this query can exceed HydraDB's 30 s query timeout —
+        especially under the sweep's own six-way concurrency. That is a result,
+        not a crash: an operation that cannot complete has to appear in the
+        table as an operation that cannot complete.
+        """
+        try:
+            rows = self.rows(
+                queries.maintainer_reach(self.schema, account["id"], at), client=client
+            )
+        except HydraError as exc:
+            return {
+                "maintainer": account["name"],
+                "rows": 0,
+                "reached_repo_count": 0,
+                "reached_package_count": 0,
+                "repo_package_pairs": 0,
+                "error": str(exc)[:160],
+            }
         pairs = {(str(r.get("slug")), str(r.get("package"))) for r in rows}
         return {
             "maintainer": account["name"],
@@ -281,10 +335,13 @@ class Runner:
             key=lambda s: (-s["repo_package_pairs"], -s["reached_package_count"], s["maintainer"])
         )
         self._rank_cache[at] = scored
+        failed = [s for s in scored if s.get("error")]
         return {
             "cached": False,
             "accounts": len(scored),
             "rows": sum(s["rows"] for s in scored),
+            "errors": len(failed),
+            "first_error": failed[0]["error"] if failed else None,
             "top": scored[0]["maintainer"] if scored else None,
         }
 
@@ -303,15 +360,48 @@ def scrub_instants(count: int) -> list[int]:
     return [int(SCRUB_START + step * i) for i in range(count)]
 
 
+#: Above this, an operation gets one warmup run instead of five. Five warmup
+#: sweeps of a 250-repository corpus is over an hour of wall clock spent on runs
+#: that are then discarded.
+SLOW_OP_MS = 1000.0
+
+#: Below this many measured runs the sample is not summarised as percentiles at
+#: all — it is reported as the handful of observations it is.
+MIN_SAMPLE = 3
+
+
+def plan_from_probe(probe_ms: float, runs: int, warmup: int, budget_s: float) -> tuple[int, int]:
+    """How many measured and warmup runs an operation of this cost gets.
+
+    Cheap operations get exactly what was asked for. An operation costing more
+    than a second per run gets one warmup and as many measured runs as the
+    budget affords — never fewer than :data:`MIN_SAMPLE`, because three
+    observations reported as three observations is honest and one percentile
+    over one run is not.
+    """
+    if probe_ms <= SLOW_OP_MS:
+        return runs, warmup
+    affordable = int(budget_s // (probe_ms / 1000.0))
+    return max(MIN_SAMPLE, min(runs, affordable)), 1
+
+
 def measure_corpus(
     runner: Runner,
     *,
     runs: int,
     warmup: int,
     budget_s: float,
+    maintainers: bool = True,
     log=print,
 ) -> list[Timings]:
-    """Run every operation against one corpus and return the raw timings."""
+    """Run every operation against one corpus and return the raw timings.
+
+    ``maintainers=False`` measures only the exposure and blast-radius family.
+    That exists for the controlled re-run: the scaling curve is only a scaling
+    curve if every corpus is measured against the *same* node state, and
+    re-measuring every corpus in one pass is affordable only without the
+    maintainer sweep, which costs five minutes per corpus at the top end.
+    """
     results: list[Timings] = []
     sweep = scrub_instants(runs + warmup)
     counters: dict[str, list[int]] = {}
@@ -341,8 +431,18 @@ def measure_corpus(
     def op_blast(_: int) -> None:
         record("blast", runner.blast_radius()["rows"])
 
+    def op_incident(_: int) -> None:
+        record("incident", runner.incident_exposure()["rows"])
+
+    refusals: list[str] = []
+
     def op_reach(_: int) -> None:
-        record("reach", runner.maintainer_reach(top_account)["rows"])
+        try:
+            record("reach", runner.maintainer_reach(top_account)["rows"])
+        except HydraError as exc:
+            # The refusal took real time and is part of the distribution.
+            refusals.append(str(exc)[:160])
+            record("reach", 0)
 
     def op_rank_cold(i: int) -> None:
         # A different instant every run, so the in-process cache can never
@@ -355,9 +455,15 @@ def measure_corpus(
     # Answer shape first, so a fast-but-empty result is caught before timing.
     probe = runner.exposure()
     blast = runner.blast_radius()
+    incident = runner.incident_exposure()
     log(
         f"  corpus {runner.corpus.node_prefix}: {len(runner.repositories())} repos, "
         f"exposure returns {probe['rows']} rows, counts={probe['counts']}"
+    )
+    log(
+        f"  incident sweep: {incident['versions_queried']} malicious versions, "
+        f"{incident['versions_resolved_by_someone']} of them resolved by someone, "
+        f"{incident['rows']} rows, {incident['exposed_repos']} exposed repos"
     )
 
     plan = [
@@ -365,6 +471,7 @@ def measure_corpus(
         ("exposure-as-of (scrub, T varies every run)", op_exposure_scrub, "exposure_scrub", runs, warmup),
         ("exposure-as-of (engine only, one statement)", op_engine, "engine", runs, warmup),
         ("blast radius (repos + versions + maintainers)", op_blast, "blast", runs, warmup),
+        ("incident sweep (all malicious versions, version-anchored)", op_incident, "incident", runs, warmup),
     ]
     for label, fn, key, n, w in plan:
         timing = run_timed(
@@ -385,24 +492,100 @@ def measure_corpus(
             f"p50={s['p50_ms']:>9.3f}  p95={s['p95_ms']:>9.3f}  p99={s['p99_ms']:>9.3f} ms"
         )
 
-    accounts = runner.accounts()
+    accounts = runner.accounts() if maintainers else []
     if accounts:
+        # The sweep's own probe is the expensive one, so it is timed and kept
+        # rather than thrown away: on a large corpus it may be the only
+        # observation this operation gets.
+        sweep_started = time.perf_counter()
         ranked = runner.maintainer_ranking(DEFAULT_AT, use_cache=False)
-        top_account = runner._rank_cache[DEFAULT_AT][0]["maintainer"]
+        sweep_probe_ms = (time.perf_counter() - sweep_started) * 1000
+        scored = runner._rank_cache[DEFAULT_AT]
+        ok = [s for s in scored if not s.get("error")]
+        top_account = ok[0]["maintainer"] if ok else None
         runner._rank_cache.clear()
-        log(f"    ranked {ranked['accounts']} accounts; widest reach: {top_account}")
+        log(
+            f"    ranked {ranked['accounts']} accounts in {sweep_probe_ms:.0f} ms "
+            f"({ranked['errors']} engine refusals); widest reach that completed: {top_account}"
+        )
+        if ranked["errors"]:
+            log(f"    first refusal: {ranked['first_error']}")
 
-        for label, fn, key, n, w in [
+        sweep_meta = {
+            "accounts": len(accounts),
+            "engine_errors": ranked["errors"],
+            "first_error": ranked["first_error"],
+        }
+        if ranked["errors"]:
+            # An operation the engine refuses to complete is reported as the
+            # single observation it is, never as a percentile over retries.
+            results.append(
+                Timings(
+                    label="maintainer reach (ranked sweep, all accounts, UNCACHED)",
+                    samples_ms=(sweep_probe_ms,),
+                    warmup_ms=(),
+                    cold_ms=sweep_probe_ms,
+                    meta=sweep_meta
+                    | {
+                        "note": (
+                            "single observation, not a percentile: the engine "
+                            "refused some accounts at this corpus size, so the "
+                            "operation does not produce a complete answer here"
+                        ),
+                        "complete_answer": False,
+                    },
+                )
+            )
+            log(
+                "    maintainer reach (ranked sweep) INCOMPLETE at this corpus size: "
+                f"{ranked['errors']}/{ranked['accounts']} accounts refused, "
+                f"one sweep took {sweep_probe_ms:.0f} ms"
+            )
+
+        slow_plan: list[tuple] = []
+        if top_account is not None:
+            reach_started = time.perf_counter()
+            try:
+                runner.maintainer_reach(top_account)
+                reach_error = None
+            except HydraError as exc:
+                reach_error = str(exc)[:160]
+            reach_probe_ms = (time.perf_counter() - reach_started) * 1000
+            slow_plan.append(
+                (
+                    f"maintainer reach (one account: {top_account})",
+                    op_reach,
+                    "reach",
+                    *plan_from_probe(reach_probe_ms, runs, warmup, budget_s),
+                    {
+                        "probe_ms": round(reach_probe_ms, 3),
+                        "account": top_account,
+                        "probe_error": reach_error,
+                    },
+                )
+            )
+        if not ranked["errors"]:
+            slow_plan.append(
+                (
+                    "maintainer reach (ranked sweep, all accounts, UNCACHED)",
+                    op_rank_cold,
+                    "rank_cold",
+                    *plan_from_probe(sweep_probe_ms, runs, warmup, budget_s),
+                    sweep_meta,
+                )
+            )
+        slow_plan.append(
             (
-                f"maintainer reach (one account: {top_account})",
-                op_reach,
-                "reach",
+                "maintainer reach (ranked sweep, in-process CACHE HIT)",
+                op_rank_warm,
+                "rank_warm",
                 runs,
                 warmup,
-            ),
-            ("maintainer reach (ranked sweep, all accounts, UNCACHED)", op_rank_cold, "rank_cold", runs, warmup),
-            ("maintainer reach (ranked sweep, in-process CACHE HIT)", op_rank_warm, "rank_warm", runs, warmup),
-        ]:
+                sweep_meta | {"note": "a dict lookup in the web process, not a query"},
+            )
+        )
+
+        for label, fn, key, n, w, extra in slow_plan:
             timing = run_timed(fn, label=label, runs=n, warmup=w, budget_s=budget_s)
             results.append(
                 Timings(
@@ -410,7 +593,7 @@ def measure_corpus(
                     samples_ms=timing.samples_ms,
                     warmup_ms=timing.warmup_ms,
                     cold_ms=timing.cold_ms,
-                    meta=rowmeta(key) | {"accounts": len(accounts)},
+                    meta=rowmeta(key) | extra,
                 )
             )
             s = results[-1].summary()
@@ -418,6 +601,13 @@ def measure_corpus(
                 f"    {label:<48} n={s['n']:<3} cold={s['cold_ms']:>10.3f}  "
                 f"p50={s['p50_ms']:>9.3f}  p95={s['p95_ms']:>9.3f}  p99={s['p99_ms']:>9.3f} ms"
             )
+
+    if refusals:
+        for result in results:
+            if result.label.startswith("maintainer reach (one account"):
+                result.meta["engine_refusals_during_sample"] = len(refusals)
+                result.meta["first_refusal"] = refusals[0]
+        log(f"    {len(refusals)} engine refusal(s) inside the single-account sample")
 
     log(
         f"    blast-radius answer: {blast['nodes']} nodes / {blast['edges']} edges, "
@@ -595,6 +785,11 @@ def main(argv: list[str] | None = None) -> int:
     run_cmd.add_argument("--warmup", type=int, default=DEFAULT_WARMUP)
     run_cmd.add_argument("--budget-s", type=float, default=DEFAULT_BUDGET_S)
     run_cmd.add_argument("--skip-edge-count", action="store_true")
+    run_cmd.add_argument(
+        "--skip-maintainers",
+        action="store_true",
+        help="measure only the exposure/blast-radius family (for controlled re-runs)",
+    )
     run_cmd.add_argument("--out", type=Path)
 
     cold_cmd = sub.add_parser(
@@ -645,7 +840,11 @@ def main(argv: list[str] | None = None) -> int:
 
     started = time.perf_counter()
     timings = measure_corpus(
-        runner, runs=args.runs, warmup=args.warmup, budget_s=args.budget_s
+        runner,
+        runs=args.runs,
+        warmup=args.warmup,
+        budget_s=args.budget_s,
+        maintainers=not args.skip_maintainers,
     )
     payload = {
         "generated_at": iso(int(time.time())),
