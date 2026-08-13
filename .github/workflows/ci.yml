@@ -50,13 +50,15 @@ jobs:
           node-version: "20"
       - name: Syntax check static JS
         run: |
-          find hindsight_web/static/ -type f -name '*.js' -print0 |
-            while IFS= read -r -d '' file; do
-              node --check "$file"
-            done
+          status=0
+          while IFS= read -r -d '' file; do
+            node --check "$file" || status=1
+          done < <(find hindsight_web/static/ -type f -name '*.js' -print0)
+          exit "$status"
       - name: No em or en dashes in UI files
         run: |
-          if grep -rn -e "$(printf '\342\200\224')" -e "$(printf '\342\200\223')" hindsight_web/static/*.{js,css,html}; then
+          if grep -rn -e "$(printf '\342\200\224')" -e "$(printf '\342\200\223')" \
+              --include='*.js' --include='*.css' --include='*.html' hindsight_web/static/; then
             exit 1
           fi
       - name: Self-hosted fonts present
