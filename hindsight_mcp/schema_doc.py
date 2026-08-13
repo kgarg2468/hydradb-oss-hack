@@ -55,7 +55,13 @@ ID_NOTE = (
     "'maint:<name>'. The same name always yields the same id on every machine "
     "and every run, which is what makes the ingest idempotent — and it means an "
     "id can be computed for a name that is not in the graph, so a lookup "
-    "returning no rows is a real 'not present', not a lookup failure."
+    "returning no rows is a real 'not present', not a lookup failure. That "
+    "holds only for a dataset that holds something: against an empty or "
+    "mis-pointed label namespace every lookup returns no rows and 'not present' "
+    "would be true of every name that has ever existed. The canned tools decide "
+    "this for you and return answerable=false with an unanswerable_note instead "
+    "of a negative; if you are reading zero rows from your own Cypher, call one "
+    "of them, or count the repository nodes, before reporting an absence."
 )
 
 EFFICIENCY_NOTE = (

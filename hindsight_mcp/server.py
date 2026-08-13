@@ -199,8 +199,12 @@ def build_server(
             "is the incident question: pass a timestamp inside a compromise "
             "window and get the repositories in scope, each with the interval "
             "over which it held. An empty result with an existing anchor is a "
-            "proven negative for that instant. at_timestamp takes unix seconds "
-            "or ISO-8601. Evidence is lockfile resolution, never deployment."
+            "proven negative for that instant — but only when the response also "
+            "says answerable: true. When it says false the dataset itself could "
+            "not answer (it is empty, or no ingest has finished), the empty "
+            "result means nothing, and unanswerable_note says so: report that, "
+            "never an all-clear. at_timestamp takes unix seconds or ISO-8601. "
+            "Evidence is lockfile resolution, never deployment."
         ),
     )
     def exposure_asof(
