@@ -13,6 +13,15 @@
  * the graph, so it refreshes when the slider is released rather than on every
  * pixel: a panel that lags the playhead is worse than one that waits for you.
  *
+ * The view is addressable. Three things live in the query string, because three
+ * things are what somebody else needs to see the same screen: the package, the
+ * instant, and whether the graph is expanded. Nothing transient goes there. The
+ * instant is written as the unix second it already is, so a link is frozen: it
+ * is never re-derived from the clock or from whatever the dataset's bounds
+ * happen to be when it is opened, and the same URL resolves to the same answer
+ * a year from now. When a link cannot be honoured exactly, the console says so
+ * instead of quietly showing the nearest instant it can.
+ *
  * Truncation is load-bearing. A count from a cut read is a floor and renders as
  * one, and a cut read never gets to claim a negative.
  *
@@ -69,7 +78,8 @@
     rankingMeta: null,
     showAll: false,
     query: '',
-    lastLatency: null
+    lastLatency: null,
+    linkNotice: null
   };
 
   var sim = null;
@@ -332,6 +342,11 @@
     $('answer-rel').textContent = relativeText();
     $('answer-sep').hidden = false;
     markCurrentChip();
+    /* Moving the playhead retires whatever a link claimed: from here on the
+       console is showing the instant this operator chose, so there is nothing
+       left to disown. */
+    clearLinkNotice();
+    writeUrl(false);
     refresh(opts && opts.settled);
   }
 
@@ -397,6 +412,184 @@
     if (!next) { return; }
     if (next.at < state.domain.start || next.at > state.domain.end) { setDomain('day'); }
     setInstant(next.at, { settled: true });
+  }
+
+  /* -------------------------------------------------------------- the link */
+
+  /* The query string is the whole of the shareable view: which package was
+     asked about, which instant it was asked at, and which drawing was on
+     screen. `at` goes out as the unix second it already is, so the link carries
+     an absolute instant rather than an offset from anything that moves. */
+  function viewQuery() {
+    return '?package=' + encodeURIComponent(state.package) +
+      '&at=' + encodeURIComponent(String(state.at)) +
+      (state.showAll ? '&all=1' : '');
+  }
+
+  function viewUrl() {
+    return location.origin + location.pathname + viewQuery();
+  }
+
+  /* Scrubbing writes the URL on every frame the playhead lands on, so the
+     scrubber gets `replaceState`: a drag across the day would otherwise leave a
+     few hundred history entries between the operator and the page they came
+     from, and the back button would stop being an exit.
+   *
+   * The package select is the one control that pushes. Changing package is a
+   * discrete decision, there are as many entries as there are packages in the
+   * incident, and "back to the package I was just looking at" is a real move
+   * during an incident. The graph toggle stays on `replaceState` even though it
+   * is just as deliberate, because undoing it is one click on the control
+   * itself and the back stack is more useful holding only the packages. */
+  /* `window.history` spelled out: this file already has a function called
+     `history`, the one that draws a repository's resolution chips, and it wins
+     the name inside this closure. */
+  function writeUrl(push) {
+    var url = location.pathname + viewQuery();
+    var api = window.history;
+    if (push) { api.pushState(null, '', url); } else { api.replaceState(null, '', url); }
+  }
+
+  function readView() {
+    var raw = {};
+    location.search.replace(/^\?/, '').split('&').forEach(function (pair) {
+      if (!pair) { return; }
+      var eq = pair.indexOf('=');
+      var key = decodeURIComponent(pair.slice(0, eq < 0 ? pair.length : eq));
+      raw[key] = eq < 0 ? '' : decodeURIComponent(pair.slice(eq + 1).replace(/\+/g, ' '));
+    });
+    var readable = /^-?\d+$/.test(raw.at || '');
+    return {
+      package: raw.package || '',
+      at: readable ? Number(raw.at) : null,
+      unreadableAt: raw.at && !readable ? raw.at : '',
+      all: raw.all === '1'
+    };
+  }
+
+  /* Opening a link. Everything it asks for is applied before the first read
+     goes out, so the page never shows the default view for a frame and then
+     jumps to the shared one.
+   *
+   * A link can outlive the dataset it was made against: a different incident
+   * file, a shorter day, a package that is no longer in the list. The instant
+   * is clamped into the domain the console can actually query, because a
+   * half-loaded page helps nobody, but a clamped instant is a different
+   * question from the one that was asked and the answer on screen belongs to
+   * the clamped one. Same rule as a truncated read: the degraded answer is
+   * shown, and it is never allowed to pass for the whole one. */
+  function applyView(view) {
+    var picker = $('package');
+    var missing = view.package && state.incident.packages.indexOf(view.package) < 0
+      ? view.package : '';
+    if (view.package && !missing) {
+      state.package = view.package;
+      picker.value = view.package;
+    }
+    applyShowAll(view.all);
+    if (view.at !== null) { state.at = view.at; }
+    setDomain(state.zoom);
+    noteLink(missing, view);
+  }
+
+  function noteLink(missing, view) {
+    var parts = [];
+    if (missing) {
+      parts.push('This link asked for exposure to ' + missing + ', which is not a ' +
+        'package in this incident, so the answer below is about ' + state.package +
+        ' instead.');
+    }
+    if (view.unreadableAt) {
+      parts.push('This link carried an instant this console could not read (' +
+        view.unreadableAt + '), so the timeline opened where it always opens, at ' +
+        stamp(state.at) + '. That is the default, not the instant the link asked ' +
+        'for.');
+    } else if (view.at !== null && view.at !== state.at) {
+      parts.push('This link asked for ' + stamp(view.at) + ', which is outside the ' +
+        'stretch of time this incident covers (' + stamp(state.domain.start) + ' to ' +
+        stamp(state.domain.end) + '). Everything below is ' + stamp(state.at) +
+        ', the nearest instant in range, and is not an answer about the instant ' +
+        'the link asked for.');
+    }
+    state.linkNotice = parts.length ? parts.join(' ') : null;
+    renderLinkNotice();
+  }
+
+  function clearLinkNotice() {
+    if (!state.linkNotice) { return; }
+    state.linkNotice = null;
+    renderLinkNotice();
+  }
+
+  /* Its own slot above the rail rather than the banner slot below the answer:
+     this is a statement about the question, not about the answer, and the two
+     stack rather than compete when a link lands on a dataset that is also
+     truncated. Neutral accent, not amber, for the same reason the refusal is
+     not amber: amber means the read was cut short, and this read was complete,
+     it just answered a neighbouring question. */
+  function renderLinkNotice() {
+    var slot = $('link-slot');
+    slot.innerHTML = '';
+    if (!state.linkNotice) { return; }
+    var box = el('div', 'link-notice');
+    box.appendChild(el('b', null, 'LINK NOT HONOURED'));
+    box.appendChild(el('span', null, state.linkNotice));
+    slot.appendChild(box);
+  }
+
+  function applyShowAll(value) {
+    state.showAll = !!value;
+    var button = $('graph-toggle');
+    button.textContent = state.showAll ? 'Show summary' : 'Show all';
+    button.setAttribute('aria-pressed', String(state.showAll));
+    hovered = null;
+    $('tooltip').hidden = true;
+    if (state.blast) { renderGraph(state.blast); }
+  }
+
+  var copyTimer = null;
+
+  /* `navigator.clipboard` needs a secure context, and this console is served
+     over http on a loopback address, which some browsers count as secure and
+     some do not. So there are three rungs and the button never comes up empty:
+     the modern API, then the selection-and-execCommand trick that predates it
+     and still works on an insecure origin, and finally the browser's own prompt
+     with the link in it, which is a poor experience but is at least a link the
+     operator can select. */
+  function copyLink() {
+    var url = viewUrl();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function () {
+        copyNote('link copied', false);
+      }, function () { fallbackCopy(url); });
+      return;
+    }
+    fallbackCopy(url);
+  }
+
+  function fallbackCopy(url) {
+    var box = el('textarea');
+    box.value = url;
+    box.setAttribute('readonly', 'readonly');
+    box.style.position = 'fixed';
+    box.style.top = '0';
+    box.style.opacity = '0';
+    document.body.appendChild(box);
+    box.select();
+    var copied = false;
+    try { copied = document.execCommand('copy'); } catch (err) { copied = false; }
+    document.body.removeChild(box);
+    if (copied) { copyNote('link copied', false); return; }
+    window.prompt('Copy this link', url);
+    copyNote('copy blocked, link shown', true);
+  }
+
+  function copyNote(text, bad) {
+    var note = $('copy-note');
+    note.textContent = text;
+    note.className = 'copy-note mono' + (bad ? ' bad' : '');
+    clearTimeout(copyTimer);
+    copyTimer = setTimeout(function () { note.textContent = ''; }, 2400);
   }
 
   /* -------------------------------------------------------------- fetching */
@@ -1500,6 +1693,8 @@
       picker.addEventListener('change', function () {
         state.package = picker.value;
         state.exposure = null;
+        clearLinkNotice();
+        writeUrl(true);
         refresh(true);
       });
 
@@ -1543,13 +1738,17 @@
       $('next-event').addEventListener('click', function () { stepEvent(1); });
 
       $('graph-toggle').addEventListener('click', function () {
-        state.showAll = !state.showAll;
-        this.textContent = state.showAll ? 'Show summary' : 'Show all';
-        this.setAttribute('aria-pressed', String(state.showAll));
-        hovered = null;
-        $('tooltip').hidden = true;
-        if (state.blast) { renderGraph(state.blast); }
+        applyShowAll(!state.showAll);
+        writeUrl(false);
       });
+
+      $('copy-link').addEventListener('click', copyLink);
+
+      /* Only the package select pushes, so this fires only for a package the
+         operator was looking at a moment ago. It re-reads the URL rather than
+         trusting a stashed object, which keeps one code path between "opened a
+         link" and "walked back to one". */
+      window.addEventListener('popstate', function () { applyView(readView()); });
 
       var search = $('reach-search');
       search.addEventListener('input', function () {
@@ -1586,11 +1785,13 @@
       // inside the window, after every wave-1 package had been published, and
       // before the first clean release. Derived from the window rather than
       // hard-coded, so a different incident file still opens somewhere sane.
+      // A link overrides all of it, which is why this runs first and applyView
+      // runs last: the default is only ever the fallback.
       var opening = new Date(state.incident.window.start * 1000);
       opening.setUTCHours(14, 5, 0, 0);
       state.at = Math.max(state.incident.window.start,
         Math.floor(opening.getTime() / 1000));
-      setDomain('day');
+      applyView(readView());
       fitCanvas();
 
       var resizeTimer = null;
