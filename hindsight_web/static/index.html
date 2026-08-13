@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hindsight — incident console</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%2308090b'/%3E%3Crect x='3' y='3' width='4' height='10' fill='%23ff4b3a'/%3E%3Crect x='9' y='6' width='4' height='7' fill='%2346b98a'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+
+<header class="bar">
+  <div class="brand">
+    <span class="mark">HINDSIGHT</span>
+    <span class="sub">blast radius time machine</span>
+  </div>
+  <div class="incident-head">
+    <span class="k">INCIDENT</span>
+    <span id="incident-title" class="v">loading…</span>
+  </div>
+  <div class="node-state" id="node-state">
+    <span class="dot" id="node-dot"></span>
+    <span id="node-text" class="mono">connecting</span>
+  </div>
+</header>
+
+<section class="scrub" aria-label="Timeline">
+  <div class="scrub-head">
+    <div>
+      <span class="k">AS OF</span>
+      <span id="instant" class="instant mono">—</span>
+      <span id="instant-rel" class="dim mono"></span>
+    </div>
+    <div class="scrub-controls">
+      <span class="k">JUMP</span>
+      <div id="jumps" class="jumps"></div>
+      <span class="k pad">RANGE</span>
+      <button class="btn" data-zoom="day">full day</button>
+      <button class="btn" data-zoom="window">compromise window</button>
+    </div>
+  </div>
+
+  <div class="track-wrap">
+    <svg id="track" class="track" preserveAspectRatio="none" aria-hidden="true"></svg>
+    <div id="marker-labels" class="marker-labels"></div>
+    <input id="slider" class="slider" type="range" min="0" max="1000" value="0" step="1"
+           aria-label="Instant to query the graph at">
+  </div>
+  <p class="marker-detail dim">
+    <span id="marker-detail"></span>
+    <span id="track-note" class="track-note"></span>
+  </p>
+</section>
+
+<main class="grid">
+
+  <section class="panel exposure" aria-label="Exposure">
+    <div class="panel-head">
+      <h2>EXPOSURE <span class="dim">/ resolved lockfile state</span></h2>
+      <div class="pkg-picker">
+        <label class="k" for="package">PACKAGE</label>
+        <select id="package" class="mono"></select>
+      </div>
+    </div>
+
+    <div id="tally" class="tally"></div>
+    <div id="verdict" class="verdict"></div>
+    <div id="repos" class="repos"></div>
+
+    <p class="evidence">
+      <span class="tag tag-evidence">RESOLVED</span>
+      <span id="caveat" class="dim"></span>
+    </p>
+  </section>
+
+  <section class="panel graph" aria-label="Impact graph">
+    <div class="panel-head">
+      <h2>IMPACT GRAPH <span class="dim">/ repo → version → package → maintainer</span></h2>
+      <div id="graph-stats" class="mono dim"></div>
+    </div>
+    <div class="canvas-wrap">
+      <canvas id="canvas"></canvas>
+      <div id="tooltip" class="tooltip" hidden></div>
+      <div class="legend mono">
+        <span><i class="sw sw-exposed"></i>exposed repo</span>
+        <span><i class="sw sw-clean"></i>clean repo</span>
+        <span><i class="sw sw-mal"></i>malicious version</span>
+        <span><i class="sw sw-ver"></i>version</span>
+        <span><i class="sw sw-pkg"></i>package</span>
+        <span><i class="sw sw-maint"></i>maintainer</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel reach" aria-label="Maintainer reach">
+    <div class="panel-head">
+      <h2>MAINTAINER REACH <span class="dim">/ trust radius at this instant</span></h2>
+      <div id="reach-stats" class="mono dim"></div>
+    </div>
+    <div class="reach-q">If one npm account were phished tomorrow, which one reaches the most of our repositories?</div>
+    <div id="reach" class="reach-list"></div>
+    <p class="evidence">
+      <span class="tag tag-note">PRESENT TENSE</span>
+      <span id="maint-caveat" class="dim"></span>
+    </p>
+  </section>
+
+</main>
+
+<footer class="foot mono dim">
+  <span id="foot-left"></span>
+  <span id="foot-right"></span>
+</footer>
+
+<script src="/static/force.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>
