@@ -520,10 +520,12 @@
     if (!sources.length) { return; }
     var box = el('div', 'truncated');
     box.appendChild(el('b', null, 'INCOMPLETE READ'));
+    var tail = exposure && exposure.truncated ?
+      ' Every count above is a lower bound, and an empty result here is not a proven negative.' :
+      ' The impact graph is missing nodes; the exposure counts above are complete.';
     var body = el('span', null,
       clean(sources[0].truncation_note ||
-        (state.overview && state.overview.truncation_caveat) || '') +
-      ' Every count above is a lower bound, and an empty result here is not a proven negative.');
+        (state.overview && state.overview.truncation_caveat) || '') + tail);
     box.appendChild(body);
     slot.appendChild(box);
   }
@@ -1233,9 +1235,14 @@
       row('Compromise window', state.incident.window.start_iso + ' to ' +
         state.incident.window.end_iso);
     }
-    var truncated = (exposure && exposure.truncated) || (health && health.truncated);
-    row('Read completeness', truncated ? 'Incomplete: counts are floors' : 'Complete',
-      truncated ? 'warn' : null);
+    var cut = [];
+    if (exposure && exposure.truncated) { cut.push('exposure'); }
+    if (health && health.truncated) { cut.push('health'); }
+    if (state.blast && state.blast.truncated) { cut.push('impact graph'); }
+    if (rank && rank.truncated) { cut.push('ranking'); }
+    row('Read completeness',
+      cut.length ? 'Incomplete (' + cut.join(', ') + '): counts are floors' : 'Complete',
+      cut.length ? 'warn' : null);
   }
 
   /* ------------------------------------------------------- overlay control */
