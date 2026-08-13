@@ -4,6 +4,13 @@ Driven against a scripted transport rather than a node, so a 503 on page two is
 a one-line fixture instead of an act of god. Sleeping is patched out; what is
 asserted is that the *client's* policy — which statuses count as transient, how
 many attempts, and that the backoff is the client's own — is the one applied.
+
+Everything below the console's row cap now lives in
+:meth:`hindsight.client.HydraClient.paged_rows`, so the socket is stubbed at the
+client rather than in ``hindsight_web.paging``. These are still tests of what
+the console gets back from :func:`~hindsight_web.paging.fetch_all`: the point of
+the assertions is unchanged, only the seam they patch has moved to where the
+protocol actually is.
 """
 
 from __future__ import annotations
@@ -14,8 +21,8 @@ import urllib.error
 
 import pytest
 
+from hindsight import client as client_mod
 from hindsight.client import RETRY_STATUSES, ClientConfig, HydraClient, HydraError
-from hindsight_web import paging
 from hindsight_web.paging import DEFAULT_ROW_CAP, fetch_all
 
 
@@ -76,7 +83,7 @@ def no_sleeping(monkeypatch):
 
 def run(monkeypatch, client, *script, **kw):
     transport = Transport(*script)
-    monkeypatch.setattr(paging.urllib.request, "urlopen", transport)
+    monkeypatch.setattr(client_mod.urllib.request, "urlopen", transport)
     rows, truncated = fetch_all(client, "MATCH (n:X) RETURN n.a", {"p": 1}, **kw)
     return rows, truncated, transport
 
@@ -172,7 +179,7 @@ def test_a_transient_failure_on_a_continuation_resumes_the_same_cursor(
 
 def test_a_permanent_status_is_raised_immediately(monkeypatch, client, no_sleeping):
     transport = Transport(http_error(400), page([1]))
-    monkeypatch.setattr(paging.urllib.request, "urlopen", transport)
+    monkeypatch.setattr(client_mod.urllib.request, "urlopen", transport)
     with pytest.raises(HydraError) as caught:
         fetch_all(client, "MATCH (n:X) RETURN n.a")
     assert caught.value.status == 400
@@ -192,7 +199,7 @@ def test_retries_give_up_after_the_configured_number_of_attempts(
     monkeypatch, client, no_sleeping
 ):
     transport = Transport(*[http_error(503) for _ in range(4)])
-    monkeypatch.setattr(paging.urllib.request, "urlopen", transport)
+    monkeypatch.setattr(client_mod.urllib.request, "urlopen", transport)
     with pytest.raises(HydraError) as caught:
         fetch_all(client, "MATCH (n:X) RETURN n.a")
     assert caught.value.status == 503
@@ -206,7 +213,7 @@ def test_the_retry_budget_comes_from_the_shared_client_config(monkeypatch):
         config=ClientConfig(endpoint="http://node.invalid", max_retries=6)
     )
     transport = Transport(*[http_error(502) for _ in range(6)], page([1]))
-    monkeypatch.setattr(paging.urllib.request, "urlopen", transport)
+    monkeypatch.setattr(client_mod.urllib.request, "urlopen", transport)
     rows, truncated = fetch_all(patient, "MATCH (n:X) RETURN n.a")
     assert rows == [[1]]
     assert truncated is False

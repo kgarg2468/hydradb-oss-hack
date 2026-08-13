@@ -2,10 +2,11 @@
 
 Two layers, deliberately separable:
 
-* :mod:`hindsight_mcp.guard`, :mod:`hindsight_mcp.queries`,
-  :mod:`hindsight_mcp.schema_doc` and :mod:`hindsight_mcp.service` are plain
-  Python with no MCP imports, so the read-only guard and the query builders can
-  be tested directly;
+* :mod:`hindsight_mcp.guard`, :mod:`hindsight_mcp.schema_doc` and
+  :mod:`hindsight_mcp.service` are plain Python with no MCP imports, so the
+  read-only guard and the tool bodies can be tested directly. The Cypher itself
+  lives in :mod:`hindsight.queries`, shared with the web console so that both
+  surfaces answer the same question with the same statement;
 * :mod:`hindsight_mcp.server` registers those functions as MCP tools over stdio
   and is the only module that needs the SDK installed.
 

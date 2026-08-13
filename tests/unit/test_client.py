@@ -142,6 +142,66 @@ def test_all_rows_follows_the_cursor(monkeypatch):
     assert rec.calls[1]["cursor"] == "c1"
 
 
+def test_a_continuation_echoes_the_query_id_the_first_page_returned(monkeypatch):
+    """A cursor on its own is refused with
+
+        400 invalid_request: ClientProtocol query is not supported yet:
+            result cursor does not belong to this query request
+
+    so every page after the first has to carry the server's ``query_id`` too.
+    Without this, every read larger than one page failed on page two.
+    """
+    rec = Recorder(
+        [
+            {"query_id": "q-7", "rows": [[{"value": "a"}]], "next_cursor": 1},
+            {"query_id": "q-7", "rows": [[{"value": "b"}]], "next_cursor": 2},
+            {"query_id": "q-7", "rows": [[{"value": "c"}]], "next_cursor": None},
+        ]
+    )
+    monkeypatch.setattr(client_mod.urllib.request, "urlopen", rec)
+    assert HydraClient().all_rows("RETURN x", page_size=1) == [["a"], ["b"], ["c"]]
+    # The first request opens the read and must not claim a query_id of its own.
+    assert "query_id" not in rec.calls[0]
+    assert "cursor" not in rec.calls[0]
+    for call in rec.calls[1:]:
+        assert call["query_id"] == "q-7"
+
+
+def test_a_continuation_keeps_the_query_id_when_a_later_page_omits_it(monkeypatch):
+    rec = Recorder(
+        [
+            {"query_id": "q-9", "rows": [[{"value": "a"}]], "next_cursor": 1},
+            {"rows": [[{"value": "b"}]], "next_cursor": 2},
+            {"rows": [[{"value": "c"}]], "next_cursor": None},
+        ]
+    )
+    monkeypatch.setattr(client_mod.urllib.request, "urlopen", rec)
+    HydraClient().all_rows("RETURN x", page_size=1)
+    assert [call["query_id"] for call in rec.calls[1:]] == ["q-9", "q-9"]
+
+
+def test_the_row_cap_stops_the_read_and_says_it_did(monkeypatch):
+    rec = Recorder(
+        [
+            {"query_id": "q", "rows": [[{"value": 1}], [{"value": 2}]], "next_cursor": 1},
+            {"query_id": "q", "rows": [[{"value": 3}]], "next_cursor": 2},
+        ]
+    )
+    monkeypatch.setattr(client_mod.urllib.request, "urlopen", rec)
+    rows, truncated = HydraClient().paged_rows("RETURN x", page_size=2, row_cap=3)
+    assert rows == [[1], [2], [3]]
+    assert truncated is True
+    assert len(rec.calls) == 2, "a capped read must not keep paging"
+
+
+def test_a_result_that_lands_exactly_on_the_cap_is_not_called_truncated(monkeypatch):
+    rec = Recorder(
+        [{"query_id": "q", "rows": [[{"value": 1}], [{"value": 2}]], "next_cursor": None}]
+    )
+    monkeypatch.setattr(client_mod.urllib.request, "urlopen", rec)
+    assert HydraClient().paged_rows("RETURN x", row_cap=2) == ([[1], [2]], False)
+
+
 def test_ping_reports_reachability(monkeypatch, no_sleep):
     monkeypatch.setattr(client_mod.urllib.request, "urlopen", Recorder([{"rows": [[1]]}]))
     assert HydraClient().ping() is True

@@ -8,7 +8,9 @@ Adapted from poc/hydra.py. Differences that matter in production:
   exponential backoff and jitter — a long ingest run must not die because the
   node was compacting;
 * cursor paging is built in, because HydraDB caps ``page_size`` at 4096 and any
-  read that can return more rows has to follow ``next_cursor``.
+  read that can return more rows has to follow ``next_cursor`` — carrying the
+  ``query_id`` with it, which the node requires and which is the whole content
+  of :meth:`HydraClient.paged_rows`.
 """
 
 from __future__ import annotations
@@ -114,7 +116,8 @@ class HydraClient:
         *,
         timeout: float | None = None,
         page_size: int | None = None,
-        cursor: str | None = None,
+        cursor: object | None = None,
+        query_id: str | None = None,
     ) -> dict:
         body: dict[str, object] = {"cell_id": self.config.cell, "query": cypher}
         if parameters:
@@ -123,6 +126,8 @@ class HydraClient:
             body["page_size"] = min(page_size, MAX_PAGE_SIZE)
         if cursor is not None:
             body["cursor"] = cursor
+        if query_id is not None:
+            body["query_id"] = query_id
         payload = json.dumps(body).encode()
         headers = {
             "Authorization": f"Bearer {self.config.token}",
@@ -163,6 +168,53 @@ class HydraClient:
         """Single-page read, unwrapped."""
         return rows_of(self.query(cypher, parameters, **kw))
 
+    def paged_rows(
+        self,
+        cypher: str,
+        parameters: dict | None = None,
+        *,
+        page_size: int = MAX_PAGE_SIZE,
+        row_cap: int | None = None,
+        timeout: float | None = None,
+    ) -> tuple[list[list[object]], bool]:
+        """Follow next_cursor to exhaustion or to ``row_cap``. ``(rows, truncated)``.
+
+        A continuation must echo **both** the cursor and the ``query_id`` the
+        first page returned. Sending the cursor alone is refused:
+
+            400 invalid_request: ClientProtocol query is not supported yet:
+                result cursor does not belong to this query request
+
+        which made every result larger than one page fail on page two. Verified
+        against a live node: with the ``query_id`` echoed, one repository's
+        11,314 RESOLVES edges page cleanly to exhaustion over three pages.
+
+        ``truncated`` is True only when ``row_cap`` stopped the read while the
+        server still had a cursor open — an answer that was cut is never
+        presented as a complete one, and a result that happens to land exactly
+        on the cap is not called incomplete.
+        """
+        page = max(1, min(int(page_size), MAX_PAGE_SIZE))
+        out: list[list[object]] = []
+        cursor: object | None = None
+        query_id: str | None = None
+        while True:
+            res = self.query(
+                cypher,
+                parameters,
+                timeout=timeout,
+                page_size=page,
+                cursor=cursor,
+                query_id=query_id,
+            )
+            out.extend(rows_of(res))
+            query_id = res.get("query_id") or query_id
+            cursor = res.get("next_cursor")
+            if cursor is None:
+                return out, False
+            if row_cap is not None and len(out) >= row_cap:
+                return out[:row_cap], True
+
     def all_rows(
         self,
         cypher: str,
@@ -171,17 +223,11 @@ class HydraClient:
         page_size: int = MAX_PAGE_SIZE,
         timeout: float | None = None,
     ) -> list[list[object]]:
-        """Follow next_cursor until the result set is exhausted."""
-        out: list[list[object]] = []
-        cursor: str | None = None
-        while True:
-            res = self.query(
-                cypher, parameters, timeout=timeout, page_size=page_size, cursor=cursor
-            )
-            out.extend(rows_of(res))
-            cursor = res.get("next_cursor")
-            if cursor is None:
-                return out
+        """Every row of a paged read, however many pages that takes."""
+        rows, _ = self.paged_rows(
+            cypher, parameters, page_size=page_size, timeout=timeout
+        )
+        return rows
 
     def scalar(self, cypher: str, parameters: dict | None = None, default=None):
         rows = self.rows(cypher, parameters)

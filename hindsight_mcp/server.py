@@ -24,9 +24,9 @@ from mcp.server.mcpserver.exceptions import ToolError
 
 from hindsight.client import HydraClient, HydraError
 from hindsight.graphbuild import Schema
+from hindsight.queries import UnknownKind
 
 from .guard import UnsafeCypher
-from .queries import UnknownKind
 from .schema_doc import render_markdown
 from .service import Hindsight, Limits, ToolInputError
 

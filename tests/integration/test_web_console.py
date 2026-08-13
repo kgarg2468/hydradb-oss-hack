@@ -212,7 +212,13 @@ def test_every_console_query_is_one_the_engine_actually_accepts(console):
 
 
 def test_paging_continues_with_the_query_id_the_server_handed_back(client, seeded):
-    """A cursor without its ``query_id`` is refused as belonging to another query."""
+    """A cursor without its ``query_id`` is refused as belonging to another query.
+
+    The fix lives in :meth:`hindsight.client.HydraClient.paged_rows`, so both it
+    and the console's capped reader are exercised here: page size 1 over six
+    rows means five continuations, every one of which the node would reject if
+    the ``query_id`` were dropped.
+    """
     cypher = (
         f"MATCH (r:{TEST_SCHEMA.repo} {{id: $rid}})"
         f"-[e:{TEST_SCHEMA.resolves}]->(v:{TEST_SCHEMA.version}) "
@@ -227,6 +233,9 @@ def test_paging_continues_with_the_query_id_the_server_handed_back(client, seede
 
     paged, _ = fetch_all(client, cypher, {"rid": repo_id(EXPOSED_SLUG)}, page_size=1)
     assert sorted(map(str, paged)) == sorted(map(str, whole))
+
+    by_client = client.all_rows(cypher, {"rid": repo_id(EXPOSED_SLUG)}, page_size=1)
+    assert sorted(map(str, by_client)) == sorted(map(str, whole))
 
 
 def test_row_cap_reports_truncation_rather_than_lying_by_omission(client, seeded):

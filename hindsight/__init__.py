@@ -8,6 +8,9 @@ history rather than from the current lockfile.
 
 Modules:
   client      HTTP client for a HydraDB node (retries, cursor paging)
+  queries     every Cypher shape the product runs, as pure builders — one copy,
+              composed by both the MCP server and the web console so the two
+              cannot answer the same question differently
   ids         deterministic 63-bit node/edge ids with collision detection
   lockparse   npm / yarn lockfile parsers
   history     git lockfile history -> snapshots -> half-open validity intervals
