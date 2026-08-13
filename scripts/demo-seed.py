@@ -7,7 +7,11 @@
 Everything is written through :mod:`hindsight.graphbuild` and
 :mod:`hindsight.ingest` — the same deterministic ids, the same batched ``UNWIND``
 writer, the same watermarks as a production ingest. The only thing this script
-owns is *where the history comes from*, and it has three answers:
+owns is *where the history comes from*, and it has four answers:
+
+``--source file``
+    the committed ``poc/demo-dataset.jsonl.gz``. This is the reproducible,
+    offline path and therefore the first choice for ``auto``.
 
 ``--source snapshots``
     ``poc/snapshots/<repo>.jsonl.gz`` produced by ``poc/extract_history.py``.
@@ -21,9 +25,14 @@ owns is *where the history comes from*, and it has three answers:
     ~550 MB of clones, and the intervals in that load are the *output* of exactly
     that walk, validated 320/320 against an independent git oracle (Gate 1).
 
+``--source graph-file``
+    the ignored ``poc/graph.json.gz`` produced by ``poc/build_graph.py``. This
+    explicit regeneration source reproduces the live ``Dep*`` projection without
+    requiring a node and is what creates the committed file via ``--export``.
+
 ``--source auto`` (default)
-    snapshots if present, else the graph, else an error naming the commands that
-    regenerate them.
+    the committed file if it has the current format, else snapshots if present,
+    else the graph, else an error naming the commands that regenerate them.
 
 **One repository is synthetic and says so.** None of the eight real repositories
 regenerated a lockfile inside the two-hour compromise window — that is the true
@@ -52,6 +61,7 @@ sys.path.insert(0, str(ROOT))
 from hindsight.client import HydraClient, HydraError  # noqa: E402
 from hindsight.graphbuild import RepoInput, Schema, build_rowsets  # noqa: E402
 from hindsight.history import SENTINEL, Interval, Snapshot, build_intervals  # noqa: E402
+from hindsight.ids import IdRegistry  # noqa: E402
 from hindsight.ingest import Ingestor, chunks, node_upsert  # noqa: E402
 from hindsight_web.incident import load_incident  # noqa: E402
 from hindsight_web.paging import fetch_all  # noqa: E402
@@ -60,6 +70,10 @@ from hindsight_web.queries import DEMO_SCHEMA  # noqa: E402
 POC = ROOT / "poc"
 SNAPSHOT_DIR = POC / "snapshots"
 MAINTAINERS_FILE = POC / "maintainers.json"
+POC_GRAPH = POC / "graph.json.gz"
+DEMO_DATASET = POC / "demo-dataset.jsonl.gz"
+DATASET_FORMAT = "hindsight-demo-dataset"
+DATASET_VERSION = 1
 
 #: The PoC's ``Dep*`` load. Read-only here — this script never writes or deletes
 #: under these labels, and nothing else in the repository may either.
@@ -80,6 +94,17 @@ class RepoMeta:
     slug: str
     short: str
     service: str
+
+
+@dataclass(frozen=True)
+class Dataset:
+    """Self-contained logical rows from which any schema's rowsets are built."""
+
+    inputs: tuple[RepoInput, ...]
+    origins: dict[str, str]
+    provenance: dict[str, dict[str, str | int]]
+    maintainers: dict[str, tuple[str, ...]]
+    source: str
 
 
 #: The eight PoC repositories. ``short`` is the key used by both PoC artefacts
@@ -279,6 +304,47 @@ def source_repo_ids(client: HydraClient) -> dict[str, int]:
     return {str(slug): int(node_id) for node_id, slug in rows}
 
 
+def from_graph_export(graph: dict, meta: RepoMeta) -> RepoInput | None:
+    """Re-project one repository from ``poc/graph.json.gz`` without a node."""
+    source_id = next(
+        (
+            int(record["id"])
+            for record in graph.get("repos", [])
+            if record.get("slug") == meta.short
+        ),
+        None,
+    )
+    if source_id is None:
+        return None
+    versions = {
+        int(record["id"]): (str(record["pkg"]), str(record["version"]))
+        for record in graph.get("versions", [])
+    }
+    intervals = [
+        Interval(*versions[int(record["d"])], int(record["vf"]), int(record["vt"]))
+        for record in graph.get("resolves", [])
+        if int(record["s"]) == source_id
+    ]
+    if not intervals:
+        return None
+    boundaries = {interval.valid_from for interval in intervals}
+    boundaries |= {
+        interval.valid_to for interval in intervals if interval.valid_to != SENTINEL
+    }
+    closed = [
+        interval.valid_to for interval in intervals if interval.valid_to != SENTINEL
+    ]
+    return RepoInput(
+        slug=meta.slug,
+        name=meta.slug,
+        service=meta.service,
+        intervals=tuple(intervals),
+        first_ts=min(interval.valid_from for interval in intervals),
+        last_ts=max([*closed, *(interval.valid_from for interval in intervals)]),
+        snapshots=len(boundaries),
+    )
+
+
 # --------------------------------------------------------- synthetic repository
 
 
@@ -357,6 +423,178 @@ def maintainer_overlay() -> dict[str, list[str]]:
     return out
 
 
+# -------------------------------------------------------- committed dataset
+
+
+def write_dataset(path: Path, dataset: Dataset, rowset_summary: dict[str, int]) -> None:
+    """Write a byte-reproducible gzip JSONL representation of the demo rows."""
+    records = [
+        {
+            "type": "meta",
+            "format": DATASET_FORMAT,
+            "version": DATASET_VERSION,
+            "source": dataset.source,
+            "rowsets": rowset_summary,
+        }
+    ]
+    for spec in dataset.inputs:
+        stamp = dataset.provenance[spec.slug]
+        records.append(
+            {
+                "type": "repo",
+                "slug": spec.slug,
+                "name": spec.name,
+                "service": spec.service,
+                "first_ts": spec.first_ts,
+                "last_ts": spec.last_ts,
+                "snapshots": spec.snapshots,
+                "origin": dataset.origins[spec.slug],
+                "provenance": stamp["provenance"],
+                "synthetic": stamp["synthetic"],
+            }
+        )
+        for interval in sorted(
+            spec.intervals,
+            key=lambda item: (
+                item.package,
+                item.version,
+                item.valid_from,
+                item.valid_to,
+            ),
+        ):
+            records.append(
+                {
+                    "type": "interval",
+                    "repo": spec.slug,
+                    "package": interval.package,
+                    "version": interval.version,
+                    "valid_from": interval.valid_from,
+                    "valid_to": interval.valid_to,
+                }
+            )
+    for account, packages in sorted(dataset.maintainers.items()):
+        records.append(
+            {
+                "type": "maintainer",
+                "name": account,
+                "packages": sorted(packages),
+            }
+        )
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("wb") as raw:
+        with gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0) as compressed:
+            for record in records:
+                line = json.dumps(record, sort_keys=True, separators=(",", ":"))
+                compressed.write(line.encode("utf-8") + b"\n")
+
+
+def read_dataset(path: Path) -> Dataset:
+    """Load the committed logical rows and preserve their provenance verbatim."""
+    repos: dict[str, dict] = {}
+    intervals: dict[str, list[Interval]] = {}
+    origins: dict[str, str] = {}
+    provenance: dict[str, dict[str, str | int]] = {}
+    maintainers: dict[str, tuple[str, ...]] = {}
+    with gzip.open(path, "rt", encoding="utf-8") as fh:
+        header = json.loads(next(fh))
+        if (
+            header.get("format") != DATASET_FORMAT
+            or header.get("version") != DATASET_VERSION
+        ):
+            raise SystemExit(f"{path} is not a current {DATASET_FORMAT} file")
+        for line in fh:
+            record = json.loads(line)
+            kind = record.get("type")
+            if kind == "repo":
+                slug = str(record["slug"])
+                repos[slug] = record
+                intervals[slug] = []
+                origins[slug] = str(record["origin"])
+                provenance[slug] = {
+                    "provenance": str(record["provenance"]),
+                    "synthetic": int(record["synthetic"]),
+                }
+            elif kind == "interval":
+                intervals[str(record["repo"])].append(
+                    Interval(
+                        str(record["package"]),
+                        str(record["version"]),
+                        int(record["valid_from"]),
+                        int(record["valid_to"]),
+                    )
+                )
+            elif kind == "maintainer":
+                maintainers[str(record["name"])] = tuple(
+                    str(package) for package in record["packages"]
+                )
+    inputs = tuple(
+        RepoInput(
+            slug=slug,
+            name=str(record["name"]),
+            service=str(record["service"]),
+            intervals=tuple(intervals[slug]),
+            first_ts=int(record["first_ts"]),
+            last_ts=int(record["last_ts"]),
+            snapshots=int(record["snapshots"]),
+        )
+        for slug, record in repos.items()
+    )
+    return Dataset(
+        inputs=inputs,
+        origins=origins,
+        provenance=provenance,
+        maintainers=maintainers,
+        source=str(header["source"]),
+    )
+
+
+def dataset_is_current(path: Path) -> bool:
+    """Whether ``path`` starts with the format/version this loader understands."""
+    try:
+        with gzip.open(path, "rt", encoding="utf-8") as fh:
+            header = json.loads(next(fh))
+    except (OSError, EOFError, StopIteration, json.JSONDecodeError):
+        return False
+    return (
+        header.get("format") == DATASET_FORMAT
+        and header.get("version") == DATASET_VERSION
+    )
+
+
+class NamespacedIdRegistry(IdRegistry):
+    """Salt every id for a collision-free verification load on a shared node."""
+
+    def __init__(self, namespace: str) -> None:
+        super().__init__()
+        self.namespace = namespace
+
+    def mint(self, key: str) -> int:
+        return super().mint(f"demo:{self.namespace}:{key}")
+
+
+def build_demo_rowsets(
+    inputs: tuple[RepoInput, ...],
+    schema: Schema,
+    maintainers: dict[str, tuple[str, ...]],
+    id_namespace: str = "",
+):
+    """Build rowsets, optionally salting ids and watermark keys for isolation."""
+    registry = NamespacedIdRegistry(id_namespace) if id_namespace else None
+    rows = build_rowsets(
+        list(inputs),
+        schema=schema,
+        maintainers={name: list(packages) for name, packages in maintainers.items()},
+        registry=registry,
+    )
+    repo_ids = {slug: ident for ident, slug in rows.repo_slugs.items()}
+    if id_namespace:
+        rows.repo_slugs = {
+            ident: f"{id_namespace}:{slug}" for ident, slug in rows.repo_slugs.items()
+        }
+    return rows, repo_ids
+
+
 # ------------------------------------------------------------------ provenance
 
 
@@ -387,30 +625,84 @@ def write_provenance(
 # ------------------------------------------------------------------------ main
 
 
-def collect(source: str, client: HydraClient, log) -> tuple[list[RepoInput], dict[str, str]]:
-    """Gather the eight real repositories from whichever source is available."""
+def collect(
+    source: str,
+    client: HydraClient,
+    log,
+    dataset_path: Path = DEMO_DATASET,
+    graph_path: Path = POC_GRAPH,
+) -> tuple[Dataset, str]:
+    """Gather the demo rows from the reproducible file or a regeneration source."""
+    have_file = dataset_is_current(dataset_path)
     have_snapshots = SNAPSHOT_DIR.exists() and any(SNAPSHOT_DIR.glob("*.jsonl.gz"))
     chosen = source
     if source == "auto":
-        chosen = "snapshots" if have_snapshots else "graph"
+        chosen = "file" if have_file else "snapshots" if have_snapshots else "graph"
+    if chosen == "file":
+        if not have_file:
+            raise SystemExit(
+                f"no current demo dataset at {dataset_path}. Regenerate it with:\n"
+                "  python3 scripts/demo-seed.py --source graph-file "
+                f"--export {dataset_path}"
+            )
+        log("source: file")
+        dataset = read_dataset(dataset_path)
+        incident = load_incident()
+        for built in dataset.inputs:
+            suffix = ""
+            if dataset.provenance[built.slug]["synthetic"]:
+                # The same line the regeneration path prints, recomputed from the
+                # intervals in the file. It is the one number that says the
+                # artifact still carries an exposure to find: a demo seeded from
+                # a stale or truncated file would load cleanly and show nothing.
+                exposed = sorted(
+                    iv.package
+                    for iv in built.intervals
+                    if iv.version in incident.malicious_versions(iv.package)
+                )
+                suffix = (
+                    f"  SYNTHETIC, {len(exposed)} malicious version(s): "
+                    f"{', '.join(exposed)}"
+                )
+            log(
+                f"  {built.slug:<26} intervals={len(built.intervals):>7,d} "
+                f"commits={built.snapshots:>5,d}{suffix}"
+            )
+        return dataset, chosen
     if chosen == "snapshots" and not have_snapshots:
         raise SystemExit(
             f"no snapshots in {SNAPSHOT_DIR}. Regenerate them with:\n"
             "  cd poc && ./clone_repos.sh\n"
             '  for r in axios babel grafana jitsi-meet webpack superset react storybook; do \\\n'
             '    SINCE=2024-01-01 UNTIL=2025-12-31 python3 extract_history.py "$r" & done; wait\n'
-            "…or seed from the PoC load already in the node: --source graph"
+            "…or seed from the committed artifact: --source file"
+        )
+    if chosen == "graph-file" and not graph_path.exists():
+        raise SystemExit(
+            f"no PoC graph export at {graph_path}. Generate it with:\n"
+            "  cd poc && python3 build_graph.py"
         )
 
     log(f"source: {chosen}")
     inputs: list[RepoInput] = []
     origins: dict[str, str] = {}
     ids = source_repo_ids(client) if chosen == "graph" else {}
+    graph_export = None
+    if chosen == "graph-file":
+        with gzip.open(graph_path, "rt", encoding="utf-8") as fh:
+            graph_export = json.load(fh)
     for meta in REAL_REPOS:
         if chosen == "snapshots":
             built = from_snapshots(meta)
             origin = (
                 f"git lockfile history, re-walked from poc/snapshots/{meta.short}.jsonl.gz"
+            )
+        elif chosen == "graph-file":
+            built = from_graph_export(graph_export, meta)
+            origin = (
+                "git lockfile history, re-projected from poc/graph.json.gz "
+                "(Gate 1: 320/320 agreement with an independent git oracle). "
+                "'snapshots' counts closure-changing commit instants."
             )
         else:
             source_id = ids.get(meta.short)
@@ -431,7 +723,20 @@ def collect(source: str, client: HydraClient, log) -> tuple[list[RepoInput], dic
         )
     if not inputs:
         raise SystemExit(f"no repository history found via --source {chosen}")
-    return inputs, origins
+    return (
+        Dataset(
+            inputs=tuple(inputs),
+            origins=origins,
+            provenance={
+                spec.slug: {"provenance": REAL_REPO, "synthetic": 0} for spec in inputs
+            },
+            maintainers={
+                name: tuple(packages) for name, packages in maintainer_overlay().items()
+            },
+            source=chosen,
+        ),
+        chosen,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -444,9 +749,30 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--source",
-        choices=("auto", "snapshots", "graph"),
+        choices=("auto", "file", "snapshots", "graph", "graph-file"),
         default="auto",
         help="where the real repositories' lockfile history comes from",
+    )
+    parser.add_argument(
+        "--dataset",
+        type=Path,
+        default=DEMO_DATASET,
+        help="compressed JSONL path read by --source file",
+    )
+    parser.add_argument(
+        "--graph-file",
+        type=Path,
+        default=POC_GRAPH,
+        help="PoC graph export read by --source graph-file",
+    )
+    parser.add_argument(
+        "--export",
+        type=Path,
+        metavar="PATH",
+        help=(
+            "export the collected demo rows as deterministic compressed JSONL "
+            "and exit without reading or writing the output labels"
+        ),
     )
     parser.add_argument(
         "--execute",
@@ -463,6 +789,14 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument("--rel-prefix", default=DEMO_SCHEMA.resolves.split("_")[0])
+    parser.add_argument(
+        "--id-namespace",
+        default="",
+        help=(
+            "salt every node, edge and watermark id for a collision-free scratch "
+            "load; use with fresh --node-prefix and --rel-prefix values"
+        ),
+    )
     parser.add_argument("--no-synthetic", action="store_true")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
@@ -477,12 +811,29 @@ def main(argv: list[str] | None = None) -> int:
     incident = load_incident()
 
     log(f"labels: {schema.repo} / {schema.version} -[{schema.resolves}]->")
-    inputs, origins = collect(args.source, client, log)
+    collected, _ = collect(
+        args.source,
+        client,
+        log,
+        dataset_path=args.dataset,
+        graph_path=args.graph_file,
+    )
+    inputs = list(collected.inputs)
+    origins = dict(collected.origins)
+    provenance_by_slug = dict(collected.provenance)
 
-    if not args.no_synthetic:
+    if args.no_synthetic:
+        inputs = [spec for spec in inputs if spec.slug != SYNTHETIC_SLUG]
+        origins.pop(SYNTHETIC_SLUG, None)
+        provenance_by_slug.pop(SYNTHETIC_SLUG, None)
+    elif not any(spec.slug == SYNTHETIC_SLUG for spec in inputs):
         built = synthetic_repo(incident)
         inputs.append(built)
         origins[SYNTHETIC_SLUG] = SYNTHETIC_ORIGIN
+        provenance_by_slug[SYNTHETIC_SLUG] = {
+            "provenance": SYNTHETIC,
+            "synthetic": 1,
+        }
         exposed = sorted(
             iv.package
             for iv in built.intervals
@@ -494,13 +845,39 @@ def main(argv: list[str] | None = None) -> int:
             f"{len(exposed)} malicious version(s): {', '.join(exposed)}"
         )
 
-    overlay = maintainer_overlay()
-    rows = build_rowsets(inputs, schema=schema, maintainers=overlay)
+    dataset = Dataset(
+        inputs=tuple(inputs),
+        origins=origins,
+        provenance=provenance_by_slug,
+        maintainers=collected.maintainers,
+        source=collected.source,
+    )
+    rows, repo_ids = build_demo_rowsets(
+        dataset.inputs,
+        schema,
+        dataset.maintainers,
+        id_namespace=args.id_namespace,
+    )
     log("")
     log(
         f"built {rows.node_count:,d} nodes / {rows.edge_count:,d} edges "
-        f"({len(overlay)} maintainer accounts)"
+        f"({len(dataset.maintainers)} maintainer accounts)"
     )
+    if args.export:
+        write_dataset(args.export, dataset, rows.summary())
+        log(f"exported {args.export} ({args.export.stat().st_size:,d} bytes)")
+        if args.json:
+            print(
+                json.dumps(
+                    {
+                        "exported": str(args.export),
+                        "bytes": args.export.stat().st_size,
+                        "built": rows.summary(),
+                    },
+                    indent=2,
+                )
+            )
+        return 0
 
     ingestor = Ingestor(client, schema=schema, batch=args.batch, progress=log)
     started = time.perf_counter()
@@ -513,12 +890,10 @@ def main(argv: list[str] | None = None) -> int:
 
     provenance = [
         {
-            "id": next(
-                rid for rid, slug in rows.repo_slugs.items() if slug == spec.slug
-            ),
-            "provenance": SYNTHETIC if spec.slug == SYNTHETIC_SLUG else REAL_REPO,
+            "id": repo_ids[spec.slug],
+            "provenance": dataset.provenance[spec.slug]["provenance"],
             "origin": origins.get(spec.slug, ""),
-            "synthetic": 1 if spec.slug == SYNTHETIC_SLUG else 0,
+            "synthetic": dataset.provenance[spec.slug]["synthetic"],
         }
         for spec in inputs
     ]
