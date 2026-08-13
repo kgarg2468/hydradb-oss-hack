@@ -627,11 +627,18 @@
        milliseconds, and with better evidence — a watermark means an ingest
        finished, where an edge count only means some edges exist. */
     get('/api/health').then(function (health) {
-      $('node-dot').className = 'dot ' + (health.seeded ? 'ok' : 'bad');
+      $('node-dot').className = 'dot ' +
+        (health.truncated ? 'partial' : health.seeded ? 'ok' : 'bad');
+      /* The repository directory itself can come back cut, and then every
+         count in this header is a floor. Say so where the numbers are, not
+         only in the panels below. */
       $('node-text').textContent = health.reachable
-        ? health.repo_count + ' repos · ' + health.ingested_repo_count +
-          ' ingested · ' + health.labels.repo + '*'
+        ? count(health.repo_count, health.truncated) + ' repos · ' +
+          count(health.ingested_repo_count, health.truncated) +
+          ' ingested · ' + health.labels.repo + '*' +
+          (health.truncated ? ' · INCOMPLETE READ' : '')
         : 'unreachable';
+      if (health.truncated) { $('node-text').title = health.truncation_note; }
       $('foot-right').textContent = health.endpoint + '  ns=' + health.namespace +
         '  cell=' + health.cell;
     });
