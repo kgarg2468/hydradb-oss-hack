@@ -522,6 +522,24 @@ def test_the_graph_opens_on_the_whole_graph_and_the_link_carries_the_narrowing()
     assert "all: raw.graph !== 'path'" in script
 
 
+def test_a_link_carries_the_question_exactly_and_the_drawing_only_if_named():
+    """The asymmetry is deliberate and worth pinning.
+
+    A link that names no drawing gets whatever the console opens on today. The
+    alternative is to read "no graph named" as "the summary", which honours the
+    handful of links minted between the share feature and this change at the
+    cost of pinning every hand-written URL to a view we just decided was the
+    wrong one. The question -- package and instant -- is honoured exactly, and
+    a question that cannot be honoured still raises the link notice.
+    """
+    with TestClient(build_app(console())) as c:
+        script = c.get("/static/app.js").text
+    assert "'?package=' + encodeURIComponent(state.package)" in script
+    assert "'&at=' + encodeURIComponent(String(state.at))" in script
+    # No third piece of state is required for a link to be honoured.
+    assert "noteLink(missing, view)" in script
+
+
 def test_diagnostics_is_reached_through_the_status_it_explains():
     """A developer drawer billed as a peer of the incident is over-billed.
 

@@ -473,9 +473,15 @@
       package: raw.package || '',
       at: readable ? Number(raw.at) : null,
       unreadableAt: raw.at && !readable ? raw.at : '',
-      /* The whole graph is the view now, so the link only has to carry the
-         narrowing. `all=1` is what links minted before the flip said for the
-         whole graph, and it still lands on the whole graph. */
+      /* A link carries the question exactly: which package, which instant.
+         Which drawing was on screen is a view preference, and a link that does
+         not name one gets whatever the console currently opens on. That is a
+         deliberate asymmetry. Honouring the omission instead would mean
+         reading "no graph named" as "the summary", which pins every
+         hand-written URL to a view we just decided was the wrong one, forever.
+         Nothing is lost when a pre-flip link lands on the full graph: the
+         answer is identical, and `Focus malicious path` is one click. A
+         mangled *question*, by contrast, still gets the link notice. */
       all: raw.graph !== 'path'
     };
   }
