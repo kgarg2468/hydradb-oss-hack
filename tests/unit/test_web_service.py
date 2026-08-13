@@ -115,9 +115,14 @@ class FakeReader:
         packages=(CHALK, DEBUG),
         versions=(),
         watermarked=("acme/checkout-web", "webpack/webpack"),
+        repos=REPOS,
         cut=(),
     ):
         self.statements: list[tuple[str, dict]] = []
+        #: The repository directory this dataset holds. ``repos=()`` is the
+        #: empty or mis-pointed label namespace: a node that answers every
+        #: statement correctly and holds nothing.
+        self.repos = [list(row) for row in repos]
         self.packages = set(packages)
         self.versions = set(versions)
         self.watermarked = tuple(watermarked)
@@ -142,7 +147,7 @@ class FakeReader:
         keys = set(p)
 
         if projection.startswith("r.id"):  # repo_directory
-            return "repo_directory", [list(row) for row in REPOS]
+            return "repo_directory", [list(row) for row in self.repos]
         if projection.startswith("m.id"):
             return "maintainer_directory", [list(row) for row in MAINTAINERS]
         if projection.startswith("w.slug"):
@@ -575,3 +580,237 @@ def test_overview_ships_the_truncation_wording_to_the_page():
     payload = console().overview()
     assert payload["truncation_caveat"] == TRUNCATION_CAVEAT
     assert payload["truncated"] is False
+
+
+# -------------------------------------------------------------------- coverage
+#
+# The failure mode this section exists for: pointed at an empty or mis-pointed
+# label namespace, every count is zero, every repository is NOT_RESOLVED and the
+# console renders a confident all-clear, with *more* confidence than a genuinely
+# clean estate gets, because an absent package node used to be reported as "a
+# real absence, not a lookup failure". For an incident tool that turns a
+# configuration mistake into "you were not exposed".
+#
+# So there are three states and they are kept apart here: a proven negative (the
+# dataset is populated and the answer really is no), a truncated read (we saw
+# some of the graph, every count is a floor) and no coverage at all (we saw
+# nothing, and there is no answer to give at any confidence).
+
+
+def empty_console(**kw):
+    """A node that answers every statement correctly and holds nothing."""
+    return console(reader=FakeReader(repos=(), watermarked=(), packages=(), **kw))
+
+
+def test_an_empty_dataset_refuses_to_answer_instead_of_proving_a_negative():
+    result = empty_console().exposure("chalk", AT)
+    assert result["answerable"] is False
+    assert result["unanswerable_reason"] == service.EMPTY_DATASET
+    assert "no question can be answered" in result["note"]
+    # The two sentences that made an empty graph read as an all-clear.
+    assert "proven negative" not in result["note"]
+    assert "real absence" not in result["note"]
+
+
+def test_the_empty_dataset_note_says_the_counts_are_not_a_result():
+    result = empty_console().exposure("chalk", AT)
+    assert result["counts"] == {
+        "repos": 0, "exposed": 0, "resolved_clean": 0, "not_resolved": 0
+    }
+    assert "not a result" in result["note"]
+    assert result["unanswerable_note"] == result["note"]
+    assert result["coverage"] == {"repo_count": 0, "ingested_repo_count": 0}
+
+
+def test_a_populated_dataset_still_proves_its_negatives():
+    """The regression guard: the fix must not weaken the answer it protects."""
+    absent = console(reader=FakeReader(packages=())).exposure("left-pad", AT)
+    assert absent["answerable"] is True
+    assert absent["unanswerable_reason"] is None
+    assert absent["unanswerable_note"] is None
+    assert "real absence, not a lookup failure" in absent["note"]
+
+    nobody = console().exposure("chalk", 500)
+    assert nobody["answerable"] is True
+    assert "proven negative" in nobody["note"]
+
+
+def test_a_dataset_with_repositories_but_no_ingested_history_cannot_answer():
+    """A half-loaded dataset answers NOT_RESOLVED for everything, for free."""
+    result = console(reader=FakeReader(watermarked=())).exposure("chalk", AT)
+    assert result["answerable"] is False
+    assert result["unanswerable_reason"] == service.NO_INGESTED_HISTORY
+    assert result["coverage"] == {"repo_count": 3, "ingested_repo_count": 0}
+    assert "gap in coverage and not a negative result" in result["note"]
+
+
+def test_one_watermarked_repository_is_enough_to_answer():
+    result = console(reader=FakeReader(watermarked=("webpack/webpack",))).exposure(
+        "chalk", AT
+    )
+    assert result["answerable"] is True
+    assert result["unanswerable_reason"] is None
+
+
+def test_coverage_and_truncation_are_separate_states_and_do_not_collapse():
+    """Three distinct answers to "why is this empty", never merged into one."""
+    proven = console().exposure("chalk", 500)
+    cut = console(reader=FakeReader(cut={"repos_resolving"})).exposure("chalk", 500)
+    blank = empty_console().exposure("chalk", 500)
+
+    assert (proven["answerable"], proven["truncated"]) == (True, False)
+    assert (cut["answerable"], cut["truncated"]) == (True, True)
+    assert (blank["answerable"], blank["truncated"]) == (False, False)
+    assert len({proven["note"], cut["note"], blank["note"]}) == 3
+    assert cut["note"] == TRUNCATION_CAVEAT
+    assert blank["unanswerable_reason"] == service.EMPTY_DATASET
+    assert cut["unanswerable_reason"] is None
+
+
+def test_status_values_are_untouched_by_the_coverage_field():
+    """EXPOSED / RESOLVED_CLEAN / NOT_RESOLVED are a contract; this is additive."""
+    result = console().exposure("chalk", AT)
+    assert [r["status"] for r in result["repos"]] == [
+        "EXPOSED",
+        "RESOLVED_CLEAN",
+        "NOT_RESOLVED",
+    ]
+    assert result["answerable"] is True
+
+
+def test_version_footprint_on_an_empty_dataset_is_not_a_proven_absence():
+    """The sharpest negative this product states, and the easiest to fake."""
+    result = empty_console().version_footprint("chalk", "5.6.1", AT)
+    assert result["answerable"] is False
+    assert result["unanswerable_reason"] == service.EMPTY_DATASET
+    assert result["version_in_graph"] is False
+    assert "no question can be answered" in result["note"]
+    assert "no lockfile in the dataset ever resolved it" not in result["note"]
+
+
+def test_version_footprint_keeps_its_strong_negative_when_the_dataset_is_real():
+    result = console().version_footprint("chalk", "5.6.1", AT)
+    assert result["answerable"] is True
+    assert "no lockfile in the dataset ever resolved it" in result["note"]
+
+
+def test_blast_radius_carries_the_same_coverage_verdict_as_the_exposure_read():
+    blank = empty_console().blast_radius("chalk", AT)
+    assert blank["answerable"] is False
+    assert blank["unanswerable_reason"] == service.EMPTY_DATASET
+    # No repository reaches the drawing, so nothing in it can be read as a
+    # repository that came back clean. The console refuses to draw it at all.
+    assert [n for n in blank["nodes"] if n["kind"] == "repo"] == []
+    assert blank["exposed_repos"] == []
+    assert blank["counts"]["repos"] == 0
+
+    real = console().blast_radius("chalk", AT)
+    assert real["answerable"] is True
+    assert real["unanswerable_note"] is None
+
+
+def test_health_and_the_answer_path_cannot_disagree_about_the_dataset():
+    """The contradiction the fix removes: a "0 repos" dot beside an all-clear."""
+    for view, expected in (
+        (console(), True),
+        (empty_console(), False),
+        (console(reader=FakeReader(watermarked=())), False),
+    ):
+        health = view.health()
+        assert health["answerable"] is expected
+        assert health["seeded"] is health["answerable"]
+        assert view.exposure("chalk", AT)["answerable"] is expected
+
+
+def test_health_reports_an_unreachable_node_as_unanswerable():
+    def broken(*args, **kw):
+        raise OSError("connection refused")
+
+    health = console(reader=broken).health()
+    assert health["reachable"] is False
+    assert health["answerable"] is False
+    assert health["unanswerable_reason"] == service.UNREACHABLE
+    assert "did not answer" in health["unanswerable_note"]
+
+
+def test_an_unreadable_dataset_raises_on_the_answer_path_rather_than_answering():
+    """A 502 is itself a refusal; only health turns a failed read into a state."""
+    def broken(*args, **kw):
+        raise OSError("connection refused")
+
+    with pytest.raises(OSError, match="connection refused"):
+        console(reader=broken).exposure("chalk", AT)
+
+
+def test_an_empty_dataset_is_never_cached_as_the_answer():
+    """The console usually starts before ingest finishes; both are separate runs.
+
+    Caching the empty read would freeze the refusal for the life of the server:
+    the graph fills up, every question it can now answer is still met with "no
+    coverage", and the only fix is a restart nobody knows to perform. The
+    dangerous direction of staleness is the one that withholds an answer, so it
+    is the one that is not cached.
+    """
+    reader = FakeReader(repos=(), watermarked=())
+    view = console(reader=reader)
+    assert view.exposure("chalk", AT)["unanswerable_reason"] == service.EMPTY_DATASET
+
+    reader.repos = [list(row) for row in REPOS]
+    assert view.exposure("chalk", AT)["unanswerable_reason"] == (
+        service.NO_INGESTED_HISTORY
+    )
+
+    reader.watermarked = ("webpack/webpack",)
+    answered = view.exposure("chalk", AT)
+    assert answered["answerable"] is True
+    assert answered["unanswerable_reason"] is None
+
+
+def test_coverage_is_read_once_and_shared_with_every_answer():
+    """The scrubber issues an exposure read every 55 ms; coverage is cached."""
+    reader = FakeReader()
+    view = console(reader=reader)
+    for _ in range(3):
+        view.exposure("chalk", AT)
+    assert sum(1 for s, _ in reader.statements if "RETURN w.slug" in s) == 1
+    assert sum(1 for s, _ in reader.statements if "RETURN r.id" in s) == 1
+
+
+def test_a_populated_dataset_read_expires_rather_than_outliving_the_dataset():
+    """A cached count is a claim about when we looked; the window bounds it.
+
+    Not the same hazard as the empty read above — a directory short by one
+    repository costs a number, not the answer — but a console that can never
+    see a tenth repository is reporting a nine-repository estate forever.
+    """
+    now = [1000.0]
+    reader = FakeReader()
+    view = console(reader=reader, clock=lambda: now[0], cache_ttl=30.0)
+
+    view.repositories()
+    now[0] += 29.0
+    view.repositories()
+    assert sum(1 for s, _ in reader.statements if "RETURN r.id" in s) == 1
+
+    now[0] += 2.0
+    view.repositories()
+    assert sum(1 for s, _ in reader.statements if "RETURN r.id" in s) == 2
+
+
+def test_the_coverage_predicate_is_decided_in_exactly_one_place():
+    assert service.coverage_of(3, 2).answerable is True
+    assert service.coverage_of(0, 0).reason == service.EMPTY_DATASET
+    assert service.coverage_of(9, 0).reason == service.NO_INGESTED_HISTORY
+    assert service.coverage_of(3, 2, reachable=False).reason == service.UNREACHABLE
+    assert service.coverage_of(3, 2).note is None
+
+
+def test_every_unanswerable_note_avoids_deployment_language():
+    """The honesty rule that guards analysis.py, applied to the new strings."""
+    from test_web_analysis import FORBIDDEN  # noqa: PLC0415
+
+    for note in service.UNANSWERABLE_NOTES.values():
+        lowered = note.lower()
+        for word in FORBIDDEN:
+            assert word not in lowered, f"{word!r} appears in {note[:80]!r}"
+        assert "proven" not in lowered

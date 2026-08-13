@@ -311,6 +311,83 @@ def test_the_page_is_shipped_the_words_it_renders_truncation_with():
     assert ".truncated {" in style
 
 
+# -------------------------------------------------------------------- coverage
+#
+# The empty-dataset all-clear, over HTTP. A 200 with zero counts is the right
+# status code (nothing failed) and the wrong answer unless the payload says the
+# dataset could not answer at all, so this is where the field is pinned down as
+# part of the API rather than as prose inside a note.
+
+
+def empty_client():
+    reader = FakeReader(repos=(), watermarked=(), packages=())
+    return TestClient(build_app(console(reader=reader)))
+
+
+def test_exposure_declares_whether_the_dataset_could_answer_at_all(client):
+    status, body = get(client, "/api/exposure", package="chalk", at=AT)
+    assert status == 200
+    assert body["answerable"] is True
+    assert body["unanswerable_reason"] is None
+    assert body["coverage"] == {"repo_count": 3, "ingested_repo_count": 2}
+
+
+@pytest.mark.parametrize(
+    ("path", "params"),
+    [
+        ("/api/exposure", {"package": "chalk"}),
+        ("/api/blast-radius", {"package": "chalk"}),
+        ("/api/version-footprint", {"package": "chalk", "version": "5.6.1"}),
+        ("/api/health", {}),
+    ],
+)
+def test_every_answer_endpoint_reports_an_empty_dataset_as_unanswerable(path, params):
+    with empty_client() as c:
+        status, body = get(c, path, at=AT, **params)
+    assert status == 200
+    assert body["answerable"] is False
+    assert body["unanswerable_reason"] == "empty_dataset"
+    assert "no question can be answered" in body["unanswerable_note"]
+
+
+def test_an_empty_dataset_keeps_every_existing_field_the_page_reads():
+    """Additive: the front end must not have to guess which shape it received."""
+    with empty_client() as c:
+        body = get(c, "/api/exposure", package="chalk", at=AT)[1]
+    for key in ("counts", "repos", "package_in_graph", "truncated", "truncation_note"):
+        assert key in body
+    assert body["counts"] == {
+        "repos": 0, "exposed": 0, "resolved_clean": 0, "not_resolved": 0
+    }
+    assert body["truncated"] is False
+
+
+def test_health_and_exposure_ship_the_same_verdict_to_the_same_page():
+    with empty_client() as c:
+        health = get(c, "/api/health")[1]
+        exposure = get(c, "/api/exposure", package="chalk", at=AT)[1]
+    assert health["seeded"] is False
+    assert health["answerable"] is exposure["answerable"] is False
+    assert health["unanswerable_reason"] == exposure["unanswerable_reason"]
+
+
+def test_the_page_is_shipped_the_code_that_refuses_a_verdict():
+    with TestClient(build_app(console())) as c:
+        script = c.get("/static/app.js").text
+        style = c.get("/static/app.css").text
+    # The refusal is keyed on an explicit false, so an older payload without the
+    # field still renders the previous behaviour rather than a blank page.
+    assert "d.answerable === false" in script
+    assert "CANNOT ANSWER" in script
+    # A distinct state, not a second amber banner.
+    assert ".unanswerable {" in style
+    assert ".stat.unknown b" in style
+    assert "border: 1px dashed" in style.split(".unanswerable {")[1].split("}")[0]
+
+
+# ------------------------------------------------------------------- namespace
+
+
 def test_the_console_reads_the_dataset_the_org_config_declares(tmp_path):
     """org.yaml's schema block is what ingest writes, so it is what we read.
 

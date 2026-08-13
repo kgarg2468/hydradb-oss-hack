@@ -15,6 +15,15 @@
  *
  * Truncation is load-bearing. A count from a cut read is a floor and renders as
  * one, and a cut read never gets to claim a negative.
+ *
+ * So is coverage, and it is a different thing. Truncation means we saw some of
+ * the graph; `answerable: false` means we saw none of it, because the dataset is
+ * empty or the console is pointed at the wrong labels. In that state there is no
+ * verdict to render at any confidence, so this file refuses to render one: the
+ * headline says so, the counts show as unknown rather than as zeros, the drawing
+ * is replaced by a sentence, and the evidence list says why it is empty. The
+ * three states, proven negative, truncated read and no coverage, are visually
+ * distinct on purpose and are never collapsed into each other.
  */
 (function () {
   'use strict';
@@ -166,6 +175,29 @@
      than relying on a banner the eye can skip. */
   function count(value, truncated) {
     return truncated ? '≥ ' + value : String(value);
+  }
+
+  /* A payload that predates the coverage fields is treated as answerable, so an
+     older cached response degrades to the previous behaviour rather than to a
+     blank page. Only an explicit `false` refuses. */
+  function unanswerable(d) { return !!d && d.answerable === false; }
+
+  function repoCount(d) {
+    return d && d.coverage ? d.coverage.repo_count : 0;
+  }
+
+  /* Why this dataset cannot answer, as a clause that completes "no answer for
+     chalk: ...". The prose note from the API carries the full explanation; this
+     is the version that fits on one line. */
+  function refusalCause(d) {
+    var reason = d.unanswerable_reason;
+    if (reason === 'empty_dataset') {
+      return 'this dataset contains no repositories, so nothing was checked';
+    }
+    if (reason === 'no_ingested_history') {
+      return 'no repository here has ingested lockfile history, so nothing was checked';
+    }
+    return 'this dataset could not be read, so nothing was checked';
   }
 
   function fade(node) {
@@ -456,7 +488,14 @@
 
     function b(text, cls) { return el('b', cls || null, text); }
 
-    if (n > 0) {
+    if (unanswerable(d)) {
+      /* Not "no exposure found". There is no finding here at all, and the
+         headline is the one line an incident lead reads. */
+      line.appendChild(b('No answer', 'n unknown'));
+      line.appendChild(document.createTextNode(' for '));
+      line.appendChild(b(d.package));
+      line.appendChild(document.createTextNode(': ' + refusalCause(d)));
+    } else if (n > 0) {
       line.appendChild(b(count(n, floor) + ' ' + (n === 1 ? 'repository' : 'repositories'), 'n hit'));
       line.appendChild(document.createTextNode(' resolved a malicious '));
       line.appendChild(b(d.package));
@@ -483,10 +522,16 @@
 
     var head = $('answer-head') || document.querySelector('.answer-head');
     var note = document.getElementById('answer-note');
-    var text = !d.package_in_graph && d.note ? clean(d.note)
-      : (!floor && n === 0 && d.package_in_graph
-        ? 'Every repository below is accounted for individually, so this is a proven negative for this instant, not an empty result set.'
-        : '');
+    /* The proven-negative sentence is the strongest claim this console makes,
+       and it is available only when the dataset is known to hold something.
+       When it is not, the explanation belongs to the banner below and appears
+       once: same division of labour as a truncated read, which also states its
+       headline here and its reasoning there. */
+    var text = unanswerable(d) ? ''
+      : !d.package_in_graph && d.note ? clean(d.note)
+        : (!floor && n === 0 && d.package_in_graph
+          ? 'Every repository below is accounted for individually, so this is a proven negative for this instant, not an empty result set.'
+          : '');
     if (text) {
       if (!note) {
         note = el('p', 'answer-note');
@@ -499,28 +544,56 @@
     }
   }
 
+  /* Three zeros are the shape of a clean estate. Without coverage they are also
+     the shape of an empty one, and the two must never look alike, so an
+     unanswerable read prints the question mark it earned instead of a number. */
   function renderStats(d) {
     var wrap = $('stats');
+    var unknown = unanswerable(d);
     wrap.innerHTML = '';
     [
       [d.counts.exposed, 'Resolved malicious', d.counts.exposed > 0 ? 'crit' : ''],
       [d.counts.resolved_clean, 'Resolved, not malicious', ''],
       [d.counts.not_resolved, 'Not resolved', '']
     ].forEach(function (row) {
-      var cls = row[2] || (row[0] === 0 ? 'zero' : '');
+      var cls = unknown ? 'unknown' : (row[2] || (row[0] === 0 ? 'zero' : ''));
       var cell = el('div', 'stat' + (cls ? ' ' + cls : ''));
-      cell.appendChild(el('b', null, count(row[0], d.truncated)));
+      cell.appendChild(el('b', null, unknown ? '?' : count(row[0], d.truncated)));
       cell.appendChild(el('span', null, row[1]));
-      if (d.truncated) { cell.title = 'A floor, not a total: this read was truncated.'; }
+      if (unknown) {
+        cell.title = 'Unknown, not zero: nothing was counted, because this ' +
+          'dataset holds nothing to count.';
+      } else if (d.truncated) {
+        cell.title = 'A floor, not a total: this read was truncated.';
+      }
       wrap.appendChild(cell);
     });
   }
 
   /* An amber strip directly under the answer, because a truncated read can
-     never establish the negative that this console exists to state. */
+     never establish the negative that this console exists to state.
+   *
+   * Its sibling, one slot up, is the refusal: same position, different cause,
+   * deliberately different treatment. Truncation is amber because we saw part
+   * of the graph and the part we saw is still evidence. A dataset with no
+   * coverage gets a dashed neutral box instead, so the two remain distinguishable
+   * in a greyscale screenshot and nobody reads "empty" as "incomplete". */
   function renderBanner(exposure, blast) {
     var slot = $('banner-slot');
     slot.innerHTML = '';
+
+    if (unanswerable(exposure)) {
+      var refusal = el('div', 'unanswerable');
+      refusal.appendChild(el('b', null, 'CANNOT ANSWER'));
+      refusal.appendChild(el('span', null,
+        clean(exposure.unanswerable_note || '') +
+        '. No verdict is shown above, and the counts are not zeros: nothing was ' +
+        'measured. This is a dataset problem, not a finding about ' +
+        exposure.package + '.'));
+      slot.appendChild(refusal);
+      return;
+    }
+
     var sources = [exposure, blast].filter(function (d) { return d && d.truncated; });
     if (!sources.length) { return; }
     var box = el('div', 'truncated');
@@ -540,8 +613,30 @@
   function renderRepos(d) {
     var wrap = $('repos');
     wrap.innerHTML = '';
-    $('evidence-title').textContent =
-      'Repositories (' + count(d.counts.repos, d.truncated) + ')';
+    /* Not "(0)": zero is a measurement, and nothing was measured. The stat
+       blocks already render "?" for the same reason. */
+    $('evidence-title').textContent = unanswerable(d)
+      ? 'Repositories'
+      : 'Repositories (' + count(d.counts.repos, d.truncated) + ')';
+
+    /* Every row would read "no committed lockfile in this repository resolved
+       this package", which is a per-repository negative and would be a lie for
+       the same reason the headline was. The list says why it is empty instead:
+       an empty list has to explain itself or it reads as a result. */
+    if (unanswerable(d)) {
+      $('evidence-note').textContent = '';
+      $('evidence-note').className = 'card-note';
+      wrap.appendChild(el('p', 'empty', d.unanswerable_reason === 'no_ingested_history'
+        ? plural(repoCount(d), 'repository is', 'repositories are') +
+          ' listed in this dataset, but none of them has ingested lockfile ' +
+          'history, so there is nothing to check ' + d.package + ' against. ' +
+          'This list is empty because the history is missing, not because ' +
+          'nothing resolved ' + d.package + '.'
+        : 'This list is empty because the dataset is empty. No repository was ' +
+          'checked against ' + d.package + ', so this is not evidence that none ' +
+          'resolved it.'));
+      return;
+    }
 
     var note = $('evidence-note');
     if (d.malicious_versions.length) {
@@ -645,6 +740,11 @@
     get('/api/version-footprint', { package: pkg, version: version, at: state.at })
       .then(function (data) {
         if (state.package !== pkg) { return; }
+        if (unanswerable(data)) {
+          node.textContent = 'no dataset to count a footprint against';
+          node.title = clean(data.unanswerable_note || '');
+          return;
+        }
         var n = count(data.repo_count, data.repo_count_is_lower_bound || data.truncated);
         node.textContent = n + ' ' + (data.repo_count === 1 ? 'repository' : 'repositories') +
           ' in this graph resolved ' + pkg + '@' + version + ' at this instant';
@@ -679,6 +779,17 @@
 
   function renderGraph(blast) {
     var sub = $('graph-sub');
+    if (unanswerable(blast)) {
+      sub.textContent = 'Nothing to draw: ' + refusalCause(blast) + '.';
+      sub.className = 'card-sub unknown';
+      sub.title = clean(blast.unanswerable_note || '');
+      $('legend').innerHTML = '';
+      hovered = null;
+      simpleNodes = [];
+      $('tooltip').hidden = true;
+      drawMessage('No dataset to draw from');
+      return;
+    }
     if (blast.truncated) {
       sub.textContent = 'Incomplete read: nodes are missing from this drawing.';
       sub.className = 'card-sub partial';
@@ -761,8 +872,22 @@
     return best || '…';
   }
 
+  /* An empty canvas is not neutral: in a panel that normally draws a package and
+     the repositories reaching it, blank reads as "nothing reaches this package".
+     So the drawing is replaced by a sentence rather than removed. */
+  function drawMessage(text) {
+    var size = canvasSize();
+    ctx.clearRect(0, 0, size.w, size.h);
+    ctx.font = '13px ' + SANS;
+    ctx.fillStyle = C.t3;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, size.w / 2, size.h / 2);
+  }
+
   function layout() {
     if (!state.blast) { return; }
+    if (unanswerable(state.blast)) { drawMessage('No dataset to draw from'); return; }
     if (state.showAll) { layoutFull(); } else { layoutSimple(); }
   }
 
@@ -1150,6 +1275,7 @@
   }
 
   function redraw() {
+    if (unanswerable(state.blast)) { drawMessage('No dataset to draw from'); return; }
     if (state.showAll) { drawFull(); } else { drawSimple(); }
   }
 
@@ -1225,6 +1351,9 @@
       }).join(', '));
       row('Repositories', count(health.repo_count, health.truncated) + ' known, ' +
         count(health.ingested_repo_count, health.truncated) + ' ingested');
+      row('Dataset', health.answerable === false
+        ? 'Cannot answer (' + (health.unanswerable_reason || 'unknown') + ')'
+        : 'Answerable', health.answerable === false ? 'warn' : null);
     }
     if (exposure) {
       row('As of', exposure.at_iso);
@@ -1331,17 +1460,23 @@
        milliseconds, and with better evidence. */
     get('/api/health').then(function (health) {
       state.health = health;
+      /* `answerable` is the same predicate as `seeded`, reached through the same
+         backend function the answer strip uses, so the header cannot say "0
+         repos" while the answer says "not resolved by any repository". A count
+         in a corner was the only thing contradicting that headline before, and a
+         small grey number is no match for a large confident sentence. */
       $('health-dot').className = 'health-dot ' +
-        (health.truncated ? 'partial' : health.seeded ? 'ok' : 'bad');
-      $('health-text').textContent = health.reachable
-        ? count(health.repo_count, health.truncated) + ' repos'
-        : 'unreachable';
-      $('health').title = health.reachable
-        ? (health.truncated
-          ? clean(health.truncation_note)
-          : count(health.ingested_repo_count, health.truncated) +
-            ' of them have an ingest watermark. Open Diagnostics for the node details.')
-        : 'The node did not answer.';
+        (health.truncated ? 'partial' : health.answerable === false ? 'bad' : 'ok');
+      $('health-text').textContent = !health.reachable ? 'unreachable'
+        : health.unanswerable_reason === 'empty_dataset' ? 'no data'
+          : health.unanswerable_reason === 'no_ingested_history' ? 'no ingest'
+            : count(health.repo_count, health.truncated) + ' repos';
+      $('health').title = !health.reachable ? 'The node did not answer.'
+        : health.answerable === false ? clean(health.unanswerable_note || '')
+          : (health.truncated
+            ? clean(health.truncation_note)
+            : count(health.ingested_repo_count, health.truncated) +
+              ' of them have an ingest watermark. Open Diagnostics for the node details.');
       renderDiagnostics();
     });
 
