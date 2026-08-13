@@ -742,6 +742,30 @@ def test_an_unreadable_dataset_raises_on_the_answer_path_rather_than_answering()
         console(reader=broken).exposure("chalk", AT)
 
 
+def test_an_empty_dataset_is_never_cached_as_the_answer():
+    """The console usually starts before ingest finishes; both are separate runs.
+
+    Caching the empty read would freeze the refusal for the life of the server:
+    the graph fills up, every question it can now answer is still met with "no
+    coverage", and the only fix is a restart nobody knows to perform. The
+    dangerous direction of staleness is the one that withholds an answer, so it
+    is the one that is not cached.
+    """
+    reader = FakeReader(repos=(), watermarked=())
+    view = console(reader=reader)
+    assert view.exposure("chalk", AT)["unanswerable_reason"] == service.EMPTY_DATASET
+
+    reader.repos = [list(row) for row in REPOS]
+    assert view.exposure("chalk", AT)["unanswerable_reason"] == (
+        service.NO_INGESTED_HISTORY
+    )
+
+    reader.watermarked = ("webpack/webpack",)
+    answered = view.exposure("chalk", AT)
+    assert answered["answerable"] is True
+    assert answered["unanswerable_reason"] is None
+
+
 def test_coverage_is_read_once_and_shared_with_every_answer():
     """The scrubber issues an exposure read every 55 ms; coverage is cached."""
     reader = FakeReader()

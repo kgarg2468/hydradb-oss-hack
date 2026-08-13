@@ -241,9 +241,11 @@ class Console:
     #: against this list, so a truncated one silently drops repositories from
     #: *all* three counts rather than from one of them.
     _repos_truncated: bool = field(default=False, repr=False)
-    #: Slugs with a finished ingest watermark, cached like the directory. Read
-    #: once per console rather than per answer: coverage is a property of the
-    #: dataset, and the scrubber issues an exposure read every 55 ms.
+    #: Slugs with a finished ingest watermark, cached like the directory: read
+    #: once per console rather than per answer, because coverage is a property
+    #: of the dataset and the scrubber issues an exposure read every 55 ms. Both
+    #: caches stay empty while the dataset is, so a console outliving an ingest
+    #: is not stuck refusing to answer.
     _ingested: set[str] | None = field(default=None, repr=False)
     _watermarks_truncated: bool = field(default=False, repr=False)
 
@@ -272,7 +274,16 @@ class Console:
     # ---------------------------------------------------------------- directory
 
     def repositories(self, *, refresh: bool = False) -> list[RepoRecord]:
-        """Every repository in the dataset, cached after the first read."""
+        """Every repository in the dataset, cached once the first read finds one.
+
+        Nothing is cached while the answer is *nothing*. The dataset is loaded
+        by a separate process, so a console started before ``hindsight ingest``
+        finishes would otherwise hold its empty directory for the life of the
+        server and keep refusing to answer questions the graph can now answer —
+        a permanent no-coverage state that clears only on restart. Re-reading an
+        empty directory costs one anchored query and stops the moment it finds
+        a repository.
+        """
         if self._repos is not None and not refresh:
             return self._repos
         rows, truncated = self._rows(queries.repo_directory(self.schema))
@@ -296,12 +307,12 @@ class Console:
                 )
             )
         records.sort(key=lambda r: r.slug)
-        self._repos = records
+        self._repos = records or None
         self._repos_truncated = truncated
         return records
 
     def ingested_slugs(self, *, refresh: bool = False) -> set[str]:
-        """Repositories whose ingest actually finished, cached after first read.
+        """Repositories whose ingest actually finished, cached once one exists.
 
         The watermark is written *after* a successful run, so its presence is
         evidence that history was loaded rather than that a node exists.
@@ -309,9 +320,13 @@ class Console:
         if self._ingested is not None and not refresh:
             return self._ingested
         marks, truncated = self._rows(queries.watermarks(self.schema))
-        self._ingested = {str(row["slug"]) for row in marks if row.get("slug")}
+        found = {str(row["slug"]) for row in marks if row.get("slug")}
+        # Not cached while empty, for the reason in :meth:`repositories`: the
+        # watermark is written by another process, and "no history yet" is a
+        # statement about when we looked.
+        self._ingested = found or None
         self._watermarks_truncated = truncated
-        return self._ingested
+        return found
 
     def coverage(self, *, refresh: bool = False) -> Coverage:
         """Can this dataset answer a question, and if not, why not.
