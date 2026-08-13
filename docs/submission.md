@@ -84,9 +84,11 @@ HydraDB today; the engine patch is an upgrade on top of it, not a dependency.
 - **Scaling**, measured to 250 synthetic repos / 2.36 M interval edges
   (`benchmarks/RESULTS.md`): the incident sweep — "did any repo resolve one of
   these 24 compromised versions at T", which is the question the product exists
-  to answer — is **46.3 ms p95 at 250 repos**. The general per-package exposure
-  query is **36.3 ms p95 at 100 repos** and degrades sharply above ~1 M edges of
-  one relationship type (339 ms at 150 repos, 5.3 s at 250). We bisected that,
+  to answer — is **46.3 ms p95 at 250 repos, warm**; cold, that same sweep is
+  **1,090 ms**, and the first question of an incident is asked cold. The general
+  per-package exposure query is **36.3 ms p95 at 100 repos, warm** and degrades
+  sharply above ~1 M edges of one relationship type (339 ms at 150 repos, 5.3 s
+  at 250, both warm). We bisected that,
   attributed it, built the obvious mitigation, measured that the mitigation does
   not work, and wrote all of it down.
 - **Tests:** 957 passing (871 unit, 86 integration). Integration runs against a
