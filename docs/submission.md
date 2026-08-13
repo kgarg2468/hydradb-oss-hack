@@ -82,7 +82,7 @@ HydraDB today; the engine patch is an upgrade on top of it, not a dependency.
   as-of 8 ms, blast radius 8 ms, maintainer reach 26 ms, ranking all 154
   accounts 2.4 s cold / 1.3 ms cached. Scaling curve to 250 repos in
   `benchmarks/RESULTS.md`.
-- **Tests:** 957 passing (873 unit, 84 integration). Integration runs against a
+- **Tests:** 957 passing (871 unit, 86 integration). Integration runs against a
   live HydraDB node in GitHub Actions on every PR.
 
 ## The part we are most proud of: it refuses to lie

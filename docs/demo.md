@@ -207,8 +207,8 @@ instant is scored and ~1 ms afterwards, so visit the instant once before filming
 ## 7. Tests
 
 ```bash
-pytest tests/unit                    # 252 tests, no node required
-pytest tests -m integration          # 29 against a live node, 18 of them the console
+pytest tests/unit                    # 871 tests, no node required
+pytest tests/integration             # 86 against a live node
 ruff check .
 ```
 
