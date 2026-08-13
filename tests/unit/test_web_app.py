@@ -60,12 +60,12 @@ def test_health_reports_the_schema_the_console_is_pointed_at(client):
 
 
 def test_web_schema_defaults_to_the_ingest_namespace():
-    assert web_queries.schema_from_env({}) == DEFAULT_SCHEMA
+    assert web_queries.resolve_schema(env={}) == DEFAULT_SCHEMA
 
 
 def test_web_schema_reads_the_mcp_prefix_environment_variables():
-    schema = web_queries.schema_from_env(
-        {
+    schema = web_queries.resolve_schema(
+        env={
             "HINDSIGHT_MCP_NODE_PREFIX": "Replay",
             "HINDSIGHT_MCP_REL_PREFIX": "REPLAY",
         }
@@ -330,11 +330,33 @@ def test_the_console_reads_the_dataset_the_org_config_declares(tmp_path):
 
 
 def test_an_explicit_prefix_overrides_the_org_config(tmp_path):
-    """Deployment-time env beats the declared dataset; it is the more specific act."""
+    """Deployment-time env beats the declared dataset; it is the more specific act.
+
+    Per prefix, though. If either variable handed the whole decision to the
+    environment, setting one would build a namespace out of two datasets --
+    ``ReplayRepo`` joined by ``HS_RESOLVES`` -- which matches nothing on read
+    and is indistinguishable from an empty graph.
+    """
     config = tmp_path / "org.yaml"
     config.write_text("schema:\n  node_prefix: Acme\n  rel_prefix: ACME\nrepos: []\n")
     schema = resolve_schema(str(config), env={"HINDSIGHT_MCP_NODE_PREFIX": "Replay"})
     assert schema.repo == "ReplayRepo"
+    assert schema.resolves == "ACME_RESOLVES"
+
+    other = resolve_schema(str(config), env={"HINDSIGHT_MCP_REL_PREFIX": "REPLAY"})
+    assert other.repo == "AcmeRepo"
+    assert other.resolves == "REPLAY_RESOLVES"
+
+
+def test_an_empty_prefix_variable_is_not_a_prefix(tmp_path):
+    """``NODE_PREFIX= hindsight-web`` says "not this one", not "label me Repo"."""
+    config = tmp_path / "org.yaml"
+    config.write_text("schema:\n  node_prefix: Acme\n  rel_prefix: ACME\nrepos: []\n")
+    schema = resolve_schema(str(config), env={"HINDSIGHT_MCP_NODE_PREFIX": ""})
+    assert schema.repo == "AcmeRepo"
+    assert resolve_schema(None, env={"HINDSIGHT_MCP_REL_PREFIX": ""}).resolves == (
+        "HS_RESOLVES"
+    )
 
 
 def test_without_a_config_the_console_defaults_to_what_ingest_writes():

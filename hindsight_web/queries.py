@@ -28,6 +28,9 @@ Schema argument, and there is a test that the seeder contains no literal.
 from __future__ import annotations
 
 import os
+from pathlib import Path
+
+import yaml
 
 from hindsight.graphbuild import Schema
 
@@ -36,15 +39,6 @@ DEMO_SCHEMA = Schema.prefixed("Replay", "REPLAY")
 
 #: Throwaway labels for integration tests against the same shared node.
 TEST_SCHEMA = Schema.prefixed("ReplayTest", "REPLAYTEST")
-
-
-def schema_from_env(env: dict[str, str] | None = None) -> Schema:
-    """Resolve the console schema using the MCP server's prefix settings."""
-    env = os.environ if env is None else env
-    return Schema.prefixed(
-        env.get("HINDSIGHT_MCP_NODE_PREFIX", "Hs"),
-        env.get("HINDSIGHT_MCP_REL_PREFIX", "HS"),
-    )
 
 
 def resolve_schema(
@@ -58,17 +52,30 @@ def resolve_schema(
     the original bug one layer up: the operator declares ``node_prefix: Acme``,
     ingests to ``Acme*``, and reads an empty ``Hs*``.
 
-    Precedence is explicit-beats-declared: an environment prefix is a
-    deployment-time override and wins, otherwise the org config decides,
-    otherwise the pipeline default.
+    Precedence is explicit-beats-declared, resolved *per prefix*: an
+    environment prefix is a deployment-time override and wins, otherwise the
+    org config decides, otherwise the pipeline default.
     """
     env = os.environ if env is None else env
-    explicit = "HINDSIGHT_MCP_NODE_PREFIX" in env or "HINDSIGHT_MCP_REL_PREFIX" in env
-    if config_path and not explicit:
-        from hindsight.cli import load_config
+    #: An empty variable is treated as unset. ``FOO= hindsight-web`` is how a
+    #: shell says "not this one", and building the label ``Repo`` from it would
+    #: silently drop the namespace the isolation depends on.
+    node = (env.get("HINDSIGHT_MCP_NODE_PREFIX") or "").strip() or None
+    rel = (env.get("HINDSIGHT_MCP_REL_PREFIX") or "").strip() or None
 
-        return load_config(config_path).schema
-    return schema_from_env(env)
+    #: Each prefix resolves on its own. Treating "any variable set" as "the
+    #: environment wins" would let a half-configured shell build a hybrid
+    #: namespace -- ``ReplayRepo`` joined by ``HS_RESOLVES`` -- which matches
+    #: nothing and reads exactly like an empty dataset.
+    if (node is None or rel is None) and config_path:
+        raw = yaml.safe_load(Path(config_path).read_text()) or {}
+        declared = raw.get("schema") or {}
+        if node is None:
+            node = str(declared.get("node_prefix", "Hs"))
+        if rel is None:
+            rel = str(declared.get("rel_prefix", "HS"))
+
+    return Schema.prefixed(node or "Hs", rel or "HS")
 
 
-__all__ = ["DEMO_SCHEMA", "TEST_SCHEMA", "resolve_schema", "schema_from_env"]
+__all__ = ["DEMO_SCHEMA", "TEST_SCHEMA", "resolve_schema"]
