@@ -116,7 +116,7 @@
   function clean(text) {
     if (!text) { return ''; }
     return String(text)
-      .replace(/\s*[—–]\s*/g, ', ')
+      .replace(/\s*[\u2014\u2013]\s*/g, ', ')
       .replace(/,\s*,/g, ',');
   }
 

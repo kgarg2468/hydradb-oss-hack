@@ -40,3 +40,37 @@ jobs:
       - name: HydraDB logs on failure
         if: failure()
         run: docker logs hydradb-ci | tail -100
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "20"
+      - name: Syntax check static JS
+        run: |
+          find hindsight_web/static/ -type f -name '*.js' -print0 |
+            while IFS= read -r -d '' file; do
+              node --check "$file"
+            done
+      - name: No em or en dashes in UI files
+        run: |
+          if grep -rn -e "$(printf '\342\200\224')" -e "$(printf '\342\200\223')" hindsight_web/static/*.{js,css,html}; then
+            exit 1
+          fi
+      - name: Self-hosted fonts present
+        run: |
+          for file in \
+            hindsight_web/static/fonts/geist-sans-400.woff2 \
+            hindsight_web/static/fonts/geist-sans-500.woff2 \
+            hindsight_web/static/fonts/geist-sans-600.woff2 \
+            hindsight_web/static/fonts/geist-mono-400.woff2 \
+            hindsight_web/static/fonts/geist-mono-500.woff2 \
+            hindsight_web/static/fonts/geist-mono-600.woff2 \
+            hindsight_web/static/fonts/LICENSE; do
+            if [ ! -f "$file" ]; then
+              echo "Missing required font file: $file"
+              exit 1
+            fi
+          done
