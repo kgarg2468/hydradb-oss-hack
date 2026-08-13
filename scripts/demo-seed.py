@@ -481,12 +481,25 @@ def write_dataset(path: Path, dataset: Dataset, rowset_summary: dict[str, int]) 
             }
         )
 
+    # Written beside the destination and moved into place, because the usual
+    # destination is the committed artifact and it is the only thing a fresh
+    # clone can seed from. An export interrupted halfway -- Ctrl-C, a full disk,
+    # a source that raises on the last repository -- would otherwise leave a
+    # truncated gzip there, and the failure a user meets is not the export they
+    # cancelled but a seed that reads short and demonstrates less than it should.
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("wb") as raw:
-        with gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0) as compressed:
-            for record in records:
-                line = json.dumps(record, sort_keys=True, separators=(",", ":"))
-                compressed.write(line.encode("utf-8") + b"\n")
+    staging = path.with_name(path.name + ".partial")
+    try:
+        with staging.open("wb") as raw:
+            with gzip.GzipFile(
+                filename="", mode="wb", fileobj=raw, mtime=0
+            ) as compressed:
+                for record in records:
+                    line = json.dumps(record, sort_keys=True, separators=(",", ":"))
+                    compressed.write(line.encode("utf-8") + b"\n")
+        staging.replace(path)
+    finally:
+        staging.unlink(missing_ok=True)
 
 
 def read_dataset(path: Path) -> Dataset:

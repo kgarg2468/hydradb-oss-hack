@@ -302,6 +302,27 @@ def test_dataset_file_round_trips_deterministically_with_provenance(tmp_path):
     assert loaded.origins[seed.SYNTHETIC_SLUG] == seed.SYNTHETIC_ORIGIN
 
 
+def test_a_failed_export_leaves_the_previous_artifact_intact(tmp_path):
+    """The destination is usually the only thing a fresh clone can seed from.
+
+    A half-written gzip there does not announce itself as a failed export: it
+    loads, and seeds a dataset that is quietly short of the one it claims to be.
+    """
+    path = tmp_path / "demo.jsonl.gz"
+    seed.write_dataset(path, _tiny_dataset(), {"repos": 2})
+    good = path.read_bytes()
+
+    # Fails inside the write loop rather than while the records are assembled,
+    # which is the only failure the destination file can be caught half-way by.
+    broken = _tiny_dataset()
+    broken.maintainers["qix"] = (object(),)
+    with pytest.raises(TypeError):
+        seed.write_dataset(path, broken, {"repos": 2})
+
+    assert path.read_bytes() == good
+    assert not list(tmp_path.glob("*.partial"))
+
+
 class EmptySourceClient:
     def paged_rows(self, *args, **kwargs):
         return [], False
