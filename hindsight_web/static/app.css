@@ -382,6 +382,10 @@ button, input, select {
 }
 .stat.crit b { color: var(--crit); }
 .stat.zero b { color: var(--t2); }
+/* A zero is a measurement. An unknown is not, and it does not get to sit at the
+   same weight as one. */
+.stat.unknown b { color: var(--t3); }
+.stat.unknown span { color: var(--t3); }
 
 .answer-note {
   margin-top: 6px;
@@ -431,6 +435,30 @@ button, input, select {
 }
 .truncated b {
   color: var(--warn);
+  font-weight: 600;
+  white-space: nowrap;
+  flex: none;
+}
+
+/* The refusal, sibling to the truncation strip and deliberately not amber.
+   Amber is the colour of a partial answer, and this is the absence of one: a
+   dashed hairline on the flat surface reads as "there is nothing behind this
+   panel", and survives both a greyscale screenshot and a projector, which is
+   where these two states most need to stay apart. */
+.unanswerable {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-card);
+  background: var(--s2);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--t2);
+}
+.unanswerable b {
+  color: var(--t1);
   font-weight: 600;
   white-space: nowrap;
   flex: none;
@@ -675,6 +703,8 @@ button, input, select {
   color: var(--t3);
 }
 .card-sub.partial { color: var(--warn); }
+/* Not amber: a panel with nothing to draw is not a partial drawing. */
+.card-sub.unknown { color: var(--t2); }
 .card-foot {
   margin-top: 16px;
   padding-top: 14px;

@@ -28,6 +28,13 @@ empty result set.
 **Nothing overstates the evidence.** ``evidence`` and ``caveat`` come from
 :mod:`hindsight_web.analysis` and are attached to every result that touches a
 RESOLVES edge.
+
+**A negative is a proof only when coverage is known.** The three previous
+properties are all worthless against an empty or mis-pointed dataset, where
+every count is zero, every repository is NOT_RESOLVED and the answer reads as a
+confident all-clear. So :class:`Coverage` travels with every answer, beside
+``truncated`` and distinct from it, and decides whether the answer is permitted
+to contain a verdict at all.
 """
 
 from __future__ import annotations
@@ -71,9 +78,107 @@ MAX_RANKED_MAINTAINERS = 400
 #: numbers the demo quotes.
 RANK_WORKERS = 6
 
+#: Why a dataset cannot answer a question at all. Deliberately a short list:
+#: these are the ways a read comes back with nothing to *say*, as opposed to the
+#: ways it comes back saying "no". They are not verdicts and must never be
+#: rendered as one.
+EMPTY_DATASET = "empty_dataset"
+NO_INGESTED_HISTORY = "no_ingested_history"
+UNREACHABLE = "unreachable"
+
+#: The sentence that replaces the proven-negative prose when coverage is absent.
+#: These strings are the honest counterpart of
+#: :data:`~hindsight_web.analysis.TRUNCATION_CAVEAT` and are held to the same
+#: rule: nothing here may imply anything about a running system.
+UNANSWERABLE_NOTES = {
+    EMPTY_DATASET: (
+        "this dataset contains no repositories, so no question can be answered "
+        "from it. Nothing was checked against this package and nothing was "
+        "found to be absent: the counts below are the size of an empty dataset, "
+        "not a result. Point the console at a seeded dataset before reading "
+        "anything into them"
+    ),
+    NO_INGESTED_HISTORY: (
+        "this dataset lists repositories but not one of them carries a finished "
+        "ingest watermark, so no lockfile history has been loaded for any of "
+        "them. Every repository would read as 'did not resolve this package' "
+        "purely because its history is missing, which is a gap in coverage and "
+        "not a negative result"
+    ),
+    UNREACHABLE: (
+        "the node did not answer, so this dataset could not be read at all. "
+        "Nothing below is a statement about this package"
+    ),
+}
+
 
 class ConsoleError(Exception):
     """A request the console can explain rather than a stack trace."""
+
+
+@dataclass(frozen=True)
+class Coverage:
+    """Whether a dataset is in a position to answer anything at all.
+
+    The console's whole value is the strength of its negative: "no repository
+    resolved this, and here is the interval that proves it". That claim is only
+    available when the dataset is *known to be populated*. Pointed at an empty
+    or mis-pointed label namespace, every count is zero and every repository is
+    NOT_RESOLVED, which renders identically to a genuinely clean estate and, for
+    an incident responder, converts a configuration mistake into an all-clear.
+
+    So coverage travels with the answer, next to ``truncated`` and distinct from
+    it. The two failure modes are not the same shape and must not be collapsed:
+    truncation means *we saw some of the graph*, and absent coverage means *we
+    saw none of it*. A truncated read still knows how many repositories exist;
+    an empty dataset does not know anything.
+    """
+
+    answerable: bool
+    reason: str | None
+    repo_count: int
+    ingested_repo_count: int
+
+    @property
+    def note(self) -> str | None:
+        return UNANSWERABLE_NOTES.get(self.reason) if self.reason else None
+
+    def as_dict(self) -> dict:
+        """The fields every answer carries, additive to the existing shape."""
+        return {
+            "answerable": self.answerable,
+            "unanswerable_reason": self.reason,
+            "unanswerable_note": self.note,
+            "coverage": {
+                "repo_count": self.repo_count,
+                "ingested_repo_count": self.ingested_repo_count,
+            },
+        }
+
+
+def coverage_of(
+    repo_count: int, ingested_repo_count: int, *, reachable: bool = True
+) -> Coverage:
+    """The one place the answerable predicate is decided.
+
+    Identical by construction to ``health()``'s ``seeded``, because a header
+    that reads "0 repos" beside an answer strip that reads "not resolved by any
+    repository" is the contradiction this function exists to remove.
+    """
+    if not reachable:
+        reason = UNREACHABLE
+    elif repo_count <= 0:
+        reason = EMPTY_DATASET
+    elif ingested_repo_count <= 0:
+        reason = NO_INGESTED_HISTORY
+    else:
+        reason = None
+    return Coverage(
+        answerable=reason is None,
+        reason=reason,
+        repo_count=max(0, repo_count),
+        ingested_repo_count=max(0, ingested_repo_count),
+    )
 
 
 @dataclass
@@ -136,6 +241,11 @@ class Console:
     #: against this list, so a truncated one silently drops repositories from
     #: *all* three counts rather than from one of them.
     _repos_truncated: bool = field(default=False, repr=False)
+    #: Slugs with a finished ingest watermark, cached like the directory. Read
+    #: once per console rather than per answer: coverage is a property of the
+    #: dataset, and the scrubber issues an exposure read every 55 ms.
+    _ingested: set[str] | None = field(default=None, repr=False)
+    _watermarks_truncated: bool = field(default=False, repr=False)
 
     # ------------------------------------------------------------------ plumbing
 
@@ -190,6 +300,34 @@ class Console:
         self._repos_truncated = truncated
         return records
 
+    def ingested_slugs(self, *, refresh: bool = False) -> set[str]:
+        """Repositories whose ingest actually finished, cached after first read.
+
+        The watermark is written *after* a successful run, so its presence is
+        evidence that history was loaded rather than that a node exists.
+        """
+        if self._ingested is not None and not refresh:
+            return self._ingested
+        marks, truncated = self._rows(queries.watermarks(self.schema))
+        self._ingested = {str(row["slug"]) for row in marks if row.get("slug")}
+        self._watermarks_truncated = truncated
+        return self._ingested
+
+    def coverage(self, *, refresh: bool = False) -> Coverage:
+        """Can this dataset answer a question, and if not, why not.
+
+        Two cached reads, shared with :meth:`health`, so threading this through
+        the answer path costs the scrubber nothing after the first request.
+        Errors are *not* swallowed here: a node that refuses the query already
+        reaches the browser as a 502, which is itself a refusal to answer.
+        :meth:`health` is the one place a failed read becomes a reported state
+        rather than an exception.
+        """
+        repos = self.repositories(refresh=refresh)
+        slugs = {r.slug for r in repos}
+        ingested = self.ingested_slugs(refresh=refresh)
+        return coverage_of(len(repos), len(ingested & slugs))
+
     def maintainers(self) -> tuple[list[dict], bool]:
         """Every maintainer account, and whether that list is complete."""
         rows, truncated = self._rows(queries.maintainer_directory(self.schema))
@@ -216,6 +354,11 @@ class Console:
         window = self.incident.window
         malicious = self.incident.malicious_versions(package)
         pid = package_id(package)
+
+        # Resolved before the timer so ``elapsed_ms`` stays a measurement of the
+        # exposure traversal, and before the answer is shaped because it decides
+        # whether this answer is allowed to contain a verdict at all.
+        coverage = self.coverage()
 
         started = time.perf_counter()
         exists_rows, _ = self._rows(queries.package_exists(self.schema, pid))
@@ -269,8 +412,15 @@ class Console:
             "evidence": EVIDENCE,
             "caveat": CAVEAT,
             **completeness(truncated),
+            **coverage.as_dict(),
         }
-        if not exists_rows:
+        if not coverage.answerable:
+            # An absence is only evidence when something was there to be absent
+            # from. Without coverage there is no negative to state, proven or
+            # otherwise, so the note says what is missing instead of what was
+            # found, and the UI refuses to draw a verdict from this payload.
+            out["note"] = coverage.note
+        elif not exists_rows:
             out["note"] = (
                 f"no package node for {package!r} exists in this dataset, so no "
                 "repository has ever resolved it at any instant. That is a real "
@@ -298,6 +448,7 @@ class Console:
         whole value of this method is the strength of its negative, and a cut-off
         read produces a *weak* negative wearing a strong one's clothes.
         """
+        coverage = self.coverage()
         vid = version_id(package, version)
         exists, _ = self._rows(queries.version_exists(self.schema, vid))
         rows: list[dict] = []
@@ -307,7 +458,13 @@ class Console:
                 queries.repos_resolving_version(self.schema, vid, at)
             )
         slugs = sorted({str(r.get("slug")) for r in rows})
-        if exists:
+        if not coverage.answerable:
+            # "No node for this version" is the sharpest negative this product
+            # states. In an empty dataset it is also trivially true of every
+            # version that has ever existed, which makes it worthless and, said
+            # confidently, dangerous.
+            note = coverage.note
+        elif exists:
             note = TRUNCATION_CAVEAT if truncated else None
         else:
             note = (
@@ -329,6 +486,7 @@ class Console:
             "caveat": CAVEAT,
             "note": note,
             **completeness(truncated),
+            **coverage.as_dict(),
         }
 
     # ------------------------------------------------------------- blast radius
@@ -444,6 +602,9 @@ class Console:
             "caveat": CAVEAT,
             "maintainer_caveat": MAINTAINER_CAVEAT,
             **completeness(truncated),
+            # Cached, and already computed by the exposure read above. A drawing
+            # with no nodes is the most confident empty statement on the page.
+            **self.coverage().as_dict(),
         }
 
     # --------------------------------------------------------- maintainer reach
@@ -626,9 +787,8 @@ class Console:
         truncated = False
         try:
             repos = self.repositories(refresh=True)
-            marks, marks_truncated = self._rows(queries.watermarks(self.schema))
-            truncated = self._repos_truncated or marks_truncated
-            ingested = {str(row["slug"]) for row in marks if row.get("slug")}
+            ingested = self.ingested_slugs(refresh=True)
+            truncated = self._repos_truncated or self._watermarks_truncated
             if count_edges:
                 edges = 0
                 for record in repos:
@@ -641,6 +801,9 @@ class Console:
         except Exception as exc:  # noqa: BLE001 - reported, never raised, to the UI
             repos, ingested, reachable, error = [], set(), False, str(exc)
         slugs = {r.slug for r in repos}
+        coverage = coverage_of(
+            len(repos), len(ingested & slugs), reachable=reachable
+        )
         return {
             "reachable": reachable,
             "error": error,
@@ -661,8 +824,13 @@ class Console:
             "unwatermarked_repos": sorted(slugs - ingested),
             "resolves_edges": edges,
             "incident": self.incident.title,
+            # Kept verbatim, and now redundant by construction: ``answerable``
+            # is the same predicate, reached through the same function the
+            # answer path uses, so the header and the answer strip cannot
+            # disagree about whether this dataset holds anything.
             "seeded": bool(repos) and bool(ingested & slugs),
             **completeness(truncated),
+            **coverage.as_dict(),
         }
 
     def overview(self) -> dict:
@@ -685,10 +853,16 @@ def default_window() -> Window:
 
 
 __all__ = [
+    "EMPTY_DATASET",
     "MAX_RANKED_MAINTAINERS",
+    "NO_INGESTED_HISTORY",
     "RANK_WORKERS",
+    "UNANSWERABLE_NOTES",
+    "UNREACHABLE",
     "Console",
     "ConsoleError",
+    "Coverage",
     "RepoRecord",
+    "coverage_of",
     "humanize",
 ]

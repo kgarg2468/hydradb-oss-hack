@@ -508,3 +508,70 @@ def test_truncation_reaches_the_browser_over_http(capped):
     assert body["truncated"] is True
     assert body["truncation_note"]
     assert body["repos"], "a partial answer is still an answer, just a labelled one"
+
+
+# ------------------------------------------------------------------- coverage
+#
+# A live node that is perfectly healthy and simply holds nothing under the
+# labels the console was pointed at. Every statement succeeds, every result set
+# is empty, and before this the console read that as "no repository resolved
+# this package", which is the most dangerous sentence it could produce. Label
+# namespacing makes the case cheap to build for real: a prefix nothing has ever
+# written to is an empty dataset on the same node as the populated one.
+
+
+@pytest.fixture(scope="module")
+def void(client):
+    """A console pointed at labels no run has ever written. Read-only."""
+    from hindsight.graphbuild import Schema
+
+    return Console(
+        client=client,
+        schema=Schema.prefixed(f"ReplayVoid{RUN}", f"REPLAYVOID{RUN}"),
+        incident=INCIDENT,
+    )
+
+
+def test_an_empty_label_namespace_is_reachable_seeded_and_answerable_none(void):
+    health = void.health()
+    assert health["reachable"] is True, "the node is fine; the dataset is not"
+    assert health["repo_count"] == 0
+    assert health["seeded"] is False
+    assert health["answerable"] is False
+    assert health["unanswerable_reason"] == "empty_dataset"
+
+
+def test_an_empty_dataset_refuses_the_verdict_against_a_live_node(void):
+    result = void.exposure(CHALK, REINSTALL + 10)
+    assert result["answerable"] is False
+    assert result["counts"] == {
+        "repos": 0, "exposed": 0, "resolved_clean": 0, "not_resolved": 0
+    }
+    assert "no question can be answered" in result["note"]
+    assert "proven negative" not in result["note"]
+    assert "real absence" not in result["note"]
+
+
+def test_the_populated_dataset_on_the_same_node_still_answers(void, console):
+    """Same node, same process, two label namespaces, two different verdicts."""
+    populated = console.exposure(CHALK, REINSTALL + 10)
+    assert populated["answerable"] is True
+    assert populated["counts"]["exposed"] == 1
+    assert void.exposure(CHALK, REINSTALL + 10)["answerable"] is False
+
+
+def test_the_empty_dataset_reaches_the_browser_as_unanswerable(void):
+    with TestClient(build_app(void)) as http:
+        body = http.get(f"/api/exposure?package={CHALK}&at={REINSTALL}").json()
+        health = http.get("/api/health").json()
+    assert body["answerable"] is False
+    assert body["unanswerable_reason"] == "empty_dataset"
+    assert body["unanswerable_note"]
+    assert health["answerable"] is False
+
+
+def test_a_footprint_against_an_empty_dataset_is_not_a_strong_negative(void):
+    footprint = void.version_footprint(CHALK, "5.6.1", REINSTALL + 10)
+    assert footprint["answerable"] is False
+    assert footprint["version_in_graph"] is False
+    assert "no lockfile in the dataset ever resolved it" not in footprint["note"]
