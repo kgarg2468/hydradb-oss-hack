@@ -5,6 +5,12 @@ methods on :class:`Console`, so the interesting behaviour — the honesty fields
 the not-exposed explanation, the synthetic-provenance labelling, the maintainer
 ranking — is testable by calling functions with a fake client.
 
+The statements come from :mod:`hindsight.queries`, which the MCP server also
+composes from: the console and an agent must not be able to give different
+answers to the same question, and one set of builders is the cheapest guarantee
+of that. What is console-specific is everything below the row — the
+classification, the directory join, the JSON.
+
 Three properties this layer is responsible for:
 
 **Every query is id-anchored.** Names are resolved through
@@ -31,11 +37,12 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, replace
 
+from hindsight import queries
 from hindsight.client import HydraClient
 from hindsight.graphbuild import Schema
 from hindsight.ids import maintainer_id, package_id, version_id
+from hindsight.queries import Query
 
-from . import queries
 from .analysis import (
     CAVEAT,
     EVIDENCE,
@@ -53,7 +60,7 @@ from .analysis import (
 )
 from .incident import Incident, load_incident
 from .paging import fetch_all
-from .queries import DEMO_SCHEMA, Query
+from .queries import DEMO_SCHEMA
 
 #: How many maintainer accounts the ranking panel scores per request. The whole
 #: overlay is 154 accounts on the demo dataset, so this is not a sample.
@@ -136,10 +143,7 @@ class Console:
         rows, truncated = self.reader(
             self.client, query.cypher, query.params, page_size=page_size
         )
-        return (
-            [dict(zip(query.columns, row, strict=False)) for row in rows],
-            truncated,
-        )
+        return query.shape(rows), truncated
 
     def _fork(self) -> Console:
         """A sibling console sharing configuration but not the HTTP client.

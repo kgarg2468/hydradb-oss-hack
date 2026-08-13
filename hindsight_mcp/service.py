@@ -9,7 +9,9 @@ Two rules are enforced at this layer and nowhere else:
 
 **Nothing writes.** Every agent-supplied statement goes through
 :func:`hindsight_mcp.guard.assert_read_only` before it reaches the client, and
-the canned tools compose their own Cypher from parameterised builders.
+the canned tools compose their Cypher from the parameterised builders in
+:mod:`hindsight.queries` — the same builders the web console runs, so the two
+surfaces cannot answer the same question differently.
 
 **Nothing overstates the evidence.** A RESOLVES edge proves a lockfile pinned a
 version; it does not prove the artefact was built, installed or deployed. Every
@@ -25,13 +27,13 @@ import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
+from hindsight import queries
 from hindsight.client import HydraClient, HydraError
 from hindsight.graphbuild import DEFAULT_SCHEMA, Schema
 from hindsight.ids import maintainer_id, package_id, repo_id, version_id
+from hindsight.queries import Query, UnknownKind, normalise_kind
 
-from . import queries
 from .guard import UnsafeCypher, assert_read_only
-from .queries import Query, UnknownKind, normalise_kind
 from .schema_doc import FAR_FUTURE, graph_schema, render_markdown
 
 #: What the graph can prove. There is exactly one value today, and it is spelled
@@ -190,7 +192,7 @@ class Hindsight:
 
     def _dicts(self, query: Query) -> tuple[list[dict], bool]:
         rows, truncated = self._run(query)
-        return [dict(zip(query.columns, row, strict=False)) for row in rows], truncated
+        return query.shape(rows), truncated
 
     def _node(self, kind: str, name: str) -> dict:
         """Resolve a name to an id and say whether the graph actually holds it."""
