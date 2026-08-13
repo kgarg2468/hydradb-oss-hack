@@ -91,7 +91,7 @@ HydraDB today; the engine patch is an upgrade on top of it, not a dependency.
   at 250, both warm). We bisected that,
   attributed it, built the obvious mitigation, measured that the mitigation does
   not work, and wrote all of it down.
-- **Tests:** 957 passing (871 unit, 86 integration). Integration runs against a
+- **Tests:** 979 passing (893 unit, 86 integration). Integration runs against a
   live HydraDB node in GitHub Actions on every PR.
 
 ## The part we are most proud of: it refuses to lie

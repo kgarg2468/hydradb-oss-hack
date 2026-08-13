@@ -190,24 +190,27 @@ repositories through `debug` alone.
 
 | time | shot | say |
 |---|---|---|
-| 0:00–0:15 | header: `9 repos · 9 ingested · ReplayRepo*`, incident title, timeline with its markers | "8 September 2025. Nineteen npm packages compromised in eight minutes. Here is that timeline over our real lockfile history." |
-| 0:15–0:35 | drag the scrubber to **13:30** — attack live, exposure panel reads **0 exposed / 9 clean** | "The attack is already live. Nothing of ours is exposed yet. That is an answer, not an absence of one." |
-| 0:35–1:00 | JUMP to **14:05**. One row turns red | "One repository. `chalk@5.6.1`, resolved 13:41:52, replaced 18:05:33 — four hours twenty-three minutes." |
-| 1:00–1:15 | point at the SYNTHETIC tag and read the note aloud | "This one is constructed, and it says so. None of the eight real repositories regenerated a lockfile inside the window — which is itself the finding." |
+| 0:00–0:15 | top bar (Hindsight wordmark, incident title, Demo data pill, health dot with `9 repos`), the answer strip already stating the finding, timeline rail with its named event chips | "8 September 2025. Nineteen npm packages compromised in eight minutes. Here is that timeline over our real lockfile history." |
+| 0:15–0:35 | drag the scrubber to **13:30** — answer strip reads **0 repositories** with stats 0 / 9 / 0 | "The attack is already live. Nothing of ours is exposed yet. That is an answer, not an absence of one." |
+| 0:35–1:00 | scrub to **14:05** (or step through the event chips with the arrows). The answer strip flips to "1 repository resolved a malicious chalk version" and the exposed row sits expanded on its red-tinted surface | "One repository. `chalk@5.6.1`, resolved 13:41:52, replaced 18:05:33 — four hours twenty-three minutes." |
+| 1:00–1:15 | point at the amber Synthetic pill, then click the Demo data pill in the top bar so the popover shows the provenance note | "This one is constructed, and it says so. None of the eight real repositories regenerated a lockfile inside the window — which is itself the finding." |
 | 1:15–1:40 | scroll to `webpack/webpack`, read the basis line | "Here is the shot I care about. Not exposed — because it was pinned to 5.6.0, one patch below, four days before the attack started, and did not move for 102 days." |
-| 1:40–2:00 | the caveat line under the verdict | "Everything here is lockfile resolution. It is the scope to investigate. It is not a claim that anything was installed, built or shipped." |
-| 2:00–2:20 | impact graph: repo → version → package → maintainer, malicious edges in red | "Same query, drawn. Four layers, from our repository to the npm account that can publish into it." |
-| 2:20–2:45 | maintainer panel; `sindresorhus` at #1, then search `qix` | "And the standing question. One account reaches 34 packages across all nine repositories. `qix` — the account actually phished that morning — reaches nine of nine through `debug` alone." |
+| 1:40–2:00 | the evidence caveat line under the answer strip | "Everything here is lockfile resolution. It is the scope to investigate. It is not a claim that anything was installed, built or shipped." |
+| 2:00–2:20 | impact graph — the default view is just the malicious path with clean repos aggregated; click **Show all** for the full repo → version → package → maintainer layout, malicious edges in red | "Same query, drawn. Four layers, from our repository to the npm account that can publish into it." |
+| 2:20–2:45 | Standing risk card; `sindresorhus` at #1, then search `qix` | "And the standing question. One account reaches 34 packages across all nine repositories. `qix` — the account actually phished that morning — reaches nine of nine through `debug` alone." |
 | 2:45–3:00 | scrub back and forth across 13:41:52 so exposure flips on and off | "Bitemporal, so every one of those answers is as-of an instant — and it is a graph traversal, not a similarity search." |
 
-Two details worth rehearsing: the scrubber is debounced at 55 ms, so drag it
-rather than clicking; and the maintainer ranking takes 2.4 s the first time an
-instant is scored and ~1 ms afterwards, so visit the instant once before filming.
+Three details worth rehearsing: the scrubber is debounced at 55 ms, so drag it
+rather than clicking (arrow keys nudge a minute, shift+arrow fifteen); the
+maintainer ranking takes 2.4 s the first time an instant is scored and ~1 ms
+afterwards, so visit the instant once before filming; and the endpoint, label
+namespace and read-completeness live in the Diagnostics drawer (top right) if
+you want them on screen.
 
 ## 7. Tests
 
 ```bash
-pytest tests/unit                    # 871 tests, no node required
+pytest tests/unit                    # 893 tests, no node required
 pytest tests/integration             # 86 against a live node
 ruff check .
 ```
