@@ -56,26 +56,78 @@ against 17k inserts/sec, so label namespacing is the isolation mechanism.
 
 Where the history comes from, in order of preference:
 
-| `--source`  | what it reads |
-|-------------|---------------|
-| `snapshots` | `poc/snapshots/<repo>.jsonl.gz` — raw per-commit lockfile closures |
-| `graph`     | the PoC's `Dep*` load already in the node, re-read and re-projected |
-| `auto`      | snapshots if present, else the graph (default) |
+| `--source`   | what it reads |
+|--------------|---------------|
+| `file`       | committed `poc/demo-dataset.jsonl.gz` — versioned compressed JSONL; offline and reproducible |
+| `snapshots`  | `poc/snapshots/<repo>.jsonl.gz` — raw per-commit lockfile closures |
+| `graph-file` | ignored `poc/graph.json.gz` — the canonical PoC projection before it is loaded into HydraDB |
+| `graph`      | the PoC's `Dep*` load already in the node, re-read and re-projected |
+| `auto`       | current committed file, else snapshots, else the graph (default) |
 
-If neither exists, regenerate the snapshots (~40 min, ~550 MB of clones):
+The normal fresh-clone path is `auto` → `file`; it does not clone upstream
+repositories and does not require `Dep*` rows. The committed artifact contains
+logical repository intervals and the maintainer overlay, not HydraDB-specific
+ids, so the ordinary writer still builds deterministic rowsets and watermarks.
+
+To regenerate the artifact from the canonical PoC graph export:
+
+```bash
+python3 scripts/demo-seed.py \
+  --source graph-file \
+  --export poc/demo-dataset.jsonl.gz
+```
+
+`--export` writes deterministic gzip JSONL and exits without reading or writing
+the output label namespace. To rebuild every ignored input first (~40 min,
+~550 MB of clones):
 
 ```bash
 cd poc && ./clone_repos.sh
 for r in axios babel grafana jitsi-meet webpack superset react storybook; do
   SINCE=2024-01-01 UNTIL=2025-12-31 python3 extract_history.py "$r" &
 done; wait
+python3 build_graph.py
+cd ..
+python3 scripts/demo-seed.py --source graph-file --export poc/demo-dataset.jsonl.gz
 ```
 
-A real run, from the `Dep*` source:
+For a round-trip verification load on a shared append-only node, both fresh
+labels and fresh ids are mandatory:
+
+```bash
+python3 scripts/demo-seed.py --source file --execute \
+  --node-prefix SeedCheck --rel-prefix SEEDCHECK --id-namespace seed-check-1
+```
+
+Do not omit `--id-namespace` for a scratch load. HydraDB ids are global across
+labels, so a load under fresh *labels* alone still merges onto the demo's nodes
+by id and adds its labels to them — permanently, on an append-only store. It
+also salts the watermark's `slug`, because the watermark id is a plain function
+of the slug (`hindsight.ids.watermark_id`) and an unsalted scratch load would
+otherwise overwrite the demo's ingest watermarks.
+
+That isolation is total, and deliberately so: every console read anchors on the
+same unsalted deterministic ids, so a namespaced load is invisible to the
+console — the repository directory (a label scan) lists nine repositories and
+every exposure read returns NOT_RESOLVED. It verifies the write path only.
+Verifying what the console *renders* means seeding a namespace without
+`--id-namespace`, which on a shared node means a node with no demo dataset on
+it. To check an artifact against the canonical projection instead, re-export it
+and diff:
+
+```bash
+python3 scripts/demo-seed.py --source graph --export /tmp/check.jsonl.gz
+diff <(gzcat /tmp/check.jsonl.gz | sort) <(gzcat poc/demo-dataset.jsonl.gz | sort)
+```
+
+Only the `origin` provenance strings differ, since each names the source it was
+projected from. Every interval, version, maintainer and synthetic row matches.
+
+A real run, represented by the committed file:
 
 ```
 labels: ReplayRepo / ReplayVer -[REPLAY_RESOLVES]->
-source: graph
+source: file
   axios/axios                intervals=  2,061 commits=   16
   babel/babel                intervals=  3,264 commits=  128
   facebook/react             intervals=  3,097 commits=   75
@@ -84,7 +136,7 @@ source: graph
   apache/superset            intervals=  8,844 commits=  516
   storybookjs/storybook      intervals= 50,358 commits=1,206
   webpack/webpack            intervals=  4,121 commits=  299
-  acme/checkout-web          intervals=     61 commits=    4  SYNTHETIC, 13 malicious version(s)
+  acme/checkout-web          intervals=     61 commits=    4  SYNTHETIC, 13 malicious version(s): …
 
 built 31,505 nodes / 111,805 edges (154 maintainer accounts)
   VERSION_OF edges     24,959 rows   12.80s      1,949/s

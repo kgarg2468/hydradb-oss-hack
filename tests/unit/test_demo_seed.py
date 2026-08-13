@@ -9,12 +9,15 @@ version numbers would be worth nothing on stage.
 
 from __future__ import annotations
 
+import gzip
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
 import pytest
 
+from hindsight.ids import watermark_id
 from hindsight_web.incident import load_incident
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -230,3 +233,329 @@ def test_maintainer_overlay_inverts_the_poc_file():
     assert "debug" in overlay["qix"]
     for packages in overlay.values():
         assert packages == list(packages)  # lists, as build_rowsets expects
+
+
+# -------------------------------------------------------- committed file source
+
+
+def _tiny_dataset():
+    real = seed.RepoInput(
+        slug="example/real",
+        name="example/real",
+        service="api",
+        intervals=(seed.Interval("chalk", "5.6.0", 10, 20),),
+        first_ts=10,
+        last_ts=20,
+        snapshots=2,
+    )
+    synthetic = seed.RepoInput(
+        slug=seed.SYNTHETIC_SLUG,
+        name=seed.SYNTHETIC_SLUG,
+        service=seed.SYNTHETIC_SERVICE,
+        intervals=(seed.Interval("chalk", "5.6.1", 12, 18),),
+        first_ts=12,
+        last_ts=18,
+        snapshots=2,
+    )
+    return seed.Dataset(
+        inputs=(real, synthetic),
+        origins={
+            real.slug: "real git history",
+            synthetic.slug: seed.SYNTHETIC_ORIGIN,
+        },
+        provenance={
+            real.slug: {"provenance": seed.REAL_REPO, "synthetic": 0},
+            synthetic.slug: {"provenance": seed.SYNTHETIC, "synthetic": 1},
+        },
+        maintainers={"qix": ("chalk",)},
+        source="graph",
+    )
+
+
+def test_dataset_file_round_trips_deterministically_with_provenance(tmp_path):
+    dataset = _tiny_dataset()
+    first = tmp_path / "first.jsonl.gz"
+    second = tmp_path / "second.jsonl.gz"
+    summary = {
+        "repos": 2,
+        "packages": 1,
+        "versions": 2,
+        "maintainers": 1,
+        "resolves": 2,
+        "version_of": 2,
+        "maintains": 1,
+        "nodes": 6,
+        "edges": 5,
+    }
+
+    seed.write_dataset(first, dataset, summary)
+    seed.write_dataset(second, dataset, summary)
+
+    loaded = seed.read_dataset(first)
+    assert loaded == dataset
+    assert first.read_bytes() == second.read_bytes()
+    assert seed.dataset_is_current(first) is True
+    assert loaded.provenance[seed.SYNTHETIC_SLUG] == {
+        "provenance": "synthetic",
+        "synthetic": 1,
+    }
+    assert loaded.origins[seed.SYNTHETIC_SLUG] == seed.SYNTHETIC_ORIGIN
+
+
+def test_a_failed_export_leaves_the_previous_artifact_intact(tmp_path):
+    """The destination is usually the only thing a fresh clone can seed from.
+
+    A half-written gzip there does not announce itself as a failed export: it
+    loads, and seeds a dataset that is quietly short of the one it claims to be.
+    """
+    path = tmp_path / "demo.jsonl.gz"
+    seed.write_dataset(path, _tiny_dataset(), {"repos": 2})
+    good = path.read_bytes()
+
+    # Fails inside the write loop rather than while the records are assembled,
+    # which is the only failure the destination file can be caught half-way by.
+    broken = _tiny_dataset()
+    broken.maintainers["qix"] = (object(),)
+    with pytest.raises(TypeError):
+        seed.write_dataset(path, broken, {"repos": 2})
+
+    assert path.read_bytes() == good
+    assert not list(tmp_path.glob("*.partial"))
+
+
+def test_two_exports_to_one_destination_do_not_share_a_staging_file(
+    tmp_path, monkeypatch
+):
+    """A fixed staging name turns an unlikely race into a corrupted artifact.
+
+    Both runs would write the same file, the first to finish would rename a
+    half-written gzip into place, and the loser's cleanup would delete a file it
+    did not create.
+    """
+    path = tmp_path / "demo.jsonl.gz"
+    seen = []
+
+    class Watching(gzip.GzipFile):
+        def __init__(self, *a, fileobj=None, **kw):
+            seen.append(Path(fileobj.name))
+            super().__init__(*a, fileobj=fileobj, **kw)
+
+    monkeypatch.setattr(seed.gzip, "GzipFile", Watching)
+    seed.write_dataset(path, _tiny_dataset(), {"repos": 2})
+    seed.write_dataset(path, _tiny_dataset(), {"repos": 2})
+
+    assert len(seen) == 2
+    assert seen[0] != seen[1]
+    assert not list(tmp_path.glob("*.partial"))
+
+
+class EmptySourceClient:
+    def paged_rows(self, *args, **kwargs):
+        return [], False
+
+
+class ExplodingSourceClient:
+    def paged_rows(self, *args, **kwargs):
+        raise AssertionError("the file source must not query the node")
+
+
+def test_auto_prefers_a_current_file_even_when_snapshots_exist(tmp_path, monkeypatch):
+    dataset_path = tmp_path / "demo.jsonl.gz"
+    seed.write_dataset(dataset_path, _tiny_dataset(), {"repos": 2})
+    snapshots = tmp_path / "snapshots"
+    snapshots.mkdir()
+    (snapshots / "present.jsonl.gz").touch()
+    monkeypatch.setattr(seed, "SNAPSHOT_DIR", snapshots)
+    messages = []
+
+    loaded, chosen = seed.collect(
+        "auto", ExplodingSourceClient(), messages.append, dataset_path=dataset_path
+    )
+
+    assert chosen == "file"
+    assert loaded == _tiny_dataset()
+    assert messages[0] == "source: file"
+
+
+def test_auto_without_file_or_snapshots_reproduces_the_empty_graph_failure(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(seed, "SNAPSHOT_DIR", tmp_path / "missing-snapshots")
+    messages = []
+    with pytest.raises(
+        SystemExit, match="no repository history found via --source graph"
+    ):
+        seed.collect(
+            "auto",
+            EmptySourceClient(),
+            messages.append,
+            dataset_path=tmp_path / "missing-dataset.jsonl.gz",
+        )
+    assert messages[0] == "source: graph"
+
+
+def test_graph_file_reprojects_the_poc_export_without_a_node(tmp_path):
+    graph_path = tmp_path / "graph.json.gz"
+    graph = {
+        "repos": [{"id": 10, "slug": "axios"}],
+        "versions": [
+            {"id": 20, "pkg": "chalk", "version": "5.6.0"},
+            {"id": 21, "pkg": "debug", "version": "4.3.7"},
+        ],
+        "resolves": [
+            {"s": 10, "d": 20, "vf": 100, "vt": 200},
+            {"s": 10, "d": 21, "vf": 100, "vt": seed.SENTINEL},
+        ],
+    }
+    with gzip.open(graph_path, "wt") as fh:
+        json.dump(graph, fh)
+
+    dataset, chosen = seed.collect(
+        "graph-file",
+        ExplodingSourceClient(),
+        lambda message: None,
+        graph_path=graph_path,
+    )
+
+    assert chosen == "graph-file"
+    assert len(dataset.inputs) == 1
+    repo = dataset.inputs[0]
+    assert repo.slug == "axios/axios"
+    assert repo.intervals == (
+        seed.Interval("chalk", "5.6.0", 100, 200),
+        seed.Interval("debug", "4.3.7", 100, seed.SENTINEL),
+    )
+    assert (repo.first_ts, repo.last_ts, repo.snapshots) == (100, 200, 2)
+    assert "poc/graph.json.gz" in dataset.origins[repo.slug]
+
+
+def test_export_is_a_pure_file_operation_that_does_not_read_the_output_graph(
+    tmp_path, monkeypatch
+):
+    source = tmp_path / "source.jsonl.gz"
+    exported = tmp_path / "exported.jsonl.gz"
+    seed.write_dataset(source, _tiny_dataset(), {"repos": 2})
+    monkeypatch.setattr(
+        seed.HydraClient,
+        "from_env",
+        classmethod(lambda cls: ExplodingSourceClient()),
+    )
+
+    result = seed.main(
+        [
+            "--source",
+            "file",
+            "--dataset",
+            str(source),
+            "--export",
+            str(exported),
+        ]
+    )
+
+    assert result == 0
+    assert seed.read_dataset(exported) == _tiny_dataset()
+
+
+def test_id_namespace_changes_every_written_id_but_not_visible_data():
+    dataset = _tiny_dataset()
+    schema = seed.Schema.prefixed("Replay", "REPLAY")
+    normal, normal_repo_ids = seed.build_demo_rowsets(
+        dataset.inputs, schema, dataset.maintainers
+    )
+    isolated, isolated_repo_ids = seed.build_demo_rowsets(
+        dataset.inputs, schema, dataset.maintainers, id_namespace="SeedTestB4"
+    )
+
+    def node_ids(rows):
+        return {
+            row["id"]
+            for group in (rows.repos, rows.packages, rows.versions, rows.maintainers)
+            for row in group
+        }
+
+    assert node_ids(normal).isdisjoint(node_ids(isolated))
+    assert normal_repo_ids.keys() == isolated_repo_ids.keys()
+    assert set(normal_repo_ids.values()).isdisjoint(isolated_repo_ids.values())
+    assert [{k: v for k, v in row.items() if k != "id"} for row in normal.repos] == [
+        {k: v for k, v in row.items() if k != "id"} for row in isolated.repos
+    ]
+    assert set(isolated.repo_slugs.values()) == {
+        f"SeedTestB4:{spec.slug}" for spec in dataset.inputs
+    }
+    assert {watermark_id(slug) for slug in normal.repo_slugs.values()}.isdisjoint(
+        watermark_id(slug) for slug in isolated.repo_slugs.values()
+    )
+
+
+def test_committed_dataset_answers_the_demo_offline_without_querying_hydradb():
+    with gzip.open(seed.DEMO_DATASET, "rt") as fh:
+        header = json.loads(next(fh))
+    assert header == {
+        "format": seed.DATASET_FORMAT,
+        "rowsets": {
+            "edges": 111_805,
+            "maintainers": 154,
+            "maintains": 466,
+            "nodes": 31_505,
+            "packages": 6_383,
+            "repos": 9,
+            "resolves": 86_380,
+            "version_of": 24_959,
+            "versions": 24_959,
+        },
+        "source": "graph-file",
+        "type": "meta",
+        "version": seed.DATASET_VERSION,
+    }
+    dataset, chosen = seed.collect(
+        "auto", ExplodingSourceClient(), lambda message: None
+    )
+    assert chosen == "file"
+    assert len(dataset.inputs) == 9
+    assert sum(spec.slug == seed.SYNTHETIC_SLUG for spec in dataset.inputs) == 1
+    assert dataset.provenance[seed.SYNTHETIC_SLUG] == {
+        "provenance": seed.SYNTHETIC,
+        "synthetic": 1,
+    }
+    for spec in dataset.inputs:
+        if spec.slug == seed.SYNTHETIC_SLUG:
+            assert dataset.origins[spec.slug] == seed.SYNTHETIC_ORIGIN
+        else:
+            assert dataset.provenance[spec.slug] == {
+                "provenance": seed.REAL_REPO,
+                "synthetic": 0,
+            }
+            assert "git lockfile history" in dataset.origins[spec.slug]
+    at = seed.iso_to_epoch("2025-09-08T14:05:00Z")
+    active = {
+        spec.slug: {
+            (iv.package, iv.version)
+            for iv in spec.intervals
+            if iv.valid_from <= at < iv.valid_to
+        }
+        for spec in dataset.inputs
+    }
+    exposed = {
+        slug: {
+            f"{package}@{version}"
+            for package, version in resolved
+            if package in {"chalk", "debug"}
+            and version in INCIDENT.malicious_versions(package)
+        }
+        for slug, resolved in active.items()
+    }
+    assert {slug: versions for slug, versions in exposed.items() if versions} == {
+        seed.SYNTHETIC_SLUG: {"chalk@5.6.1", "debug@4.4.2"}
+    }
+
+    reach = []
+    for account, packages in dataset.maintainers.items():
+        owned = set(packages)
+        pairs = sum(
+            len({package for package, _ in rows} & owned) for rows in active.values()
+        )
+        repos = sum(
+            bool({package for package, _ in rows} & owned) for rows in active.values()
+        )
+        reach.append((pairs, repos, account))
+    assert max(reach) == (271, 9, "sindresorhus")

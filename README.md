@@ -72,14 +72,22 @@ validity, worst first.
 ## Running locally
 
 ```bash
-# 1. Start a local HydraDB node (Docker)
+# 1. Install Hindsight and start a local HydraDB node (Docker)
+python3 -m venv .venv && . .venv/bin/activate
+pip install -e '.[web]'
 ./scripts/start-hydradb.sh
 
-# 2. Run tests
-pip install -r requirements-dev.txt
-pytest tests/unit          # no services needed
-pytest tests/integration   # needs the node from step 1
+# 2. Seed the committed offline demo dataset (about 700 KiB; no upstream clones)
+python3 scripts/demo-seed.py --execute
+
+# 3. Run the console
+python3 -m hindsight_web    # http://127.0.0.1:8080
 ```
+
+`--source auto` prefers the versioned `poc/demo-dataset.jsonl.gz`, so the path
+above works from a fresh clone without the ignored 550 MB repository corpus or
+pre-existing `Dep*` rows. See [docs/demo.md](docs/demo.md) for provenance,
+artifact regeneration, and verification-load instructions.
 
 ## License
 
