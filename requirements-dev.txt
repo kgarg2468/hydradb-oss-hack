@@ -5,3 +5,11 @@ PyYAML==6.0.2
 # (FastMCP -> MCPServer) and switched result fields to snake_case, so an
 # unpinned install silently breaks hindsight_mcp.server and its tests.
 mcp==2.0.0
+
+# hindsight_web. Starlette and uvicorn are the entire server; httpx is pulled in
+# only by starlette.testclient. Nothing here talks to the database — the HydraDB
+# client is stdlib urllib on purpose, so a demo machine that cannot reach PyPI
+# can still query the graph.
+starlette==1.6.0
+uvicorn==0.52.1
+httpx==0.28.1
