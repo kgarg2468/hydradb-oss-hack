@@ -80,8 +80,15 @@ HydraDB today; the engine patch is an upgrade on top of it, not a dependency.
   registry `time` map — the incident window is sourced, not assumed.
 - **Latency** on the seeded dataset (31,505 nodes / 111,805 edges): exposure
   as-of 8 ms, blast radius 8 ms, maintainer reach 26 ms, ranking all 154
-  accounts 2.4 s cold / 1.3 ms cached. Scaling curve to 250 repos in
-  `benchmarks/RESULTS.md`.
+  accounts 2.4 s cold / 1.3 ms cached.
+- **Scaling**, measured to 250 synthetic repos / 2.36 M interval edges
+  (`benchmarks/RESULTS.md`): the incident sweep — "did any repo resolve one of
+  these 24 compromised versions at T", which is the question the product exists
+  to answer — is **46.3 ms p95 at 250 repos**. The general per-package exposure
+  query is **36.3 ms p95 at 100 repos** and degrades sharply above ~1 M edges of
+  one relationship type (339 ms at 150 repos, 5.3 s at 250). We bisected that,
+  attributed it, built the obvious mitigation, measured that the mitigation does
+  not work, and wrote all of it down.
 - **Tests:** 957 passing (871 unit, 86 integration). Integration runs against a
   live HydraDB node in GitHub Actions on every PR.
 
@@ -125,6 +132,12 @@ Full walkthrough: [`demo.md`](demo.md). Agent surface: [`mcp.md`](mcp.md).
   a package now, not who maintained it in 2024.
 - Benchmarks are single-node with local-directory object storage; real S3 will
   be slower. Stated in `benchmarks/RESULTS.md` rather than left implicit.
+- **The per-package exposure query has no headroom above ~1 M interval edges of
+  one relationship type** — roughly 100 repositories at this dataset's shape. The
+  incident sweep stays flat well past that, so the headline question scales; the
+  browse-any-package question does not. We do not have a fix, and
+  `benchmarks/RESULTS.md` lists the candidates we have not tried rather than
+  implying one exists.
 
 ---
 
