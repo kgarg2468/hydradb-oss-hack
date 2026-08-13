@@ -387,7 +387,7 @@ def test_the_page_is_shipped_the_code_that_makes_its_view_a_link():
     # from the clock when the link is opened.
     assert "'?package=' + encodeURIComponent(state.package)" in script
     assert "'&at=' + encodeURIComponent(String(state.at))" in script
-    assert "'&all=1'" in script
+    assert "'&graph=path'" in script
     # Dragging the scrubber must not fill the back stack; only the package
     # select, which is discrete, gets a history entry of its own. The API is
     # reached through `window` because this file has its own `history`.
@@ -499,3 +499,60 @@ def test_an_empty_prefix_variable_is_not_a_prefix(tmp_path):
 
 def test_without_a_config_the_console_defaults_to_what_ingest_writes():
     assert resolve_schema(None, env={}).repo == "HsRepo"
+
+
+# ---- what the console leads with
+
+def test_the_graph_opens_on_the_whole_graph_and_the_link_carries_the_narrowing():
+    """A drawing of the sentence directly above it is not worth its area.
+
+    The summary view is three nodes and two curves restating a headline the
+    reader has already read twice. The full layout is the only thing on the
+    page a list cannot say: nine repositories, their resolved versions, the
+    package, and the accounts that can publish into it, with the malicious
+    path lit inside the whole. So that is the view, and focusing is the click.
+    """
+    with TestClient(build_app(console())) as c:
+        page = c.get("/").text
+        script = c.get("/static/app.js").text
+    assert "showAll: true" in script
+    assert ">Focus malicious path</button>" in page
+    # Only the departure from the default travels in the link.
+    assert "(state.showAll ? '' : '&graph=path')" in script
+    assert "all: raw.graph !== 'path'" in script
+
+
+def test_diagnostics_is_reached_through_the_status_it_explains():
+    """A developer drawer billed as a peer of the incident is over-billed.
+
+    The reader already looks at the health chip to ask whether the thing is
+    connected, which is the same question the drawer answers at length.
+    """
+    with TestClient(build_app(console())) as c:
+        page = c.get("/").text
+    assert 'class="health" id="diag-btn"' in page
+    assert 'class="ghost-btn" id="diag-btn"' not in page
+    # One trigger, so the chip has to carry the dialog semantics itself.
+    assert page.count('id="diag-btn"') == 1
+    assert 'aria-haspopup="dialog"' in page
+
+
+def test_the_diagnostics_drawer_leads_with_whether_the_reads_were_complete():
+    """Endpoint, cell and label names are provenance. Read completeness is the
+    one row in the drawer that changes what the numbers on screen mean, and it
+    used to sit under eleven rows of connection detail."""
+    with TestClient(build_app(console())) as c:
+        script = c.get("/static/app.js").text
+    leads = script.index("group('This answer')")
+    assert leads < script.index("row('Read completeness'")
+    assert script.index("row('Read completeness'") < script.index("group('Connection')")
+    assert script.index("group('Connection')") < script.index("row('Endpoint'")
+
+
+def test_every_named_event_stays_clickable_at_a_laptop_width():
+    """Seven chips and the range toggle do not fit on one line at 1440, and the
+    chip that scrolls out of reach is the public disclosure."""
+    with TestClient(build_app(console())) as c:
+        css = c.get("/static/app.css").text
+    assert ".rail-top::after" in css
+    assert ".rail-top .segmented { order: 3; margin-left: auto; }" in css

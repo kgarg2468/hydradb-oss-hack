@@ -16,13 +16,13 @@
   </div>
   <div class="topbar-right">
     <button type="button" class="pill-btn" id="demo-btn" aria-haspopup="dialog" aria-expanded="false">Demo data</button>
-    <div class="health" id="health">
-      <span class="health-dot" id="health-dot" aria-hidden="true"></span>
-      <span class="health-text" id="health-text">connecting</span>
-    </div>
     <span class="copy-note mono" id="copy-note" role="status" aria-live="polite"></span>
     <button type="button" class="ghost-btn" id="copy-link">Copy link</button>
-    <button type="button" class="ghost-btn" id="diag-btn" aria-haspopup="dialog" aria-expanded="false">Diagnostics</button>
+    <button type="button" class="health" id="diag-btn" aria-haspopup="dialog" aria-expanded="false"
+            aria-label="Connection status, opens diagnostics">
+      <span class="health-dot" id="health-dot" aria-hidden="true"></span>
+      <span class="health-text" id="health-text">connecting</span>
+    </button>
   </div>
 </header>
 
@@ -109,7 +109,7 @@
       <section class="card graph-card" id="panel-graph" aria-label="Impact graph">
         <div class="card-head">
           <h2>Impact graph</h2>
-          <button type="button" class="text-btn" id="graph-toggle" aria-pressed="false">Show all</button>
+          <button type="button" class="text-btn" id="graph-toggle" aria-pressed="true">Focus malicious path</button>
         </div>
         <p class="card-sub" id="graph-sub"></p>
         <div class="canvas-wrap">
