@@ -574,3 +574,70 @@ def test_every_named_event_stays_clickable_at_a_laptop_width():
         css = c.get("/static/app.css").text
     assert ".rail-top::after" in css
     assert ".rail-top .segmented { order: 3; margin-left: auto; }" in css
+
+
+# ---- the answer as a contract
+
+def test_the_answer_is_the_h1_and_announces_itself():
+    """The conclusion is the page. It was a <p> while every subordinate panel
+    had an <h2>, and a screen reader was told nothing when a committed read
+    replaced it."""
+    with TestClient(build_app(console())) as c:
+        page = c.get("/").text
+    assert '<h1 class="answer-line" id="answer-line" aria-live="polite">' in page
+    assert '<p class="answer-line"' not in page
+
+
+def test_the_headline_carries_its_denominator_as_a_floor_when_cut():
+    """"1 repository" could be 1 of 9 or 1 of 900, and those are different
+    incidents. The denominator goes through the same floor helper as the
+    numerator, because a cut read bounds both from below."""
+    with TestClient(build_app(console())) as c:
+        script = c.get("/static/app.js").text
+    assert "d.counts.exposed + d.counts.resolved_clean + d.counts.not_resolved" in script
+    # Both numbers pass through count(x, floor); the denominator is guarded so
+    # a payload that says "1 of 0" gets the old bare count instead.
+    assert "line.appendChild(b(count(total, floor), 'n'));" in script
+    assert "None of " in script
+
+
+def test_the_console_never_calls_a_repository_clean():
+    """What was measured is that a repository did not resolve a malicious
+    version of one package at one instant. "Clean" is a bigger claim than
+    that, and this console's whole pitch is not making claims it cannot
+    back."""
+    with TestClient(build_app(console())) as c:
+        script = c.get("/static/app.js").text
+    assert "Clean repo" not in script
+    assert "clean repo" not in script
+    assert "clean version" not in script
+    assert "No malicious resolution" in script
+
+
+def test_a_failed_read_names_the_instant_the_stale_panels_belong_to():
+    """A failed read used to move the headline and nothing else, leaving the
+    counts, repositories and drawing standing under a timestamp that had
+    moved on: every panel looked like an answer about the instant on screen.
+    And when nothing had ever loaded, three empty panels under a fresh
+    timestamp read as a proven negative, which is the one lie this product
+    exists to not tell."""
+    with TestClient(build_app(console())) as c:
+        script = c.get("/static/app.js").text
+    assert "function readFailed(err)" in script
+    assert "'READ FAILED'" in script
+    assert "'at ' + humanTime(kept.at)" in script
+    assert "drawMessage('No completed read to draw from')" in script
+    # The ranking keeps its list on failure, so the note has to say which
+    # instant that list belongs to, captured before anything is discarded.
+    assert "'failed, showing ' + humanTime(showing)" in script
+
+
+def test_the_steppers_disable_exactly_when_stepping_would_do_nothing():
+    """A control that lights up under the cursor and then does nothing is a
+    promise it cannot keep. The disabled predicate is the step predicate."""
+    with TestClient(build_app(console())) as c:
+        script = c.get("/static/app.js").text
+        css = c.get("/static/app.css").text
+    assert "$('prev-event').disabled = !nextEvent(-1);" in script
+    assert "$('next-event').disabled = !nextEvent(1);" in script
+    assert ".icon-btn:disabled" in css

@@ -305,7 +305,11 @@ button, input, select {
 
 .answer-head { min-width: 0; }
 
+/* The answer is the page, so it is the h1. Every property a browser's own
+   heading styles would set is set here, because the element changed and the
+   rendering must not. */
 .answer-line {
+  margin: 0;
   font-size: 20px;
   font-weight: 600;
   line-height: 1.35;
@@ -574,6 +578,11 @@ button, input, select {
 .icon-btn svg { width: 16px; height: 16px; }
 .icon-btn:hover { background: var(--hover); color: var(--t1); }
 .icon-btn:active { transform: scale(0.98); }
+/* At the ends of the timeline the steppers have nowhere to go. A control that
+   still lights up under the cursor is a promise it cannot keep. */
+.icon-btn:disabled { opacity: 0.35; cursor: default; }
+.icon-btn:disabled:hover { background: transparent; color: var(--t2); }
+.icon-btn:disabled:active { transform: none; }
 
 .chips {
   display: flex;
