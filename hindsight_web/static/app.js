@@ -342,6 +342,7 @@
     $('answer-rel').textContent = relativeText();
     $('answer-sep').hidden = false;
     markCurrentChip();
+    markStepBounds();
     /* Moving the playhead retires whatever a link claimed: from here on the
        console is showing the instant this operator chose, so there is nothing
        left to disown. */
@@ -402,16 +403,30 @@
     }
   }
 
-  function stepEvent(direction) {
+  function nextEvent(direction) {
     var markers = state.incident.markers.slice().sort(function (a, b) { return a.at - b.at; });
-    var next = null;
+    var found = null;
     markers.forEach(function (m) {
-      if (direction > 0 && m.at > state.at + 1 && !next) { next = m; }
-      if (direction < 0 && m.at < state.at - 1) { next = m; }
+      if (direction > 0 && m.at > state.at + 1 && !found) { found = m; }
+      if (direction < 0 && m.at < state.at - 1) { found = m; }
     });
+    return found;
+  }
+
+  function stepEvent(direction) {
+    var next = nextEvent(direction);
     if (!next) { return; }
     if (next.at < state.domain.start || next.at > state.domain.end) { setDomain('day'); }
     setInstant(next.at, { settled: true });
+  }
+
+  /* At the first and the last event the steppers had nothing to move to and
+     said nothing about it, which reads as a dead control rather than as the end
+     of the timeline. Same predicate as `stepEvent`, so the button is disabled
+     exactly when pressing it would do nothing. */
+  function markStepBounds() {
+    $('prev-event').disabled = !nextEvent(-1);
+    $('next-event').disabled = !nextEvent(1);
   }
 
   /* -------------------------------------------------------------- the link */
@@ -646,7 +661,49 @@
     }).catch(function (err) {
       if (err.name === 'AbortError') { return; }
       $('answer-line').textContent = 'Query failed: ' + clean(err.message);
+      readFailed(err);
     });
+  }
+
+  /* A failed read moves the headline and nothing else, so the counts, the
+     repositories and the drawing go on standing under a timestamp that has
+     since moved: the worst kind of stale, because every one of them looks like
+     an answer about the instant on screen. Nothing below is re-fetched, so the
+     banner names the instant those panels do belong to. When there is no
+     earlier read to name, they are emptied instead, because three blank panels
+     under a fresh timestamp read as a proven negative. */
+  function readFailed(err) {
+    var slot = $('banner-slot');
+    var kept = state.exposure;
+    slot.innerHTML = '';
+    var box = el('div', 'truncated');
+    box.appendChild(el('b', null, 'READ FAILED'));
+    box.appendChild(el('span', null, 'This read did not complete (' +
+      clean(err.message) + '). ' + (kept
+      ? 'The counts, repositories and graph below are the last read that did, ' +
+        'at ' + humanTime(kept.at) + ', and are not an answer about this instant.'
+      : 'No read has completed yet, so the panels below are empty rather than ' +
+        'negative.')));
+    slot.appendChild(box);
+    if (kept) { return; }
+
+    $('stats').innerHTML = '';
+    $('repos').innerHTML = '';
+    $('evidence-note').textContent = '';
+    $('evidence-note').className = 'card-note';
+    $('legend').innerHTML = '';
+    /* The subtitle survives from whatever the card last showed, class and
+       hover note included, and an amber "incomplete read" caption over an
+       empty canvas would be a claim about a read that never happened. */
+    var sub = $('graph-sub');
+    sub.textContent = 'No completed read to summarize.';
+    sub.className = 'card-sub unknown';
+    sub.title = '';
+    state.blast = null;
+    hovered = null;
+    simpleNodes = [];
+    $('tooltip').hidden = true;
+    drawMessage('No completed read to draw from');
   }
 
   function loadRanking() {
@@ -662,10 +719,19 @@
       renderDiagnostics();
     }).catch(function (err) {
       if (at !== state.at) { return; }
-      state.rankingMeta = null;
-      state.rankingMetaAt = null;
+      /* The list on screen outlives the failure, so the instant it was read at
+         has to be captured before the failure path decides whether to keep it,
+         and the meta is only discarded when the list goes with it. "failed"
+         beside a ranking is a note about the wrong instant. */
+      var showing = state.ranking ? state.rankingMetaAt : null;
+      if (!state.ranking) {
+        state.rankingMeta = null;
+        state.rankingMetaAt = null;
+      }
       renderDiagnostics();
-      $('reach-note').textContent = 'failed';
+      $('reach-note').textContent = showing
+        ? 'failed, showing ' + humanTime(showing)
+        : 'failed';
       $('reach-note').className = 'card-note partial';
       $('reach-note').title = clean(err.message);
     });
@@ -692,10 +758,20 @@
     }
   }
 
+  /* Every repository this read accounted for. A numerator on its own is not an
+     answer: 1 of 9 and 1 of 900 are different incidents, and the headline is
+     the one line an incident lead reads. Under truncation the denominator is a
+     floor for the same reason the numerator is, so it carries the qualifier
+     too. */
+  function denominator(d) {
+    return d.counts.exposed + d.counts.resolved_clean + d.counts.not_resolved;
+  }
+
   function renderAnswer(d) {
     var line = $('answer-line');
     var floor = d.truncated;
     var n = d.counts.exposed;
+    var total = denominator(d);
     line.innerHTML = '';
 
     function b(text, cls) { return el('b', cls || null, text); }
@@ -708,8 +784,16 @@
       line.appendChild(b(d.package));
       line.appendChild(document.createTextNode(': ' + refusalCause(d)));
     } else if (n > 0) {
-      line.appendChild(b(count(n, floor) + ' ' + (n === 1 ? 'repository' : 'repositories'), 'n hit'));
-      line.appendChild(document.createTextNode(' resolved a malicious '));
+      /* A denominator of zero cannot happen beside a positive numerator, but a
+         payload that says so gets the old bare count rather than "1 of 0". */
+      line.appendChild(b(count(n, floor), 'n hit'));
+      if (total > 0) {
+        line.appendChild(document.createTextNode(' of '));
+        line.appendChild(b(count(total, floor), 'n'));
+      }
+      line.appendChild(document.createTextNode(
+        ' ' + ((total > 0 ? total : n) === 1 ? 'repository' : 'repositories') +
+        ' resolved a malicious '));
       line.appendChild(b(d.package));
       line.appendChild(document.createTextNode(' version'));
     } else if (floor) {
@@ -719,6 +803,14 @@
     } else if (!d.package_in_graph) {
       line.appendChild(b(d.package));
       line.appendChild(document.createTextNode(' is not resolved by any repository in this graph'));
+    } else if (total > 0) {
+      line.appendChild(document.createTextNode('None of '));
+      line.appendChild(b(count(total, floor), 'n'));
+      line.appendChild(document.createTextNode(
+        ' ' + (total === 1 ? 'repository' : 'repositories') +
+        ' resolved a malicious '));
+      line.appendChild(b(d.package));
+      line.appendChild(document.createTextNode(' version'));
     } else {
       line.appendChild(document.createTextNode('No repository resolved a malicious '));
       line.appendChild(b(d.package));
@@ -1012,7 +1104,7 @@
       sub.className = 'card-sub';
       sub.title = '';
     } else {
-      sub.textContent = 'The malicious path only; every clean repository and version aggregated.';
+      sub.textContent = 'The malicious path only; every other repository and version aggregated.';
       sub.className = 'card-sub';
       sub.title = '';
     }
@@ -1020,16 +1112,22 @@
     layout();
   }
 
+  /* "Clean" is a claim about a repository. What was measured is narrower and is
+     what the swatch means: this repository did not resolve a malicious version
+     of this package at this instant. The canvas has room for a short label and
+     the legend carries the precise one, which is why the aggregated nodes say
+     "other" and the green swatch is named here. */
   function renderLegend() {
     var wrap = $('legend');
     wrap.innerHTML = '';
     var d = state.exposure;
     var hit = d && d.counts.exposed > 0;
     var items = state.showAll
-      ? [['Exposed repo', C.crit], ['Clean repo', C.safe], ['Malicious version', C.crit],
+      ? [['Exposed repo', C.crit], ['No malicious resolution', C.safe],
+        ['Malicious version', C.crit],
         ['Version', C.node], ['Package', C.t1], ['Maintainer', C.warn]]
       : (hit ? [['Malicious path', C.crit]] : [])
-        .concat([['Clean repositories', C.safe], ['Package', C.t1]]);
+        .concat([['No malicious resolution', C.safe], ['Package', C.t1]]);
     if (!state.showAll && d && d.counts.not_resolved > 0) {
       items.push(['No path at this instant', C.t3]);
     }
@@ -1325,7 +1423,7 @@
     }
     if (clean_ > 0) {
       left.push({
-        label: count(clean_, floor) + ' clean ' + (clean_ === 1 ? 'repo' : 'repos'),
+        label: count(clean_, floor) + ' other ' + (clean_ === 1 ? 'repo' : 'repos'),
         kind: 'repo', tone: C.safe, mono: false, path: false, clean: true,
         detail: 'Resolved ' + d.package + ' at this instant, but not a malicious version.'
       });
@@ -1360,7 +1458,7 @@
     if (clean_ > 0) {
       var others = Math.max(0, (state.blast ? state.blast.version_count : 0) - mid.length);
       mid.push({
-        label: others > 0 ? plural(others, 'clean version', 'clean versions') : 'clean versions',
+        label: others > 0 ? plural(others, 'other version', 'other versions') : 'other versions',
         kind: 'version', tone: C.node, mono: false, path: false, clean: true,
         detail: 'Every other version of ' + d.package + ' resolved at this instant.'
       });
