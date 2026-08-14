@@ -627,6 +627,10 @@ def test_a_failed_read_names_the_instant_the_stale_panels_belong_to():
     assert "'READ FAILED'" in script
     assert "'at ' + humanTime(kept.at)" in script
     assert "drawMessage('No completed read to draw from')" in script
+    # The graph card's caption is part of the panel: an amber "incomplete
+    # read" caption surviving over an emptied canvas would be a claim about a
+    # read that never happened.
+    assert "sub.textContent = 'No completed read to summarize.';" in script
     # The ranking keeps its list on failure, so the note has to say which
     # instant that list belongs to, captured before anything is discarded.
     assert "'failed, showing ' + humanTime(showing)" in script

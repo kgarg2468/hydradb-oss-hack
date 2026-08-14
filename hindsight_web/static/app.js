@@ -692,6 +692,13 @@
     $('evidence-note').textContent = '';
     $('evidence-note').className = 'card-note';
     $('legend').innerHTML = '';
+    /* The subtitle survives from whatever the card last showed, class and
+       hover note included, and an amber "incomplete read" caption over an
+       empty canvas would be a claim about a read that never happened. */
+    var sub = $('graph-sub');
+    sub.textContent = 'No completed read to summarize.';
+    sub.className = 'card-sub unknown';
+    sub.title = '';
     state.blast = null;
     hovered = null;
     simpleNodes = [];
