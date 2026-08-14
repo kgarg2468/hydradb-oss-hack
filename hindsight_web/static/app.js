@@ -76,7 +76,7 @@
     blast: null,
     ranking: null,
     rankingMeta: null,
-    showAll: false,
+    showAll: true,
     query: '',
     lastLatency: null,
     linkNotice: null
@@ -423,7 +423,7 @@
   function viewQuery() {
     return '?package=' + encodeURIComponent(state.package) +
       '&at=' + encodeURIComponent(String(state.at)) +
-      (state.showAll ? '&all=1' : '');
+      (state.showAll ? '' : '&graph=path');
   }
 
   function viewUrl() {
@@ -473,7 +473,16 @@
       package: raw.package || '',
       at: readable ? Number(raw.at) : null,
       unreadableAt: raw.at && !readable ? raw.at : '',
-      all: raw.all === '1'
+      /* A link carries the question exactly: which package, which instant.
+         Which drawing was on screen is a view preference, and a link that does
+         not name one gets whatever the console currently opens on. That is a
+         deliberate asymmetry. Honouring the omission instead would mean
+         reading "no graph named" as "the summary", which pins every
+         hand-written URL to a view we just decided was the wrong one, forever.
+         Nothing is lost when a pre-flip link lands on the full graph: the
+         answer is identical, and `Focus malicious path` is one click. A
+         mangled *question*, by contrast, still gets the link notice. */
+      all: raw.graph !== 'path'
     };
   }
 
@@ -550,7 +559,7 @@
   function applyShowAll(value) {
     state.showAll = !!value;
     var button = $('graph-toggle');
-    button.textContent = state.showAll ? 'Show summary' : 'Show all';
+    button.textContent = state.showAll ? 'Focus malicious path' : 'Show everything';
     button.setAttribute('aria-pressed', String(state.showAll));
     hovered = null;
     $('tooltip').hidden = true;
@@ -1003,7 +1012,7 @@
       sub.className = 'card-sub';
       sub.title = '';
     } else {
-      sub.textContent = 'The malicious path at this instant, everything else aggregated.';
+      sub.textContent = 'The malicious path only; every clean repository and version aggregated.';
       sub.className = 'card-sub';
       sub.title = '';
     }
@@ -1545,18 +1554,27 @@
       wrap.appendChild(box);
     }
 
+    function group(title) {
+      wrap.appendChild(el('div', 'diag-group', title));
+    }
+
+    var cut = [];
+    if (exposure && exposure.truncated) { cut.push('exposure'); }
+    if (health && health.truncated) { cut.push('health'); }
+    if (state.blast && state.blast.truncated) { cut.push('impact graph'); }
+    if (rank && rank.truncated) { cut.push('ranking'); }
+
+    /* Whether the reads behind the answer were complete is the one thing in
+       here that changes what the numbers on screen mean, so it leads. The
+       endpoint and the label names are provenance, and provenance goes last. */
+    group('This answer');
+    row('Read completeness',
+      cut.length ? 'Incomplete (' + cut.join(', ') + '): counts are floors' : 'Complete',
+      cut.length ? 'warn' : 'ok');
     if (health) {
-      row('Endpoint', health.endpoint);
-      row('Namespace', health.namespace);
-      row('Cell', health.cell);
-      row('Label namespace', Object.keys(health.labels).map(function (k) {
-        return health.labels[k];
-      }).join(', '));
-      row('Repositories', count(health.repo_count, health.truncated) + ' known, ' +
-        count(health.ingested_repo_count, health.truncated) + ' ingested');
       row('Dataset', health.answerable === false
         ? 'Cannot answer (' + (health.unanswerable_reason || 'unknown') + ')'
-        : 'Answerable', health.answerable === false ? 'warn' : null);
+        : 'Answerable', health.answerable === false ? 'warn' : 'ok');
     }
     if (exposure) {
       row('As of', exposure.at_iso);
@@ -1567,19 +1585,29 @@
       row('Accounts scored', count(rank.scored_accounts, rank.truncated) +
         (rank.cached ? ', cached' : ', ' + Math.round(rank.elapsed_ms) + ' ms'));
     }
-    if (state.incident) {
-      row('Incident date', state.incident.date);
-      row('Compromise window', state.incident.window.start_iso + ' to ' +
-        state.incident.window.end_iso);
+
+    if (state.incident || health) {
+      group('Dataset');
+      if (health) {
+        row('Repositories', count(health.repo_count, health.truncated) + ' known, ' +
+          count(health.ingested_repo_count, health.truncated) + ' ingested');
+      }
+      if (state.incident) {
+        row('Incident date', state.incident.date);
+        row('Compromise window', state.incident.window.start_iso + ' to ' +
+          state.incident.window.end_iso);
+      }
     }
-    var cut = [];
-    if (exposure && exposure.truncated) { cut.push('exposure'); }
-    if (health && health.truncated) { cut.push('health'); }
-    if (state.blast && state.blast.truncated) { cut.push('impact graph'); }
-    if (rank && rank.truncated) { cut.push('ranking'); }
-    row('Read completeness',
-      cut.length ? 'Incomplete (' + cut.join(', ') + '): counts are floors' : 'Complete',
-      cut.length ? 'warn' : null);
+
+    if (health) {
+      group('Connection');
+      row('Endpoint', health.endpoint);
+      row('Namespace', health.namespace);
+      row('Cell', health.cell);
+      row('Graph labels', Object.keys(health.labels).map(function (k) {
+        return health.labels[k];
+      }).join(', '));
+    }
   }
 
   /* ------------------------------------------------------- overlay control */
@@ -1674,12 +1702,12 @@
         : health.unanswerable_reason === 'empty_dataset' ? 'no data'
           : health.unanswerable_reason === 'no_ingested_history' ? 'no ingest'
             : count(health.repo_count, health.truncated) + ' repos';
-      $('health').title = !health.reachable ? 'The node did not answer.'
+      $('diag-btn').title = !health.reachable ? 'The node did not answer.'
         : health.answerable === false ? clean(health.unanswerable_note || '')
           : (health.truncated
             ? clean(health.truncation_note)
             : count(health.ingested_repo_count, health.truncated) +
-              ' of them have an ingest watermark. Open Diagnostics for the node details.');
+              ' of them have an ingest watermark. Click for the node details.');
       renderDiagnostics();
     });
 

@@ -258,16 +258,16 @@ repositories through `debug` alone.
 | 1:00–1:15 | point at the amber Synthetic pill, then click the Demo data pill in the top bar so the popover shows the provenance note | "This one is constructed, and it says so. None of the eight real repositories regenerated a lockfile inside the window — which is itself the finding." |
 | 1:15–1:40 | scroll to `webpack/webpack`, read the basis line | "Here is the shot I care about. Not exposed — because it was pinned to 5.6.0, one patch below, four days before the attack started, and did not move for 102 days." |
 | 1:40–2:00 | the evidence caveat line under the answer strip | "Everything here is lockfile resolution. It is the scope to investigate. It is not a claim that anything was installed, built or shipped." |
-| 2:00–2:20 | impact graph — the default view is just the malicious path with clean repos aggregated; click **Show all** for the full repo → version → package → maintainer layout, malicious edges in red | "Same query, drawn. Four layers, from our repository to the npm account that can publish into it." |
+| 2:00–2:20 | impact graph — the default view is the full repo → version → package → maintainer layout with the malicious edges in red; click **Focus malicious path** to collapse everything clean into two aggregate nodes | "Same query, drawn. Four layers, from our repository to the npm account that can publish into it." |
 | 2:20–2:45 | Standing risk card; `sindresorhus` at #1, then search `qix` | "And the standing question. One account reaches 34 packages across all nine repositories. `qix` — the account actually phished that morning — reaches nine of nine through `debug` alone." |
 | 2:45–3:00 | scrub back and forth across 13:41:52 so exposure flips on and off | "Bitemporal, so every one of those answers is as-of an instant — and it is a graph traversal, not a similarity search." |
 
 Three details worth rehearsing: the scrubber is debounced at 55 ms, so drag it
 rather than clicking (arrow keys nudge a minute, shift+arrow fifteen); the
 maintainer ranking takes 2.4 s the first time an instant is scored and ~1 ms
-afterwards, so visit the instant once before filming; and the endpoint, label
-namespace and read-completeness live in the Diagnostics drawer (top right) if
-you want them on screen.
+afterwards, so visit the instant once before filming; and read-completeness,
+the endpoint and the label namespace live in the Diagnostics drawer, which
+opens by clicking the health chip in the top bar.
 
 ## 7. Tests
 
