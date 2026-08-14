@@ -166,11 +166,11 @@ as real.
 
 The console defaults to the ingest pipeline's `Hs*` / `HS_*` labels. The seeded
 demo is intentionally isolated under `Replay*` / `REPLAY_*`, so select it with
-the same prefix variables used by the MCP server:
+the shared dataset prefix variables:
 
 ```bash
-export HINDSIGHT_MCP_NODE_PREFIX=Replay
-export HINDSIGHT_MCP_REL_PREFIX=REPLAY
+export HINDSIGHT_NODE_PREFIX=Replay
+export HINDSIGHT_REL_PREFIX=REPLAY
 python3 -m hindsight_web                  # http://127.0.0.1:8080
 python3 -m hindsight_web --port 9000 --reload
 ```

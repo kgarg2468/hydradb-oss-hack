@@ -65,9 +65,20 @@ class Settings:
     @classmethod
     def from_env(cls, env: dict[str, str] | None = None) -> Settings:
         env = os.environ if env is None else env
+
+        def prefix(shared: str, legacy: str, default: str) -> str:
+            # Same normalisation as the console's resolver: whitespace-only is
+            # unset, and a stray space must not split the two surfaces into
+            # different namespaces over the same dataset.
+            return (
+                (env.get(shared) or "").strip()
+                or (env.get(legacy) or "").strip()
+                or default
+            )
+
         return cls(
-            node_prefix=env.get("HINDSIGHT_MCP_NODE_PREFIX", "Hs"),
-            rel_prefix=env.get("HINDSIGHT_MCP_REL_PREFIX", "HS"),
+            node_prefix=prefix("HINDSIGHT_NODE_PREFIX", "HINDSIGHT_MCP_NODE_PREFIX", "Hs"),
+            rel_prefix=prefix("HINDSIGHT_REL_PREFIX", "HINDSIGHT_MCP_REL_PREFIX", "HS"),
             max_rows=int(env.get("HINDSIGHT_MCP_MAX_ROWS", "1000")),
             deadline_seconds=float(env.get("HINDSIGHT_MCP_TIMEOUT", "20")),
         )
