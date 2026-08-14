@@ -250,6 +250,20 @@ def test_settings_prefer_the_shared_prefix_environment():
     assert settings.schema == SCHEMA
 
 
+def test_settings_normalise_prefixes_the_way_the_console_does():
+    """A stray space in one shell must not split the two surfaces into
+    different namespaces over the same dataset, and whitespace-only is unset
+    just as an empty value is."""
+    settings = Settings.from_env(
+        {"HINDSIGHT_NODE_PREFIX": " McpTest ", "HINDSIGHT_REL_PREFIX": "MCPTEST"}
+    )
+    assert settings.schema == SCHEMA
+    fallthrough = Settings.from_env(
+        {"HINDSIGHT_NODE_PREFIX": "   ", "HINDSIGHT_MCP_NODE_PREFIX": "McpTest"}
+    )
+    assert fallthrough.node_prefix == "McpTest"
+
+
 def test_settings_default_to_the_production_labels():
     settings = Settings.from_env({})
     assert settings.schema.repo == "HsRepo"
