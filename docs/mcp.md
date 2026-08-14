@@ -341,12 +341,14 @@ python -m hindsight_mcp    # should sit waiting on stdin, not exit
 | `HINDSIGHT_HYDRA_CELL` | `cell-0` | cell (only `cell-0` exists) |
 | `HINDSIGHT_MCP_MAX_ROWS` | `1000` | row cap, clamped to the engine's 4096 |
 | `HINDSIGHT_MCP_TIMEOUT` | `20` | client deadline in seconds, clamped to the server's hard 30 s cap |
-| `HINDSIGHT_MCP_NODE_PREFIX` | `Hs` | node label prefix |
-| `HINDSIGHT_MCP_REL_PREFIX` | `HS` | relationship type prefix |
+| `HINDSIGHT_NODE_PREFIX` | `Hs` | node label prefix |
+| `HINDSIGHT_REL_PREFIX` | `HS` | relationship type prefix |
 
 The prefixes exist because HydraDB deletes at ~3 nodes/sec, which makes label
 namespacing the only workable form of test isolation — the integration suite
 points the whole server at `McpTest*` on the same node.
+The old `HINDSIGHT_MCP_NODE_PREFIX` and `HINDSIGHT_MCP_REL_PREFIX` names still
+work as fallbacks, while the shared names win when both are set.
 
 ## Layout
 

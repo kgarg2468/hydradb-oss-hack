@@ -6,8 +6,8 @@
 Connection details come from the same environment variables the ingest CLI uses
 (``HINDSIGHT_HYDRA_URL`` / ``_TOKEN`` / ``_NS`` / ``_GRAPH`` / ``_CELL``), so the
 console and the pipeline can never be pointed at different nodes by accident.
-Label prefixes come from the MCP server's ``HINDSIGHT_MCP_NODE_PREFIX`` and
-``HINDSIGHT_MCP_REL_PREFIX`` variables and default to the ingest schema.
+Label prefixes come from the shared ``HINDSIGHT_NODE_PREFIX`` and
+``HINDSIGHT_REL_PREFIX`` variables and default to the ingest schema.
 """
 
 from __future__ import annotations

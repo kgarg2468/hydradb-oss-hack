@@ -225,7 +225,7 @@ def test_a_tool_over_an_empty_dataset_refuses_rather_than_reporting_an_all_clear
     assert "proven negative" not in body["note"]
 
 
-def test_settings_come_from_the_environment():
+def test_settings_come_from_the_legacy_mcp_prefix_environment():
     settings = Settings.from_env(
         {
             "HINDSIGHT_MCP_NODE_PREFIX": "McpTest",
@@ -236,6 +236,18 @@ def test_settings_come_from_the_environment():
     )
     assert settings.schema == SCHEMA
     assert settings.limits == Limits(max_rows=42, deadline_seconds=7.0)
+
+
+def test_settings_prefer_the_shared_prefix_environment():
+    settings = Settings.from_env(
+        {
+            "HINDSIGHT_NODE_PREFIX": "McpTest",
+            "HINDSIGHT_REL_PREFIX": "MCPTEST",
+            "HINDSIGHT_MCP_NODE_PREFIX": "Legacy",
+            "HINDSIGHT_MCP_REL_PREFIX": "LEGACY",
+        }
+    )
+    assert settings.schema == SCHEMA
 
 
 def test_settings_default_to_the_production_labels():

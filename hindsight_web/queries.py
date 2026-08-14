@@ -59,9 +59,19 @@ def resolve_schema(
     env = os.environ if env is None else env
     #: An empty variable is treated as unset. ``FOO= hindsight-web`` is how a
     #: shell says "not this one", and building the label ``Repo`` from it would
-    #: silently drop the namespace the isolation depends on.
-    node = (env.get("HINDSIGHT_MCP_NODE_PREFIX") or "").strip() or None
-    rel = (env.get("HINDSIGHT_MCP_REL_PREFIX") or "").strip() or None
+    #: silently drop the namespace the isolation depends on. The shared name is
+    #: checked first, but an empty shared value is unset and therefore permits
+    #: the legacy MCP name to be consulted before the config file.
+    node = (
+        (env.get("HINDSIGHT_NODE_PREFIX") or "").strip()
+        or (env.get("HINDSIGHT_MCP_NODE_PREFIX") or "").strip()
+        or None
+    )
+    rel = (
+        (env.get("HINDSIGHT_REL_PREFIX") or "").strip()
+        or (env.get("HINDSIGHT_MCP_REL_PREFIX") or "").strip()
+        or None
+    )
 
     #: Each prefix resolves on its own. Treating "any variable set" as "the
     #: environment wins" would let a half-configured shell build a hybrid

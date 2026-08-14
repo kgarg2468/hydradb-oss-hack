@@ -66,8 +66,10 @@ class Settings:
     def from_env(cls, env: dict[str, str] | None = None) -> Settings:
         env = os.environ if env is None else env
         return cls(
-            node_prefix=env.get("HINDSIGHT_MCP_NODE_PREFIX", "Hs"),
-            rel_prefix=env.get("HINDSIGHT_MCP_REL_PREFIX", "HS"),
+            node_prefix=env.get("HINDSIGHT_NODE_PREFIX")
+            or env.get("HINDSIGHT_MCP_NODE_PREFIX", "Hs"),
+            rel_prefix=env.get("HINDSIGHT_REL_PREFIX")
+            or env.get("HINDSIGHT_MCP_REL_PREFIX", "HS"),
             max_rows=int(env.get("HINDSIGHT_MCP_MAX_ROWS", "1000")),
             deadline_seconds=float(env.get("HINDSIGHT_MCP_TIMEOUT", "20")),
         )

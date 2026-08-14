@@ -63,11 +63,24 @@ def test_web_schema_defaults_to_the_ingest_namespace():
     assert web_queries.resolve_schema(env={}) == DEFAULT_SCHEMA
 
 
-def test_web_schema_reads_the_mcp_prefix_environment_variables():
+def test_web_schema_reads_the_legacy_mcp_prefix_environment_variables():
     schema = web_queries.resolve_schema(
         env={
             "HINDSIGHT_MCP_NODE_PREFIX": "Replay",
             "HINDSIGHT_MCP_REL_PREFIX": "REPLAY",
+        }
+    )
+    assert schema.repo == "ReplayRepo"
+    assert schema.resolves == "REPLAY_RESOLVES"
+
+
+def test_web_schema_prefers_the_shared_prefix_environment_variables():
+    schema = web_queries.resolve_schema(
+        env={
+            "HINDSIGHT_NODE_PREFIX": "Replay",
+            "HINDSIGHT_REL_PREFIX": "REPLAY",
+            "HINDSIGHT_MCP_NODE_PREFIX": "Legacy",
+            "HINDSIGHT_MCP_REL_PREFIX": "LEGACY",
         }
     )
     assert schema.repo == "ReplayRepo"
@@ -83,8 +96,8 @@ def test_default_app_uses_the_environment_configured_schema(monkeypatch):
         view.incident = incident
         return view
 
-    monkeypatch.setenv("HINDSIGHT_MCP_NODE_PREFIX", "WebTest")
-    monkeypatch.setenv("HINDSIGHT_MCP_REL_PREFIX", "WEBTEST")
+    monkeypatch.setenv("HINDSIGHT_NODE_PREFIX", "WebTest")
+    monkeypatch.setenv("HINDSIGHT_REL_PREFIX", "WEBTEST")
     monkeypatch.setattr(web_app, "Console", console_for_schema)
 
     with TestClient(web_app.build_app()) as configured_client:
@@ -96,8 +109,8 @@ def test_default_app_uses_the_environment_configured_schema(monkeypatch):
 
 def test_startup_prints_the_environment_resolved_labels(monkeypatch, capsys):
     web_main = importlib.import_module("hindsight_web.__main__")
-    monkeypatch.setenv("HINDSIGHT_MCP_NODE_PREFIX", "Replay")
-    monkeypatch.setenv("HINDSIGHT_MCP_REL_PREFIX", "REPLAY")
+    monkeypatch.setenv("HINDSIGHT_NODE_PREFIX", "Replay")
+    monkeypatch.setenv("HINDSIGHT_REL_PREFIX", "REPLAY")
     monkeypatch.setitem(sys.modules, "uvicorn", SimpleNamespace(run=lambda *a, **kw: None))
 
     assert web_main.main(["--port", "8092"]) == 0
@@ -477,11 +490,11 @@ def test_an_explicit_prefix_overrides_the_org_config(tmp_path):
     """
     config = tmp_path / "org.yaml"
     config.write_text("schema:\n  node_prefix: Acme\n  rel_prefix: ACME\nrepos: []\n")
-    schema = resolve_schema(str(config), env={"HINDSIGHT_MCP_NODE_PREFIX": "Replay"})
+    schema = resolve_schema(str(config), env={"HINDSIGHT_NODE_PREFIX": "Replay"})
     assert schema.repo == "ReplayRepo"
     assert schema.resolves == "ACME_RESOLVES"
 
-    other = resolve_schema(str(config), env={"HINDSIGHT_MCP_REL_PREFIX": "REPLAY"})
+    other = resolve_schema(str(config), env={"HINDSIGHT_REL_PREFIX": "REPLAY"})
     assert other.repo == "AcmeRepo"
     assert other.resolves == "REPLAY_RESOLVES"
 
@@ -490,11 +503,29 @@ def test_an_empty_prefix_variable_is_not_a_prefix(tmp_path):
     """``NODE_PREFIX= hindsight-web`` says "not this one", not "label me Repo"."""
     config = tmp_path / "org.yaml"
     config.write_text("schema:\n  node_prefix: Acme\n  rel_prefix: ACME\nrepos: []\n")
-    schema = resolve_schema(str(config), env={"HINDSIGHT_MCP_NODE_PREFIX": ""})
-    assert schema.repo == "AcmeRepo"
-    assert resolve_schema(None, env={"HINDSIGHT_MCP_REL_PREFIX": ""}).resolves == (
+    assert (
+        resolve_schema(str(config), env={"HINDSIGHT_NODE_PREFIX": ""}).repo
+        == "AcmeRepo"
+    )
+    assert resolve_schema(None, env={"HINDSIGHT_REL_PREFIX": ""}).resolves == (
         "HS_RESOLVES"
     )
+
+    schema = resolve_schema(
+        str(config),
+        env={
+            "HINDSIGHT_NODE_PREFIX": "",
+            "HINDSIGHT_MCP_NODE_PREFIX": "Legacy",
+        },
+    )
+    assert schema.repo == "LegacyRepo"
+    assert resolve_schema(
+        None,
+        env={
+            "HINDSIGHT_REL_PREFIX": "",
+            "HINDSIGHT_MCP_REL_PREFIX": "LEGACY",
+        },
+    ).resolves == "LEGACY_RESOLVES"
 
 
 def test_without_a_config_the_console_defaults_to_what_ingest_writes():
