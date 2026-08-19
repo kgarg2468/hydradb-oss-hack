@@ -88,7 +88,9 @@ Not per seat (value is unrelated to developer count) and not per incident
 1. **Zero-instrumentation historical ingest at org scale.** A read-scoped
    token, every repo's lockfile history walked, queryable in under an hour
    for ~1,000 repos. Without this the wedge does not exist. The current
-   ingest does exactly this for nine repos at 5,386 edges/s; the open
+   ingest does exactly this at small scale (5,386 edges/s on the
+   eight-repo PoC corpus; 4,160 rows/s on the nine-repo demo dataset's
+   RESOLVES phase); the open
    engineering question is HydraDB's per-relationship-type read ceiling
    (~1M edges), which the label-namespacing design addresses by sharding
    relationship types per dataset.
@@ -138,8 +140,10 @@ starts in weeks, it is a category with a timing advantage.
 ## What this repo already proves, and what it does not
 
 Proven here: bitemporal as-of answers over real lockfile history (320/320
-agreement with an independent git oracle), sub-10ms blast-radius reads at
-PoC scale, truncation honesty end to end, two real incidents as data
+agreement with an independent git oracle), blast-radius reads at 5.9ms p50
+for warm id-anchored queries at PoC scale (the first query against a
+freshly restarted node is 568ms), truncation honesty end to end, two real
+incidents as data
 (chalk/debug Sep 2025; keyv/cacheable Aug 2026) with registry-verified
 timestamps that survive npm's own takedowns.
 
