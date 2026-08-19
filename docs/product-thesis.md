@@ -94,8 +94,9 @@ Not per seat (value is unrelated to developer count) and not per incident
    engineering question is HydraDB's per-relationship-type read ceiling
    (~1M edges), which the label-namespacing design addresses by sharding
    relationship types per dataset.
-2. **Resolution fidelity.** `npm ci` makes the lockfile authoritative;
-   `npm install` inside a caret range does not. Evidence must classify
+2. **Resolution fidelity.** `npm ci` installs the lockfile exactly; `npm
+   install` can re-resolve inside a declared range when the lockfile is
+   missing, stale or out of sync with the manifest. Evidence must classify
    every repo-instant as lockfile-authoritative, resolution-ambiguous, or
    no-build-in-window - and must not treat valid provenance as clean,
    because the keyv wave shipped malware with valid SLSA attestations.

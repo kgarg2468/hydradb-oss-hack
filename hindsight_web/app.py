@@ -16,26 +16,65 @@ threadpool and the blocking reads overlap properly.
 from __future__ import annotations
 
 import os
+import time
 from pathlib import Path
+from urllib.parse import quote
 
 from starlette.applications import Starlette
 from starlette.requests import Request
-from starlette.responses import FileResponse, JSONResponse
+from starlette.responses import FileResponse, JSONResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
 from hindsight.client import HydraError
 
-from .analysis import TimestampError, to_epoch
+from .analysis import TimestampError, iso, to_epoch
+from .finding import build_finding, render_markdown
 from .incident import IncidentError, load_incident
 from .queries import resolve_schema
 from .service import Console, ConsoleError
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
+#: What a downloaded finding is called. The package and the instant are in the
+#: name because these land in a downloads folder next to each other and an
+#: evidence artifact that cannot be told apart from the next one is a filing
+#: problem, not a naming preference.
+FINDING_FILENAME = "hindsight-finding-{package}-{at}"
+
+#: Filename characters kept as-is. Scoped npm names carry a slash and an ISO
+#: instant carries colons, and both are hostile in a filename on at least one of
+#: the three platforms this gets downloaded onto.
+FILENAME_SAFE = set(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._"
+)
+
 
 def _error(message: str, status: int = 400, **extra) -> JSONResponse:
     return JSONResponse({"error": message, **extra}, status_code=status)
+
+
+def _slug(text: str) -> str:
+    """A filename fragment, lossy on purpose and only in the filename."""
+    return "".join(c if c in FILENAME_SAFE else "-" for c in str(text))
+
+
+def _permalink(request: Request, package: str, at: int) -> str:
+    """The console's own share link for this package at this instant.
+
+    The same two parameters, spelled the same way, that ``viewQuery`` in
+    ``static/app.js`` puts in the address bar, so the link inside a packet opens
+    the screen the packet was exported from. The drawing is deliberately not
+    carried: which panel was on screen is a view preference and not evidence.
+    """
+    base = str(request.base_url).rstrip("/")
+    return (
+        base
+        + "/?package="
+        + quote(package, safe="")
+        + "&at="
+        + quote(str(int(at)), safe="")
+    )
 
 
 def _instant(request: Request, console: Console) -> int:
@@ -114,6 +153,58 @@ def build_app(console: Console | None = None) -> Starlette:
             )
         )
 
+    def finding(request: Request):
+        """One exposure read as an exportable evidence packet.
+
+        The deliverable after an incident is an artifact that states its own
+        coverage, so this route composes the same exposure read the page shows
+        and hands back a document rather than a screen. ``format=markdown`` is
+        the human rendering of the identical dict.
+
+        Both formats come back as attachments: this is an export, and a finding
+        that opens in a browser tab is one a responder has to remember to save.
+        An unrecognised format is a 400 rather than a silent fallback to JSON,
+        because handing somebody a different artifact from the one they asked
+        for is the wrong habit for this particular endpoint to have.
+        """
+        console = current()
+        fmt = (request.query_params.get("format") or "json").strip().lower()
+        if fmt not in ("json", "markdown"):
+            return _error("format must be json or markdown")
+        package = _package(request, console)
+        at = _instant(request, console)
+        # ``health`` diagnoses rather than raises, so a node that has gone away
+        # still yields a packet: one whose dataset block reports it.
+        packet = build_finding(
+            console.exposure(package, at),
+            console.incident.as_dict(),
+            console.health(),
+            package=package,
+            at=at,
+            generated_at=int(time.time()),
+            permalink=_permalink(request, package, at),
+        )
+        # An npm name runs to 214 characters and a filename component is capped
+        # at 255 bytes on the platforms this gets downloaded onto, so the one
+        # unbounded part of the name is bounded here. The instant is
+        # fixed-width and is what tells two exports of the same package apart,
+        # so it keeps its full length.
+        stem = FINDING_FILENAME.format(
+            package=_slug(package)[:100], at=_slug(iso(at) or at)
+        )
+        if fmt == "markdown":
+            return Response(
+                render_markdown(packet),
+                media_type="text/markdown; charset=utf-8",
+                headers={
+                    "content-disposition": f'attachment; filename="{stem}.md"'
+                },
+            )
+        return JSONResponse(
+            packet,
+            headers={"content-disposition": f'attachment; filename="{stem}.json"'},
+        )
+
     def on_timestamp_error(request: Request, exc: Exception):
         return _error(str(exc))
 
@@ -141,6 +232,7 @@ def build_app(console: Console | None = None) -> Starlette:
         Route("/api/blast-radius", blast_radius),
         Route("/api/maintainer-reach", maintainer_reach),
         Route("/api/version-footprint", version_footprint),
+        Route("/api/finding", finding),
         Mount("/static", app=StaticFiles(directory=str(STATIC_DIR)), name="static"),
     ]
     return Starlette(

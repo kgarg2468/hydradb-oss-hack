@@ -360,6 +360,31 @@ def test_the_page_is_shipped_the_words_it_renders_truncation_with():
     assert ".truncated {" in style
 
 
+def test_only_the_finding_tile_wears_the_floor_mark_under_truncation():
+    """A cut read does not do the same thing to all three stat tiles.
+
+    An omitted row can only add an exposure, so the finding is bounded from
+    below and reads ``>= n``. The two negatives are the other shape entirely: a
+    repository whose malicious row was the one cut is sitting in one of them
+    right now, so a complete read can only take repositories *out* of those
+    counts, and a floor mark on either would promise the reader the opposite of
+    the truth. Pinned against the shipped source, next to its sibling above,
+    because the tiles are painted in the browser and this is the surface where
+    the console's own words are checked rather than a rendered DOM.
+    """
+    with TestClient(build_app(console())) as c:
+        script = c.get("/static/app.js").text
+    assert (
+        "[d.counts.exposed, 'Resolved malicious', "
+        "d.counts.exposed > 0 ? 'crit' : '', true]"
+    ) in script
+    assert "[d.counts.resolved_clean, 'Resolved, not malicious', '', false]" in script
+    assert "[d.counts.not_resolved, 'Not resolved', '', false]" in script
+    # The plain number is not silent about where it came from: the tooltip says
+    # which way a complete read could move it.
+    assert "move repositories out of this count into exposed" in script
+
+
 # -------------------------------------------------------------------- coverage
 #
 # The empty-dataset all-clear, over HTTP. A 200 with zero counts is the right
@@ -701,6 +726,218 @@ def test_a_failed_read_names_the_instant_the_stale_panels_belong_to():
     # The ranking keeps its list on failure, so the note has to say which
     # instant that list belongs to, captured before anything is discarded.
     assert "'failed, showing ' + humanTime(showing)" in script
+
+
+# ---- the exportable finding
+#
+# The deliverable after an incident is an artifact that states its own coverage,
+# not a screenshot of a console nobody else can open. These tests are about the
+# route: that it composes the packet from the same read the page shows, that
+# both formats come back as something a browser saves rather than renders, and
+# that the page offers the export at all. What the packet *says* is
+# :mod:`test_web_finding`'s job.
+
+
+def test_the_finding_route_returns_the_packet_for_the_read_on_screen(client):
+    status, body = get(client, "/api/finding", package="chalk", at=str(AT))
+    assert status == 200
+    assert list(body) == [
+        "artifact",
+        "question",
+        "answer",
+        "receipts",
+        "authority",
+        "provenance",
+        "envelope",
+        "not_included",
+    ]
+    assert body["question"]["package"] == "chalk"
+    assert body["question"]["at"] == AT
+    assert body["question"]["at_iso"] == "2025-09-08T14:02:10Z"
+    # The same counts the exposure route states, carried as findings with a
+    # basis rather than as bare integers.
+    assert body["answer"]["counts"]["exposed"] == {
+        "value": 1,
+        "basis": "exact",
+        "label": "Resolved a malicious version",
+    }
+    # The read's own order survives into the artifact: exposed first, then the
+    # repositories that carry the package, then the rest. An auditor reads the
+    # finding before the estate.
+    assert [r["slug"] for r in body["receipts"]] == [
+        "acme/checkout-web",
+        "webpack/webpack",
+        "axios/axios",
+    ]
+    assert [r["status"] for r in body["receipts"]] == [
+        "EXPOSED",
+        "RESOLVED_CLEAN",
+        "NOT_RESOLVED",
+    ]
+    assert body["authority"]["incident"] == "test compromise"
+    assert body["authority"]["malicious_versions"] == ["5.6.1"]
+    assert body["envelope"]["evidence"] == "resolved"
+    assert [e["claim"] for e in body["not_included"]] == [
+        "runtime execution",
+        "resolution ambiguity",
+        "cryptographic signature",
+    ]
+
+
+def test_the_finding_agrees_with_the_exposure_route_it_was_composed_from(client):
+    """One read, two renderings. A packet that disagrees with the console it was
+    exported from is worse than no packet."""
+    _, exposure = get(client, "/api/exposure", package="chalk", at=str(AT))
+    _, packet = get(client, "/api/finding", package="chalk", at=str(AT))
+    assert packet["question"]["exposure_means"] == exposure["caveat"]
+    assert packet["envelope"]["evidence"] == exposure["evidence"]
+    for key in ("exposed", "resolved_clean", "not_resolved", "repos"):
+        assert packet["answer"]["counts"][key]["value"] == exposure["counts"][key]
+
+
+def test_the_finding_carries_the_dataset_it_was_read_from(client):
+    _, body = get(client, "/api/finding", package="chalk", at=str(AT))
+    provenance = body["provenance"]
+    assert provenance["dataset_facts_available"] is True
+    assert provenance["dataset"]["labels"]["repo"] == "ReplayTestRepo"
+    assert provenance["generated_at_iso"]
+    # The permalink is the console's own share link: same two parameters,
+    # spelled the same way `viewQuery` spells them in the shipped JS.
+    assert provenance["permalink"].endswith("/?package=chalk&at=" + str(AT))
+
+
+def test_the_finding_defaults_to_the_incidents_package_and_window_start(client):
+    """Same fallbacks as every other route, through the same two helpers."""
+    status, body = get(client, "/api/finding")
+    assert status == 200
+    assert body["question"]["package"] == "chalk"
+    assert body["question"]["at_iso"] == "2025-09-08T13:12:10Z"
+
+
+def test_the_json_finding_is_offered_as_a_download(client):
+    response = client.get("/api/finding", params={"package": "chalk", "at": str(AT)})
+    assert response.status_code == 200
+    assert "application/json" in response.headers["content-type"]
+    assert response.headers["content-disposition"] == (
+        'attachment; filename="hindsight-finding-chalk-2025-09-08T14-02-10Z.json"'
+    )
+
+
+def test_the_markdown_finding_is_a_named_markdown_attachment(client):
+    response = client.get(
+        "/api/finding", params={"package": "chalk", "at": str(AT), "format": "markdown"}
+    )
+    assert response.status_code == 200
+    assert "text/markdown" in response.headers["content-type"]
+    assert response.headers["content-disposition"] == (
+        'attachment; filename="hindsight-finding-chalk-2025-09-08T14-02-10Z.md"'
+    )
+    body = response.text
+    assert body.startswith("# Hindsight evidence packet: chalk at 2025-09-08T14:02:10Z")
+    assert "## Receipts" in body
+    assert "## What this packet does not establish" in body
+    # The document a responder pastes into a ticket is ASCII, whatever prose the
+    # payload carried into it.
+    body.encode("ascii")
+
+
+def test_a_scoped_package_name_still_yields_a_usable_filename(client):
+    """A slash in a scoped npm name is a directory separator in a download."""
+    response = client.get("/api/finding", params={"package": "@scope/pkg", "at": AT})
+    assert response.status_code == 200
+    disposition = response.headers["content-disposition"]
+    assert "-scope-pkg-" in disposition
+    assert "/" not in disposition.split("filename=")[1]
+
+
+def test_a_long_package_name_still_yields_a_saveable_filename(client):
+    """An npm name runs to 214 characters and a filename component is capped at
+    255 bytes, so a legal package name plus the prefix and the instant is a
+    download the operating system refuses to write."""
+    response = client.get(
+        "/api/finding", params={"package": "a" * 214, "at": AT}
+    )
+    assert response.status_code == 200
+    filename = response.headers["content-disposition"].split('filename=')[1].strip('"')
+    assert len(filename) < 160
+    # Bounded, not mangled: the instant is what tells two exports of the same
+    # package apart, so it survives whole and so does the extension.
+    assert filename.endswith("-2025-09-08T14-02-10Z.json")
+    assert filename.startswith("hindsight-finding-" + "a" * 100 + "-")
+
+
+def test_an_unknown_finding_format_is_a_400_not_a_silent_fallback(client):
+    """Handing somebody a different artifact from the one they asked for is the
+    wrong habit for this endpoint in particular."""
+    status, body = get(client, "/api/finding", package="chalk", format="pdf")
+    assert status == 400
+    assert "format" in body["error"]
+
+
+def test_the_finding_route_shares_the_error_handling_of_every_other_route(client):
+    status, body = get(client, "/api/finding", package="chalk", at="last tuesday")
+    assert status == 400
+    assert "at" in body["error"]
+    status, body = get(client, "/api/finding", package="   ")
+    assert status == 400
+    assert "package" in body["error"]
+
+
+def test_an_unanswerable_dataset_exports_a_packet_that_states_no_counts():
+    """The export inherits the refusal rather than routing around it: an
+    artifact with three zeros in it outlives the console session that would
+    have explained them."""
+    with empty_client() as c:
+        status, body = get(c, "/api/finding", package="chalk", at=AT)
+    assert status == 200
+    assert body["answer"]["answerable"] is False
+    assert "counts" not in body["answer"]
+    assert body["answer"]["counts_withheld"] is True
+    assert "no question can be answered" in body["answer"]["coverage_note"]
+
+
+def test_the_page_offers_the_export_and_wires_it_to_the_finding_route():
+    with TestClient(build_app(console())) as c:
+        page = c.get("/").text
+        script = c.get("/static/app.js").text
+        style = c.get("/static/app.css").text
+    # The affordance is in the answer card, quietly, in both formats.
+    assert 'id="export-json"' in page
+    assert 'id="export-md"' in page
+    assert ">Export finding</span>" in page
+    # Minted from the answer being painted, not from wherever the playhead has
+    # since drifted to, and updated in the same function as the answer line.
+    assert "'/api/finding?package=' + encodeURIComponent(d.package)" in script
+    assert "'&at=' + encodeURIComponent(String(d.at))" in script
+    assert "&format=" in script
+    assert "renderExport(d);" in script
+    assert script.index("function renderAnswer(d)") < script.index("renderExport(d);")
+    # No href before a read completes: there is no finding to export yet, and a
+    # link to the wrong instant is the failure the packet exists to not commit.
+    assert 'href="/api/finding' not in page
+    assert ".export-link:not([href])" in style
+    # And a read that fails takes the previous answer's links down with it: an
+    # export minted for the last completed read, standing under a banner about
+    # a different instant, is the packet-to-screen disagreement this whole
+    # export exists to not commit.
+    assert "$('export-json').removeAttribute('href');" in script
+    assert "$('export-md').removeAttribute('href');" in script
+    assert script.index("function readFailed(err)") < script.index(
+        "$('export-json').removeAttribute('href');"
+    )
+
+
+def test_the_shipped_static_files_carry_no_em_or_en_dashes():
+    """CI greps these bytes, and so does everyone who pastes from this console.
+
+    The console's own `clean()` folds the payload's dashes on the way to the
+    DOM; this is the other half, about the characters shipped in the files.
+    """
+    with TestClient(build_app(console())) as c:
+        for asset in ("/static/app.js", "/static/app.css", "/"):
+            body = c.get(asset).text
+            assert "\u2014" not in body, asset
+            assert "\u2013" not in body, asset
 
 
 def test_the_steppers_disable_exactly_when_stepping_would_do_nothing():
