@@ -183,10 +183,16 @@
     });
   }
 
-  /* A count from a truncated read is a floor and has to read as one. "0 other
-     repositories affected" when the result set was cut off is the single worst
-     thing this console could say, so the number carries the qualifier rather
-     than relying on a banner the eye can skip. */
+  /* A count of matches from a truncated read is a floor and has to read as one.
+     "0 other repositories affected" when the result set was cut off is the
+     single worst thing this console could say, so the number carries the
+     qualifier rather than relying on a banner the eye can skip.
+
+     Only for counts an omitted row could add to. A negative classification -
+     resolved-clean, not-resolved - rests on rows being absent, so a complete
+     read can only move repositories out of it, and prefixing one with the
+     floor mark would promise the opposite of the truth. Those render plain and
+     say what they are in their tooltip instead. */
   function count(value, truncated) {
     return truncated ? '≥ ' + value : String(value);
   }
@@ -889,20 +895,30 @@
     var wrap = $('stats');
     var unknown = unanswerable(d);
     wrap.innerHTML = '';
+    /* The fourth field is whether a cut read bounds this tile from below. Only
+       the finding does: an omitted row can add an exposure, so that number can
+       only rise. The two negatives are the opposite shape - a repository whose
+       malicious row fell past the cap is counted here - so they render plain
+       and say so on hover. */
     [
-      [d.counts.exposed, 'Resolved malicious', d.counts.exposed > 0 ? 'crit' : ''],
-      [d.counts.resolved_clean, 'Resolved, not malicious', ''],
-      [d.counts.not_resolved, 'Not resolved', '']
+      [d.counts.exposed, 'Resolved malicious', d.counts.exposed > 0 ? 'crit' : '', true],
+      [d.counts.resolved_clean, 'Resolved, not malicious', '', false],
+      [d.counts.not_resolved, 'Not resolved', '', false]
     ].forEach(function (row) {
+      var floor = row[3];
       var cls = unknown ? 'unknown' : (row[2] || (row[0] === 0 ? 'zero' : ''));
       var cell = el('div', 'stat' + (cls ? ' ' + cls : ''));
-      cell.appendChild(el('b', null, unknown ? '?' : count(row[0], d.truncated)));
+      cell.appendChild(el('b', null, unknown ? '?'
+        : (floor ? count(row[0], d.truncated) : String(row[0]))));
       cell.appendChild(el('span', null, row[1]));
       if (unknown) {
         cell.title = 'Unknown, not zero: nothing was counted, because this ' +
           'dataset holds nothing to count.';
       } else if (d.truncated) {
-        cell.title = 'A floor, not a total: this read was truncated.';
+        cell.title = floor
+          ? 'A floor, not a total: this read was truncated.'
+          : 'As observed by a truncated read: a row the cap omitted could ' +
+            'move repositories out of this count into exposed.';
       }
       wrap.appendChild(cell);
     });
@@ -1455,19 +1471,28 @@
         detail: exposedRepos.map(function (r) { return r.slug; }).join(', ')
       });
     }
+    /* The two groups below are not floors: they hold the repositories no
+       malicious row came back for, so a row the cap omitted takes one out of
+       them rather than adding one. The number stays plain and the caveat goes
+       in the detail line, which is where a reader looks for what a group
+       means. */
     if (clean_ > 0) {
       left.push({
-        label: count(clean_, floor) + ' other ' + (clean_ === 1 ? 'repo' : 'repos'),
+        label: String(clean_) + ' other ' + (clean_ === 1 ? 'repo' : 'repos'),
         kind: 'repo', tone: C.safe, mono: false, path: false, clean: true,
-        detail: 'Resolved ' + d.package + ' at this instant, but not a malicious version.'
+        detail: 'Resolved ' + d.package + ' at this instant, but not a malicious version.' +
+          (floor ? ' Counted from a truncated read: an omitted row could move ' +
+            'repositories out of this group.' : '')
       });
     }
     if (absent > 0) {
       left.push({
-        label: count(absent, floor) + ' without ' + d.package,
+        label: String(absent) + ' without ' + d.package,
         kind: 'repo', tone: C.t3, mono: false, path: false, orphan: true,
         detail: 'No committed lockfile in these repositories resolved ' + d.package +
-          ' at this instant.'
+          ' at this instant.' +
+          (floor ? ' Counted from a truncated read: an omitted row could move ' +
+            'repositories out of this group.' : '')
       });
     }
 

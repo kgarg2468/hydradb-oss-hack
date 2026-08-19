@@ -259,6 +259,27 @@ def test_both_surfaces_say_the_same_thing_about_a_capped_read():
     assert envelope.cypher_truncation_note(1000).startswith(envelope.TRUNCATION_NOTE)
 
 
+def test_the_capped_read_sentence_separates_counts_from_absence_verdicts():
+    """The word "floor" is true of the match counts and false of the negatives.
+
+    The sentence travels verbatim onto three surfaces, and on one of them - the
+    console, where ``resolved_clean`` and ``not_resolved`` are classifications
+    that rest on rows being *absent* - a blanket "every count is a lower bound"
+    is not merely imprecise, it points the wrong way: a repository whose
+    malicious edge fell past the cap is counted clean here and would move into
+    exposed on a complete read. So the one sentence has to say both halves, and
+    it is asserted here rather than in either surface's own test because it is
+    the shared vocabulary that has to carry them.
+    """
+    from hindsight import envelope
+
+    note = envelope.TRUNCATION_NOTE
+    # The floor claim is attached to counts of matches, not to counts at large.
+    assert "every count of matches it returned is a lower bound" in note
+    # And the other half, which is the one a reader would not supply themselves.
+    assert "any verdict that rests on a row being absent is unverified" in note
+
+
 def test_synthetic_caveat_states_the_repo_is_not_real():
     assert "not a real git history" in analysis.SYNTHETIC_CAVEAT
     assert "fabricated" in analysis.SYNTHETIC_CAVEAT

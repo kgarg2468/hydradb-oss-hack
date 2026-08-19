@@ -360,6 +360,31 @@ def test_the_page_is_shipped_the_words_it_renders_truncation_with():
     assert ".truncated {" in style
 
 
+def test_only_the_finding_tile_wears_the_floor_mark_under_truncation():
+    """A cut read does not do the same thing to all three stat tiles.
+
+    An omitted row can only add an exposure, so the finding is bounded from
+    below and reads ``>= n``. The two negatives are the other shape entirely: a
+    repository whose malicious row was the one cut is sitting in one of them
+    right now, so a complete read can only take repositories *out* of those
+    counts, and a floor mark on either would promise the reader the opposite of
+    the truth. Pinned against the shipped source, next to its sibling above,
+    because the tiles are painted in the browser and this is the surface where
+    the console's own words are checked rather than a rendered DOM.
+    """
+    with TestClient(build_app(console())) as c:
+        script = c.get("/static/app.js").text
+    assert (
+        "[d.counts.exposed, 'Resolved malicious', "
+        "d.counts.exposed > 0 ? 'crit' : '', true]"
+    ) in script
+    assert "[d.counts.resolved_clean, 'Resolved, not malicious', '', false]" in script
+    assert "[d.counts.not_resolved, 'Not resolved', '', false]" in script
+    # The plain number is not silent about where it came from: the tooltip says
+    # which way a complete read could move it.
+    assert "move repositories out of this count into exposed" in script
+
+
 # -------------------------------------------------------------------- coverage
 #
 # The empty-dataset all-clear, over HTTP. A 200 with zero counts is the right

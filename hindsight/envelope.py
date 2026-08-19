@@ -30,7 +30,8 @@ Three axes, deliberately separate and never collapsed into one flag:
 * **evidence** — what the graph can prove at all (:data:`EVIDENCE`), which is
   lockfile resolution and nothing more;
 * **completeness** — whether the read hit the row cap, in which case every
-  count derived from it is a floor and every absence within it is unverified;
+  count of matches seen is a floor and every verdict resting on an absence —
+  the absences themselves included — is unverified;
 * **coverage** — whether the dataset held anything for an answer to be absent
   *from*, which is :mod:`hindsight.coverage`'s job and not this module's.
 
@@ -50,14 +51,18 @@ from __future__ import annotations
 #: on, so it is spelled unlike one.
 EVIDENCE = "resolved"
 
-#: Every count derived from a read that hit the row cap is a *floor*, and has to
-#: read as one. A security answer that says "0 other repositories" when the
-#: result set was cut off is worse than one that refuses to answer, so this
-#: string travels with the flag on both surfaces and neither is allowed to
-#: paraphrase it.
+#: What a read that hit the row cap did to the numbers under it, in one
+#: sentence, and it draws the distinction a reader will not draw for themselves:
+#: a count of *matches seen* is a floor, because an omitted row can only add to
+#: it, while a verdict that rests on a row being *absent* is not a floor at all
+#: and a complete read can only take repositories out of it. A security answer
+#: that says "0 other repositories" when the result set was cut off is worse
+#: than one that refuses to answer, so this string travels with the flag on both
+#: surfaces and neither is allowed to paraphrase it.
 TRUNCATION_NOTE = (
-    "This read hit the row cap, so the result is incomplete and every count "
-    "below is a lower bound, not a total. Narrow the question — a single "
+    "This read hit the row cap, so the result is incomplete: every count of "
+    "matches it returned is a lower bound, not a total, and any verdict that "
+    "rests on a row being absent is unverified. Narrow the question — a single "
     "package, a single repository, a single instant — before drawing any "
     "conclusion from it, and in particular do not read a zero here as an absence."
 )
