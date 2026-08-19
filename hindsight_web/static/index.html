@@ -3,15 +3,24 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#09090F">
 <title>Hindsight, incident console</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%230A0B0E'/%3E%3Crect x='3' y='3' width='3' height='10' rx='1.5' fill='%23F0524D'/%3E%3Crect x='8.5' y='6' width='3' height='7' rx='1.5' fill='%233ECF8E'/%3E%3C/svg%3E">
+<link rel="preload" as="font" type="font/woff2" href="/static/fonts/geist-sans-400.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="/static/fonts/geist-sans-600.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="/static/fonts/geist-mono-600.woff2" crossorigin>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%2309090F'/%3E%3Crect x='3' y='3' width='3' height='10' rx='1.5' fill='%23F2554F'/%3E%3Crect x='8.5' y='6' width='3' height='7' rx='1.5' fill='%233ECF8E'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
 
 <header class="topbar">
   <div class="topbar-left">
-    <span class="wordmark">Hindsight</span>
+    <span class="wordmark">
+      <svg class="mark" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        <rect width="16" height="16" rx="4" fill="#15151F"/>
+        <rect x="3" y="3" width="3" height="10" rx="1.5" fill="#F2554F"/>
+        <rect x="8.5" y="6" width="3" height="7" rx="1.5" fill="#3ECF8E"/>
+      </svg>Hindsight</span>
     <span class="incident-title" id="incident-title">loading incident</span>
   </div>
   <div class="topbar-right">
@@ -142,7 +151,7 @@
             <circle cx="7" cy="7" r="4.25" fill="none" stroke="currentColor" stroke-width="1.4"></circle>
             <path d="M10.2 10.2 13.5 13.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></path>
           </svg>
-          <input type="search" id="reach-search" placeholder="Search accounts" aria-label="Search maintainer accounts" autocomplete="off">
+          <input type="search" id="reach-search" placeholder="Search accounts&hellip;" aria-label="Search maintainer accounts" autocomplete="off">
         </div>
         <div class="reach-list" id="reach"></div>
         <p class="card-foot" id="maint-caveat"></p>
