@@ -50,16 +50,16 @@
   var STATUS_ORDER = { EXPOSED: 0, RESOLVED_CLEAN: 1, NOT_RESOLVED: 2 };
 
   var C = {
-    crit: '#F0524D',
-    critSoft: 'rgba(240,82,77,0.55)',
+    crit: '#F2554F',
+    critSoft: 'rgba(242,85,79,0.55)',
     safe: '#3ECF8E',
-    warn: '#E8A33D',
-    acc: '#7A9FFF',
-    t1: '#E8EAF0',
-    t2: '#A0A6B8',
-    t3: '#697084',
+    warn: '#E9A93F',
+    acc: '#A78BFA',
+    t1: '#EDEEF4',
+    t2: '#A6ABBF',
+    t3: '#79809A',
     line: 'rgba(255,255,255,0.16)',
-    node: '#5A6274'
+    node: '#606579'
   };
 
   var state = {
@@ -297,10 +297,24 @@
     var wStart = Math.max(incident.window.start, start);
     var wEnd = Math.min(incident.window.end, end);
     if (wEnd > wStart) {
-      track.appendChild(svgEl('rect', {
-        x: x(wStart), y: 16, width: Math.max(2, x(wEnd) - x(wStart)), height: 10,
-        fill: 'rgba(240,82,77,0.14)', stroke: 'rgba(240,82,77,0.34)', 'stroke-width': 1
-      }));
+      // The window is danger rendered as texture, not paint: a 2px checker over
+      // a thin tint, echoing the page's one dither note. Rebuilt with the track,
+      // so the pattern def lives here rather than in the markup.
+      var pat = svgEl('pattern', {
+        id: 'dither-crit', width: 4, height: 4, patternUnits: 'userSpaceOnUse'
+      });
+      pat.appendChild(svgEl('rect', { width: 2, height: 2, fill: 'rgba(242,85,79,0.32)' }));
+      pat.appendChild(svgEl('rect', { x: 2, y: 2, width: 2, height: 2, fill: 'rgba(242,85,79,0.32)' }));
+      var defs = svgEl('defs', {});
+      defs.appendChild(pat);
+      track.appendChild(defs);
+      var band = {
+        x: x(wStart), y: 16, width: Math.max(2, x(wEnd) - x(wStart)), height: 10
+      };
+      track.appendChild(svgEl('rect', Object.assign({
+        fill: 'rgba(242,85,79,0.10)', stroke: 'rgba(242,85,79,0.34)', 'stroke-width': 1
+      }, band)));
+      track.appendChild(svgEl('rect', Object.assign({ fill: 'url(#dither-crit)' }, band)));
     }
 
     var headline = headlineMarkers();
@@ -1329,7 +1343,7 @@
   function plate(text, x, y, align) {
     var width = ctx.measureText(text).width;
     var left = align === 'right' ? x - width : align === 'center' ? x - width / 2 : x;
-    ctx.fillStyle = 'rgba(10,11,14,0.82)';
+    ctx.fillStyle = 'rgba(19,19,30,0.82)';
     ctx.fillRect(left - 3, y - 7, width + 6, 14);
   }
 
