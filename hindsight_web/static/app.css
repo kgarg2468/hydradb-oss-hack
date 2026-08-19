@@ -77,6 +77,7 @@
 
   --r-card: 16px;
   --r-ctl: 10px;
+  --r-inner: 8px;
   --r-pill: 999px;
 
   --pad: 24px;
@@ -104,8 +105,9 @@
 html, body { height: 100%; }
 
 /* The flat colour lives on the root so the two backdrop layers below can sit
-   above it without fighting body-background propagation. */
-html { background: var(--bg); }
+   above it without fighting body-background propagation. color-scheme keeps
+   native widgets (select popup, scrollbars, search cancel) in the dark family. */
+html { background: var(--bg); color-scheme: dark; }
 
 body {
   margin: 0;
@@ -160,6 +162,13 @@ h1, h2, h3, p, dl, dd, dt { margin: 0; }
 button, input, select {
   font: inherit;
   color: inherit;
+}
+
+/* Every control has its own pressed treatment; the platform's grey flash and
+   double-tap zoom delay would be a second, uncoordinated one. */
+button, input, select, a, summary {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 :focus-visible {
@@ -374,6 +383,7 @@ button, input, select {
   line-height: 1.35;
   letter-spacing: -0.01em;
   color: var(--t1);
+  text-wrap: pretty;
   transition: opacity var(--dur) var(--ease);
 }
 .answer-line b { font-weight: 600; }
@@ -755,7 +765,7 @@ button, input, select {
   height: 22px;
   padding: 0 10px;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--r-inner);
   background: transparent;
   color: var(--t2);
   font-size: 12px;
@@ -906,7 +916,7 @@ button, input, select {
   background: transparent;
   padding: 4px 6px;
   margin: -4px -6px;
-  border-radius: 6px;
+  border-radius: var(--r-inner);
   color: var(--acc);
   font-size: 12px;
   font-weight: 500;
@@ -1082,7 +1092,7 @@ button, input, select {
   font-size: 12px;
   padding: 3px 8px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--r-inner);
   background: var(--s1);
   color: var(--t2);
   cursor: help;
@@ -1247,6 +1257,7 @@ button, input, select {
   box-shadow: -24px 0 60px rgba(0, 0, 0, 0.5);
   padding: 18px 22px 26px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   transform: translateX(0);
   transition: transform var(--dur) var(--ease);
 }
@@ -1314,7 +1325,7 @@ button, input, select {
     flex: 1;
     height: 30px;
     border: 0;
-    border-radius: 7px;
+    border-radius: var(--r-inner);
     background: transparent;
     color: var(--t2);
     font-size: 13px;
@@ -1342,4 +1353,28 @@ button, input, select {
   .chip { max-width: 150px; }
   .segmented button { padding: 0 8px; }
   .canvas-wrap { height: 270px; }
+}
+
+/* ---------------------------------------------------- reduced transparency */
+
+/* The glass is an aesthetic, not information. When the platform asks for
+   opacity, every film becomes the solid it approximates and nothing else
+   about the page changes. */
+@media (prefers-reduced-transparency: reduce) {
+  body::before, body::after { display: none; }
+  .card, .answer, .rail {
+    background: #10101A;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .topbar { background: #0A0A12; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .popover, .tooltip, .drawer {
+    background: #10101A;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .truncated { background: var(--warn-tint); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .unanswerable { background: #12121C; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .link-notice { background: var(--acc-tint); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .evidence-box { background: var(--crit-tint); }
 }
