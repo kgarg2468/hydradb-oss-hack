@@ -100,9 +100,10 @@ A security tool that reports a false negative is worse than no tool. Three
 places where that shaped the code:
 
 1. **Truncation propagates.** If a read hits the row cap, `truncated` travels
-   read → answer → JSON → UI; counts render as floors (`≥ N`) under an
-   INCOMPLETE READ banner. A cut result set can never be presented as a proven
-   negative.
+   read → answer → JSON → UI; counts of matches render as floors (`≥ N`) under
+   an INCOMPLETE READ banner, while classifications that rest on a row being
+   absent are marked as-observed, not floors. A cut result set can never be
+   presented as a proven negative.
 2. **Evidence is labelled.** Every exposure answer carries
    `evidence: "resolved"` and states that a resolved lockfile entry is not
    proof of install, build or deployment. That is the scope to investigate, not

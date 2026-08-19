@@ -849,8 +849,8 @@ def render_markdown(finding: dict) -> str:
     read = envelope.get("completeness") or {}
     seen = envelope.get("coverage") or {}
     out.append(_bullet("Read completeness", (
-        "truncated at the row cap, so the exposed count is a floor and every "
-        "negative above is unverified"
+        "truncated at the row cap, so the exposed count and the repository "
+        "total are floors and every negative above is unverified"
         if read.get("truncated")
         else "complete, no read hit the row cap"
     )))

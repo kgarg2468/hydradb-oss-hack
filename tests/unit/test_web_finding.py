@@ -453,7 +453,8 @@ def test_the_markdown_of_a_cut_read_says_so_on_the_numbers():
     assert "every count above is a floor" not in document
     assert (
         "- **Read completeness:** truncated at the row cap, so the exposed "
-        "count is a floor and every negative above is unverified"
+        "count and the repository total are floors and every negative above "
+        "is unverified"
     ) in document
     # Stated once. The JSON carries the reclassification note for a consumer
     # that never renders this document; repeating it here in different words
