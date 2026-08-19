@@ -1788,10 +1788,21 @@
       ? dayLabel(dateParsed / 1000)
       : dayLabel(overview.incident.window.first_malicious_publish);
     var sources = el('p', 'pop-dim',
-      'Package names, version strings and publish timestamps are real throughout, taken from ' +
-      'the npm registry and the public write-ups of the ' + day + ' compromise: ' +
-      clean(overview.incident.title) + '.');
+      'Package names, version strings and publish timestamps are as recorded by ' +
+      'the loaded incident file and the sources it cites, covering the ' + day +
+      ' compromise: ' + clean(overview.incident.title) + '.');
     body.appendChild(sources);
+    /* The file's own qualifiers are the sentences that keep its numbers honest
+       (which versions can arrive transitively, what "remediated" even means
+       right now). If the file states them, the console repeats them; hiding
+       them would let the timeline claim more than its authority does. */
+    if (overview.incident.window.note) {
+      body.appendChild(el('p', 'pop-dim', clean(overview.incident.window.note)));
+    }
+    if (overview.incident.window.remediation_note) {
+      body.appendChild(
+        el('p', 'pop-dim', clean(overview.incident.window.remediation_note)));
+    }
   }
 
   /* ------------------------------------------------------------------ boot */
@@ -1939,16 +1950,28 @@
       });
       document.body.className = 'tab-graph';
 
-      // Open on the question the demo asks: 14:05 UTC on the incident day,
-      // inside the window, after every wave-1 package had been published, and
-      // before the first clean release. Derived from the window rather than
-      // hard-coded, so a different incident file still opens somewhere sane.
+      // Open on the incident's most interesting instant: after the last listed
+      // malicious publish (the attack fully armed) and before remediation
+      // starts, or before the window closes if nothing was ever remediated.
+      // The midpoint of that stretch, clamped into the window, lands the chalk
+      // file at ~14:04 (the demo's old hand-picked 14:05) and the keyv file at
+      // ~11:53, inside its 09:35-13:18 window. The previous hard-coded 14:05
+      // UTC opened the keyv incident 47 minutes after its window had closed.
       // A link overrides all of it, which is why this runs first and applyView
       // runs last: the default is only ever the fallback.
-      var opening = new Date(state.incident.window.start * 1000);
-      opening.setUTCHours(14, 5, 0, 0);
-      state.at = Math.max(state.incident.window.start,
-        Math.floor(opening.getTime() / 1000));
+      var win = state.incident.window;
+      var lastPublish = win.start;
+      var firstRemedy = win.end;
+      (state.incident.versions || []).forEach(function (v) {
+        if (v.published_at > lastPublish) { lastPublish = v.published_at; }
+        if (v.remediated_at && v.remediated_at < firstRemedy) {
+          firstRemedy = v.remediated_at;
+        }
+      });
+      var opening = lastPublish < firstRemedy
+        ? Math.floor((lastPublish + firstRemedy) / 2)
+        : Math.floor((win.start + win.end) / 2);
+      state.at = Math.min(win.end, Math.max(win.start, opening));
       applyView(readView());
       fitCanvas();
 

@@ -1,9 +1,13 @@
 """The incident file -> a malicious-version index and a set of timeline markers.
 
 The incident file is the authority for what "malicious" means in this console.
-Every publish timestamp in it was verified against the npm registry's own
-``time`` map (which survives unpublish), so the markers the scrubber snaps to
-are real events with real seconds, not round numbers chosen to look tidy.
+The two files shipped in ``poc/`` had every publish timestamp verified against
+the npm registry's own ``time`` map (which survives unpublish), so the markers
+the scrubber snaps to are real events with real seconds, not round numbers
+chosen to look tidy. That verification is a property of those files, not of
+this loader: an operator-supplied file makes the same claims on its own
+authority, and the console presents them as the file's record, citing the
+file's sources, rather than as facts it checked itself.
 
 *Which* incident file is a deployment decision, not a fact about this module.
 ``poc/incident-chalk-debug.json`` is the default; ``HINDSIGHT_INCIDENT_FILE``
@@ -24,7 +28,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 from .analysis import Window, humanize, iso
@@ -122,6 +126,12 @@ class Incident:
     default_package: str
     #: The packages the incident is named after, which keep their own markers.
     featured_packages: tuple[str, ...] = ()
+    #: The file's own qualifiers on its window and on the state of remediation.
+    #: These are the sentences that keep the numbers honest ("keyv@6.0.0 cannot
+    #: arrive transitively", "no clean successor exists to point at"), so they
+    #: travel with the window rather than staying behind in the file.
+    window_note: str = ""
+    remediation_note: str = ""
     #: package name -> the malicious versions of it, for O(1) classification
     by_package: dict[str, set[str]] = field(default_factory=dict)
 
@@ -139,7 +149,11 @@ class Incident:
             "root_cause": self.root_cause,
             "payload": self.payload,
             "sources": list(self.sources),
-            "window": self.window.as_dict(),
+            "window": {
+                **self.window.as_dict(),
+                "note": self.window_note,
+                "remediation_note": self.remediation_note,
+            },
             "domain": {
                 "start": self.domain_start,
                 "end": self.domain_end,
@@ -175,8 +189,11 @@ def _markers(
     gets no remediation markers rather than an invented one.
     """
     out: list[Marker] = []
+    # The first publish is the first across *all* waves: an incident whose file
+    # only records wave 2 still started somewhere, and the burst prose below is
+    # the only thing entitled to a wave number.
     wave1 = [v for v in versions if v.wave == 1]
-    first = min(wave1, key=lambda v: v.published_at) if wave1 else None
+    first = min(versions, key=lambda v: v.published_at) if versions else None
     last = max(wave1, key=lambda v: v.published_at) if wave1 else None
 
     if first:
@@ -185,23 +202,26 @@ def _markers(
                 first.published_at,
                 "first malicious publish",
                 "publish",
-                f"{first.package}@{first.version} — the attack becomes real; "
-                "any lockfile regenerated after this instant can resolve it",
+                f"{first.package}@{first.version} — the earliest listed "
+                "malicious publish; no resolution of a listed version can "
+                "predate this instant. Whether a given repository could "
+                "actually resolve it depends on its declared ranges, which is "
+                "the graph's question to answer",
             )
         )
     named = set(featured)
-    for v in sorted(wave1, key=lambda v: v.published_at):
+    for v in sorted(versions, key=lambda v: v.published_at):
         if v.package in named and v is not first:
             out.append(
                 Marker(
                     v.published_at,
                     f"{v.package}@{v.version} published",
                     "publish",
-                    f"wave 1, {humanize(v.published_at - first.published_at)} "
-                    "after the first publish" if first else "wave 1",
+                    f"{humanize(v.published_at - first.published_at)} "
+                    "after the first publish" if first else "",
                 )
             )
-    if last and first and last is not first:
+    if last and first and last is not first and last.published_at > first.published_at:
         out.append(
             Marker(
                 last.published_at,
@@ -217,6 +237,7 @@ def _markers(
     if remediation:
         earliest = min(remediation, key=lambda v: v.remediated_at)
         latest = max(remediation, key=lambda v: v.remediated_at)
+        unremediated = len(versions) - len(remediation)
         out.append(
             Marker(
                 earliest.remediated_at,
@@ -227,12 +248,22 @@ def _markers(
             )
         )
         if latest is not earliest:
+            # "complete" was a claim the file never made: the remediation list
+            # is whichever entries carry a clean successor, and the ones that do
+            # not are still out there. The label states only what is recorded.
             out.append(
                 Marker(
                     latest.remediated_at,
-                    "wave-1 remediation complete",
+                    "last recorded clean publish",
                     "remediation",
-                    f"{latest.package}@{latest.remediated_version}",
+                    f"{latest.package}@{latest.remediated_version}"
+                    + (
+                        f"; {unremediated} listed "
+                        f"version{'s have' if unremediated != 1 else ' has'} "
+                        "no recorded clean successor"
+                        if unremediated
+                        else ""
+                    ),
                 )
             )
 
@@ -243,8 +274,10 @@ def _markers(
                 parse_iso(detection, field_name="community_detection_utc"),
                 "public disclosure",
                 "detection",
-                "the moment anyone could have known to look — everything before "
-                "this point is what only a historical graph can reconstruct",
+                "when this file's sources record the compromise becoming public "
+                "knowledge — a floor on awareness, not proof that nobody knew "
+                "earlier; everything before this point is reconstruction, not "
+                "contemporaneous alerting",
             )
         )
     return tuple(sorted(out, key=lambda m: m.at))
@@ -304,8 +337,18 @@ def _domain(
             )
         return start, end
 
+    # The derived domain fits what the timeline can actually reach: the window
+    # and the markers. A publish that earns no marker (an unfeatured wave-2
+    # entry, say) is still in the versions list and the popover, but nothing on
+    # the scrubber navigates to it, and widening the axis for events the UI
+    # never draws would halve the resolution of the ones it does.
     instants = [window.start, window.end, *(m.at for m in markers)]
-    start = min(_midnight_at_or_before(window.start), *map(_midnight_at_or_before, instants))
+    start = min(map(_midnight_at_or_before, instants))
+    if start == window.start:
+        # A first publish at exactly UTC midnight would otherwise leave the
+        # scrubber no time to travel *before* the incident, and "what was
+        # resolved before this" is the console's founding question.
+        start -= DAY
     end = max(start + DAY, *map(_midnight_at_or_after, instants))
     return start, end
 
@@ -334,6 +377,28 @@ def _default_package(
             f"({', '.join(sorted(by_package))})"
         )
     return chosen
+
+
+def _date(raw: dict) -> str:
+    """The incident's calendar day, validated or absent, never rolled over.
+
+    The browser turns this into prose, and JavaScript's Date will happily
+    normalise 2026-02-30 into March 2 without a word. A forensics console that
+    prints the wrong day about when an attack started is not making a rounding
+    error, so a date that is not a real YYYY-MM-DD calendar day is refused
+    here, where the file is loaded, rather than trusted to a renderer that
+    cannot refuse it.
+    """
+    declared = str(raw.get("date") or "")
+    if not declared:
+        return ""
+    try:
+        date.fromisoformat(declared)
+    except ValueError as exc:
+        raise IncidentError(
+            f"date={declared!r} is not a real YYYY-MM-DD calendar day: {exc}"
+        ) from None
+    return declared
 
 
 def load_incident(path: str | os.PathLike | None = None) -> Incident:
@@ -383,6 +448,13 @@ def build_incident(raw: dict) -> Incident:
                 still_present_in_registry=bool(entry.get("still_present_in_registry")),
             )
         )
+        latest = versions[-1]
+        if latest.remediated_at is not None and latest.remediated_at < latest.published_at:
+            raise IncidentError(
+                f"{package}@{version} claims a clean successor published at "
+                f"{iso(latest.remediated_at)}, before the malicious publish at "
+                f"{iso(latest.published_at)}; a fix cannot precede what it fixes"
+            )
         by_package.setdefault(package, set()).add(version)
 
     span = window_raw.get("practical_exposure_window_utc") or []
@@ -400,14 +472,29 @@ def build_incident(raw: dict) -> Incident:
         end=parse_iso(span[1], field_name="practical_exposure_window_utc[1]"),
         first_publish=first_publish,
     )
+    if window.end <= window.start:
+        raise IncidentError(
+            "practical_exposure_window_utc ends at or before it starts"
+        )
 
     ordered = tuple(sorted(versions, key=lambda v: (v.published_at, v.package)))
-    featured = tuple(str(p) for p in raw.get("featured_packages") or ())
+    featured_raw = raw.get("featured_packages") or ()
+    if isinstance(featured_raw, str):
+        raise IncidentError(
+            "featured_packages must be a list of package names, not a string"
+        )
+    featured = tuple(str(p) for p in featured_raw)
+    for name in featured:
+        if name not in by_package:
+            raise IncidentError(
+                f"featured_packages names {name!r}, which is not one of this "
+                f"incident's packages ({', '.join(sorted(by_package))})"
+            )
     markers = _markers(window_raw, ordered, featured)
     domain_start, domain_end = _domain(raw, window, markers)
     return Incident(
         title=str(raw.get("incident") or "supply-chain incident"),
-        date=str(raw.get("date") or ""),
+        date=_date(raw),
         root_cause=str(raw.get("root_cause") or ""),
         payload=str(raw.get("payload") or ""),
         sources=tuple(str(s) for s in raw.get("sources") or ()),
@@ -418,6 +505,8 @@ def build_incident(raw: dict) -> Incident:
         domain_end=domain_end,
         default_package=_default_package(raw, featured, by_package),
         featured_packages=featured,
+        window_note=str(window_raw.get("note") or ""),
+        remediation_note=str(window_raw.get("remediation_note") or ""),
         by_package=by_package,
     )
 
