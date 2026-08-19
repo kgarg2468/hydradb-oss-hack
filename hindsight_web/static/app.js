@@ -1780,7 +1780,10 @@
        would print the day before, and being off by a day about when an attack
        started is not a rounding error in a forensics console. A date the
        parser cannot read falls back to the first publish instant, which the
-       server has already validated, rather than rendering NaN prose. */
+       server has already validated, rather than rendering NaN prose. A
+       calendar-impossible date (2026-02-30) cannot reach this code at all:
+       the loader refuses it at parse time precisely because Date.parse would
+       silently normalise it into March, and the test suite pins that. */
     var dateParsed = overview.incident.date
       ? Date.parse(overview.incident.date + 'T12:00:00Z')
       : NaN;
