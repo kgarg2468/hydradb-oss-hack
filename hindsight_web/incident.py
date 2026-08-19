@@ -270,7 +270,10 @@ def _domain(
     A file may state it outright with ``display_domain_utc``, which is the
     escape hatch for an incident whose interesting span is not the span of its
     own events -- a slow-burn campaign the operator wants to see a week either
-    side of.
+    side of. Stating it can only ever *widen* the view: a declared domain that
+    excludes the exposure window or any marker would make the console clamp
+    navigation short of events the file itself says happened, and a timeline
+    that hides its own incident is rejected rather than rendered.
 
     Otherwise it is derived, and the derivation is the one that made the old
     hard-coded constants right for the chalk/debug file: the UTC day the
@@ -291,6 +294,14 @@ def _domain(
         end = parse_iso(declared[1], field_name="display_domain_utc[1]")
         if end <= start:
             raise IncidentError("display_domain_utc ends at or before it starts")
+        events = [window.start, window.end, *(m.at for m in markers)]
+        if start > min(events) or end < max(events):
+            raise IncidentError(
+                "display_domain_utc excludes part of the incident: the declared "
+                f"domain [{iso(start)}, {iso(end)}] must contain the exposure "
+                "window and every marker "
+                f"([{iso(min(events))}, {iso(max(events))}])"
+            )
         return start, end
 
     instants = [window.start, window.end, *(m.at for m in markers)]

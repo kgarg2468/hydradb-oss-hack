@@ -1778,9 +1778,14 @@
        not this file's. `date` is a plain YYYY-MM-DD, so it is read at UTC noon:
        parsing it at midnight and formatting it in a negative-offset timezone
        would print the day before, and being off by a day about when an attack
-       started is not a rounding error in a forensics console. */
-    var day = overview.incident.date
-      ? dayLabel(Date.parse(overview.incident.date + 'T12:00:00Z') / 1000)
+       started is not a rounding error in a forensics console. A date the
+       parser cannot read falls back to the first publish instant, which the
+       server has already validated, rather than rendering NaN prose. */
+    var dateParsed = overview.incident.date
+      ? Date.parse(overview.incident.date + 'T12:00:00Z')
+      : NaN;
+    var day = isFinite(dateParsed)
+      ? dayLabel(dateParsed / 1000)
       : dayLabel(overview.incident.window.first_malicious_publish);
     var sources = el('p', 'pop-dim',
       'Package names, version strings and publish timestamps are real throughout, taken from ' +

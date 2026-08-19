@@ -199,6 +199,29 @@ def test_a_backwards_display_domain_is_an_error():
         build_incident(raw)
 
 
+def test_a_display_domain_that_hides_the_incidents_own_events_is_an_error():
+    """Stating a domain can widen the view, never crop the incident.
+
+    A declared domain that excludes the exposure window or a marker would make
+    the console clamp navigation short of events the same file says happened:
+    chips pointing outside the scrubber, a window edge that cannot be reached.
+    A timeline that hides its own incident is refused, not rendered.
+    """
+    ends_before_the_window_closes = {
+        **RAW,
+        "display_domain_utc": ["2025-09-08T00:00:00Z", "2025-09-08T14:00:00Z"],
+    }
+    with pytest.raises(IncidentError, match="excludes part of the incident"):
+        build_incident(ends_before_the_window_closes)
+
+    starts_after_the_first_publish = {
+        **RAW,
+        "display_domain_utc": ["2025-09-08T13:30:00Z", "2025-09-15T00:00:00Z"],
+    }
+    with pytest.raises(IncidentError, match="excludes part of the incident"):
+        build_incident(starts_after_the_first_publish)
+
+
 # --------------------------------------- which packages the file speaks about
 
 
