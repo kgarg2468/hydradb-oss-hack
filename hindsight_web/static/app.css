@@ -198,18 +198,30 @@ button, input, select, a, summary {
   border-bottom: 1px solid var(--line);
 }
 
+/* Centered, not baseline: the wordmark now leads with an svg mark, whose flex
+   baseline is its bottom edge, which would sink the title beside it. */
 .topbar-left {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 12px;
   min-width: 0;
 }
 
+/* The favicon's two bars, restated at wordmark scale: the mark is the
+   incident chart reduced to its two truthful colours. */
 .wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
   font-size: 18px;
   font-weight: 600;
   letter-spacing: -0.01em;
   white-space: nowrap;
+}
+.wordmark .mark {
+  width: 18px;
+  height: 18px;
+  flex: none;
 }
 
 .incident-title {
