@@ -457,6 +457,36 @@ button, input, select {
   margin-top: 2px;
 }
 
+/* The artifact you hand to somebody who was not standing here. It is the point
+   of the product and it is still not the point of the screen, so it sits under
+   the caveat at caveat weight: the answer stays the hero and this waits to be
+   looked for. Without an href these are not links yet, and they say so by going
+   dim rather than by disappearing, so the control does not move when the first
+   read lands. */
+.export {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--t3);
+}
+.export-label { color: var(--t3); }
+
+.export-link {
+  color: var(--t2);
+  text-decoration: none;
+  border-bottom: 1px solid var(--line);
+  transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.export-link:hover { color: var(--t1); border-bottom-color: var(--t3); }
+.export-link:not([href]) {
+  color: var(--t3);
+  opacity: 0.5;
+  border-bottom-color: transparent;
+}
+
 /* ---------------------------------------------------------------- banner */
 
 #banner-slot:not(:empty) { margin-top: 12px; }

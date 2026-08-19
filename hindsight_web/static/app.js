@@ -771,6 +771,29 @@
     return d.counts.exposed + d.counts.resolved_clean + d.counts.not_resolved;
   }
 
+  /* The export is the deliverable, so its links are minted from the answer that
+     is actually on screen, not from wherever the playhead has since drifted to:
+     `d.package` and `d.at` are the facts of the read being painted, and a
+     packet exported from this page has to be a packet about this page.
+   *
+   * Same two parameters as `viewQuery`, minus the drawing. Which panel was open
+   * is a view preference; a finding is about a package and an instant. */
+  function findingHref(d, format) {
+    return '/api/finding?package=' + encodeURIComponent(d.package) +
+      '&at=' + encodeURIComponent(String(d.at)) +
+      '&format=' + format;
+  }
+
+  /* Until a read completes these anchors carry no href at all, which is what
+     makes them inert rather than merely disabled-looking: there is no finding
+     to export before there is an answer, and an export link that resolves to a
+     different instant than the one on screen is the failure this whole packet
+     exists to not commit. */
+  function renderExport(d) {
+    $('export-json').href = findingHref(d, 'json');
+    $('export-md').href = findingHref(d, 'markdown');
+  }
+
   function renderAnswer(d) {
     var line = $('answer-line');
     var floor = d.truncated;
@@ -820,6 +843,8 @@
       line.appendChild(b(d.package));
       line.appendChild(document.createTextNode(' version'));
     }
+
+    renderExport(d);
 
     $('answer-when').textContent = humanTime(d.at);
     $('answer-rel').textContent = relativeText();
