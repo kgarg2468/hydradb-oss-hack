@@ -272,7 +272,7 @@ def test_inside_the_window_exactly_one_repository_is_exposed(console):
     assert repos[EXPOSED_SLUG]["matched_versions"] == ["5.6.1"]
     assert repos[CLEAN_SLUG]["status"] == "RESOLVED_CLEAN"
     assert repos[ABSENT_SLUG]["status"] == "NOT_RESOLVED"
-    assert result["evidence"] == "RESOLVED"
+    assert result["evidence"] == "resolved"
     assert result["in_exposure_window"] is True
 
 
