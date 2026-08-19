@@ -255,7 +255,7 @@ def test_exposure_names_every_repository_including_the_ones_with_no_rows():
 def test_exposure_carries_the_evidence_label_and_caveat_on_every_answer():
     for at in (WINDOW.start - 10_000, AT, WINDOW.end + 10_000):
         result = console().exposure("chalk", at)
-        assert result["evidence"] == EVIDENCE == "RESOLVED"
+        assert result["evidence"] == EVIDENCE == "resolved"
         assert result["caveat"] == CAVEAT
 
 

@@ -23,9 +23,12 @@ Hindsight stores every dependency state your organization ever had as a **bitemp
 
 ## How it uses HydraDB
 
-- Lockfile history from git becomes `(:DepRepo)-[:RESOLVES {valid_from, valid_to}]->(:DepVersion)`
+- Lockfile history from git becomes `(:HsRepo)-[:HS_RESOLVES {valid_from, valid_to}]->(:HsVer)`
   edges — the full transitive closure per snapshot, append-only, never deleted.
-- Registry metadata becomes `(:DepMaintainer)-[:MAINTAINS]->(:DepPackage)` for trust-radius queries.
+- Registry metadata becomes `(:HsMaint)-[:HS_MAINTAINS]->(:HsPkg)` for trust-radius queries.
+- Labels are prefixed per dataset rather than global: the ingest pipeline writes `Hs*` / `HS_*`,
+  and the bundled demo writes `Replay*` / `REPLAY_*` so the two never share a namespace. The
+  PoC's `Dep*` labels are gone; see `hindsight/graphbuild.py` for the live schema.
 - Multi-hop blast-radius and AS-OF questions are plain OpenCypher over Bolt/HTTP.
 - We additionally enabled **true engine-level time travel** (`read_epoch` historical queries backed
   by durable SlateDB checkpoints) in a HydraDB branch — see `docs/engine-patch.md` (upstream PR in

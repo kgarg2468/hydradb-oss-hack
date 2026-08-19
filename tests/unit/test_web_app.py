@@ -187,7 +187,7 @@ def test_exposure_accepts_both_iso_and_unix_instants(client):
 
 def test_exposure_answer_is_labelled_evidence_with_its_caveat(client):
     _, body = get(client, "/api/exposure", package="chalk", at=str(AT))
-    assert body["evidence"] == "RESOLVED"
+    assert body["evidence"] == "resolved"
     assert "not proof" in body["caveat"]
     assert body["counts"] == {
         "repos": 3,

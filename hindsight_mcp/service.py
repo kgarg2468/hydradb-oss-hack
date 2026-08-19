@@ -29,6 +29,17 @@ the console, because the agent has no screen on which to notice the empty page
 and will relay the sentence verbatim. So every answer below carries the
 :class:`~hindsight.coverage.Coverage` verdict, decided by the same core
 predicate the console uses, and no refusal is dressed up as a result.
+
+**Nothing states a total it only has a floor for.** Every tool below reads
+under a row cap, and a capped read makes two things untrue at once: the counts
+are floors rather than totals, and a name's absence from the list is a fact
+about the page rather than about the graph. The console has said both of those
+things since it learned to; this surface said neither, on any canned tool, and
+returned bare integers an agent had no way to know were short. The vocabulary
+now comes from :mod:`hindsight.envelope`, the same module the console reads it
+from, and the fields appear only when the read actually was cut — an
+always-present ``"counts_are_lower_bounds": false`` is noise a model will
+eventually narrate.
 """
 
 from __future__ import annotations
@@ -41,6 +52,14 @@ from datetime import UTC, datetime
 from hindsight import queries
 from hindsight.client import HydraClient, HydraError
 from hindsight.coverage import Coverage, coverage_of
+from hindsight.envelope import (
+    EVIDENCE,
+    RAW_READ_CAVEAT,
+    REACH_FLOOR_NOTE,
+    UNVERIFIED_ABSENCE_NOTE,
+    cypher_truncation_note,
+    lower_bounds,
+)
 from hindsight.graphbuild import DEFAULT_SCHEMA, Schema
 from hindsight.ids import maintainer_id, package_id, repo_id, version_id
 from hindsight.queries import Query, UnknownKind, normalise_kind
@@ -48,9 +67,11 @@ from hindsight.queries import Query, UnknownKind, normalise_kind
 from .guard import UnsafeCypher, assert_read_only
 from .schema_doc import FAR_FUTURE, graph_schema, render_markdown
 
-#: What the graph can prove. There is exactly one value today, and it is spelled
-#: out on every answer so that no consumer has to infer it.
-EVIDENCE = "resolved"
+#: What the graph can prove, re-exported from :mod:`hindsight.envelope` so that
+#: this surface and the console cannot spell the same evidence two ways. They
+#: did: the console emitted ``"RESOLVED"`` here, and an agent quoting its own
+#: answer to a responder looking at the console was describing a different
+#: value for the same fact.
 
 CAVEAT = (
     "Evidence is lockfile resolution only: a committed lockfile in this "
@@ -212,7 +233,16 @@ class Hindsight:
             page_size=self.limits.max_rows,
         )
         rows = [[unwrap_cell(cell) for cell in row] for row in result.get("rows", [])]
-        truncated = result.get("next_cursor") is not None or len(rows) > self.limits.max_rows
+        # Same three-way check as the raw cypher tool: if the engine reports its
+        # own truncation we take its word, rather than inferring completeness
+        # from a cursor it chose not to hand back. Every canned tool's floors
+        # ride on this bool, so missing one source of "short" here would turn
+        # a lower bound back into a silent total.
+        truncated = (
+            result.get("next_cursor") is not None
+            or bool(result.get("truncated"))
+            or len(rows) > self.limits.max_rows
+        )
         return rows[: self.limits.max_rows], truncated
 
     def _dicts(self, query: Query) -> tuple[list[dict], bool]:
@@ -303,6 +333,14 @@ class Hindsight:
         database if the statement could write, and :class:`HydraError` if the
         engine refuses it. Both messages are meant to be read by the caller and
         acted on.
+
+        The rows come back with a caveat rather than an evidence label, because
+        none of the classification the canned tools apply has happened here: the
+        coverage predicate has not been consulted, so an empty result from this
+        tool is not a negative and there is nothing in the response entitled to
+        be read as one. Saying that costs a field and saves the failure where an
+        agent writes its own ``MATCH``, gets no rows out of a mis-pointed label
+        namespace, and reports an all-clear.
         """
         assert_read_only(query)
         started = time.perf_counter()
@@ -314,7 +352,14 @@ class Hindsight:
         )
         elapsed_ms = (time.perf_counter() - started) * 1000
         rows = [[unwrap_cell(cell) for cell in row] for row in result.get("rows", [])]
-        truncated = result.get("next_cursor") is not None or len(rows) > self.limits.max_rows
+        # Three ways the same read can be short, and the engine owns one of them:
+        # if it reports its own truncation we take its word rather than inferring
+        # completeness from a cursor it chose not to hand back.
+        truncated = (
+            result.get("next_cursor") is not None
+            or bool(result.get("truncated"))
+            or len(rows) > self.limits.max_rows
+        )
         capped = rows[: self.limits.max_rows]
         out = {
             "columns": result.get("columns", []),
@@ -323,13 +368,13 @@ class Hindsight:
             "truncated": truncated,
             "row_cap": self.limits.max_rows,
             "elapsed_ms": round(elapsed_ms, 2),
+            "caveat": RAW_READ_CAVEAT,
         }
-        if truncated:
-            out["truncation_note"] = (
-                f"the result was cut at the {self.limits.max_rows}-row cap; narrow "
-                "the query (anchor on a more specific id, or aggregate with "
-                "count(*)) rather than assuming this is the whole answer"
+        out.update(
+            lower_bounds(
+                truncated, note=cypher_truncation_note(self.limits.max_rows)
             )
+        )
         return out
 
     def resolve_id(self, kind: str, name: str) -> dict:
@@ -410,6 +455,7 @@ class Hindsight:
             "evidence": EVIDENCE,
             "caveat": CAVEAT,
             **coverage.as_dict(),
+            **lower_bounds(truncated),
         }
         if not coverage.answerable:
             # An absence is only evidence when there was something for it to be
@@ -418,6 +464,12 @@ class Hindsight:
             # found — and says it in the console's words, so that an agent and a
             # responder reading over its shoulder are told the same thing.
             out["note"] = coverage.note
+        elif truncated:
+            # The third state, and the one this surface used to skip straight
+            # past. The list is a page, not the answer: "repo/x is not in the
+            # repos array" is the question an agent actually asks of this result,
+            # and under a cap the array cannot answer it either way.
+            out["note"] = UNVERIFIED_ABSENCE_NOTE
         elif not anchor["exists"]:
             out["note"] = (
                 f"no {anchor['label']} node for {anchor['name']!r} is in the graph "
@@ -481,12 +533,18 @@ class Hindsight:
             "evidence": EVIDENCE,
             "caveat": CAVEAT,
             **coverage.as_dict(),
+            **lower_bounds(truncated),
         }
         if not coverage.answerable:
             # Zero repositories, zero versions, zero resolutions: the shape of a
             # package that reaches nothing, and the shape of a dataset that holds
             # nothing. The counts cannot tell them apart, so the note must.
             out["note"] = coverage.note
+        elif truncated:
+            # "17 repos across 4 versions" is the headline an incident responder
+            # acts on first, so a truncated blast radius is the worst place in
+            # this module to hand back a number that reads like a total.
+            out["note"] = UNVERIFIED_ABSENCE_NOTE
         elif not anchor["exists"]:
             out["note"] = (
                 f"no {anchor['label']} node for {package!r} is in the graph, so its "
@@ -561,12 +619,21 @@ class Hindsight:
             "caveat": CAVEAT,
             "maintainer_caveat": MAINTAINER_CAVEAT,
             **coverage.as_dict(),
+            **lower_bounds(
+                truncated or owned_truncated, absence_note=REACH_FLOOR_NOTE
+            ),
         }
         if not coverage.answerable:
             # A reach of zero is the most reassuring number this tool returns —
             # "if this account were phished tomorrow, nothing of ours moves" —
             # and it is what an unread dataset returns for every account alike.
             out["note"] = coverage.note
+        elif truncated or owned_truncated:
+            # And a *small* reach is what a capped read returns for a large
+            # account: same reassurance, arrived at by not looking. Either of the
+            # two reads being short is enough to make every number here a floor,
+            # since the packages drive the repositories.
+            out["note"] = REACH_FLOOR_NOTE
         return out
 
 

@@ -224,7 +224,39 @@ def test_every_rendered_basis_avoids_deployment_language():
 def test_caveat_names_the_four_things_resolution_does_not_prove():
     for word in ("installed", "built", "executed", "shipped"):
         assert word in analysis.CAVEAT
-    assert analysis.EVIDENCE == "RESOLVED"
+    assert analysis.EVIDENCE == "resolved"
+
+
+def test_both_surfaces_emit_the_same_evidence_value():
+    """One graph, one kind of evidence, one wire value.
+
+    They drifted: this module spelled it ``"RESOLVED"`` and the MCP tools
+    spelled it ``"resolved"``, so a consumer keying on the string saw two kinds
+    of evidence where the graph has one, and an agent quoting its own answer to
+    a responder looking at the console was quoting a different value for the
+    same fact. Nothing caught it because nothing owned the constant, so the
+    assertion is here rather than in either surface's own test: it fails if
+    either module reintroduces a private copy.
+    """
+    from hindsight import envelope
+    from hindsight_mcp import service as mcp_service
+
+    assert analysis.EVIDENCE == mcp_service.EVIDENCE == envelope.EVIDENCE
+    # Not merely equal today: both read the one object, so they cannot be
+    # edited apart.
+    assert analysis.EVIDENCE is envelope.EVIDENCE
+    assert mcp_service.EVIDENCE is envelope.EVIDENCE
+
+
+def test_both_surfaces_say_the_same_thing_about_a_capped_read():
+    """The truncation sentence is protocol too, not per-surface prose."""
+    from hindsight import envelope
+
+    assert analysis.TRUNCATION_CAVEAT is envelope.TRUNCATION_NOTE
+    assert "lower bound" in envelope.TRUNCATION_NOTE
+    # The agent surface's raw-Cypher variant leads with the identical sentence
+    # and only appends a remedy that makes sense for a hand-written statement.
+    assert envelope.cypher_truncation_note(1000).startswith(envelope.TRUNCATION_NOTE)
 
 
 def test_synthetic_caveat_states_the_repo_is_not_real():

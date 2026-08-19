@@ -8,7 +8,7 @@ product requirement, so it is asserted on every tool that returns evidence.
 
 import pytest
 
-from hindsight import coverage
+from hindsight import coverage, envelope
 from hindsight.graphbuild import Schema
 from hindsight.history import SENTINEL
 from hindsight.ids import maintainer_id, package_id, version_id
@@ -652,3 +652,187 @@ def test_the_refusal_reaches_the_agent_in_the_console_s_words():
     out = hindsight.exposure_asof("chalk", None, 1000)
     assert out["note"] == coverage.UNANSWERABLE_NOTES[coverage.EMPTY_DATASET]
     assert set(coverage.coverage_of(0, 0).as_dict()) <= set(out)
+
+
+# ------------------------------------------------------------------ truncation
+#
+# The console has said since it learned to that a capped read makes every count
+# a floor and every absence unverified. This surface said it in exactly one
+# place — the raw `cypher` passthrough — and nowhere on the canned tools, whose
+# entire output is counts. An agent therefore received a bare `repo_count: 40`
+# from a read that had been cut at row 40 and relayed it as a total, which is
+# the same failure the console fixed, minus the screen on which a human might
+# have noticed the page was full.
+#
+# Truncation is kept distinct from coverage throughout, exactly as above: a
+# truncated read saw *some* of the graph and its counts are floors; an
+# unanswerable one saw none and has no counts at all.
+
+HITS = {
+    "node": [["chalk"]],
+    "version": [["repo/a", "A", "chalk", "5.3.0", 0, SENTINEL]],
+    "package": [["repo/a", "A", "chalk", "5.3.0", 0, SENTINEL]],
+    "reach": [["chalk", "repo/a", "A", "5.3.0", 0, SENTINEL]],
+    "owned": [["chalk"]],
+}
+
+#: Every canned tool that returns a count, with the read whose truncation makes
+#: that count a floor.
+COUNTING_TOOLS = [
+    ("exposure_asof", "package", lambda h: h.exposure_asof("chalk", None, 1000)),
+    ("exposure_asof exact", "version", lambda h: h.exposure_asof("chalk", "5.3.0", 1000)),
+    ("blast_radius", "package", lambda h: h.blast_radius("chalk", 1000)),
+    ("maintainer_reach", "reach", lambda h: h.maintainer_reach("qix", 1000)),
+    ("maintainer_reach owned", "owned", lambda h: h.maintainer_reach("qix", 1000)),
+]
+
+
+@pytest.mark.parametrize(
+    "name, cut, call", COUNTING_TOOLS, ids=[n for n, _, _ in COUNTING_TOOLS]
+)
+def test_every_count_from_a_capped_read_is_marked_as_a_floor(name, cut, call):
+    hindsight, _ = build(answers=HITS, cursor_for={cut})
+    out = call(hindsight)
+    assert out["truncated"] is True
+    assert out["counts_are_lower_bounds"] is True
+    assert "lower bound" in out["truncation_note"]
+
+
+@pytest.mark.parametrize(
+    "name, cut, call", COUNTING_TOOLS, ids=[n for n, _, _ in COUNTING_TOOLS]
+)
+def test_an_uncut_answer_is_unchanged_by_any_of_this(name, cut, call):
+    """The untruncated path is the common one and its shape is a contract.
+
+    An always-present ``"counts_are_lower_bounds": false`` would be a field an
+    agent has to read and discard on every call, and a null truncation note is
+    an invitation to narrate a truncation that did not happen.
+    """
+    hindsight, _ = build(answers=HITS)
+    out = call(hindsight)
+    assert out["truncated"] is False
+    assert "counts_are_lower_bounds" not in out
+    assert "truncation_note" not in out
+    assert "absence_note" not in out
+
+
+def test_a_capped_read_says_the_same_sentence_the_console_says():
+    """Not merely *a* caveat: the console's caveat, verbatim, from one module."""
+    from hindsight import envelope
+    from hindsight_web import analysis
+
+    hindsight, _ = build(answers=HITS, cursor_for={"package"})
+    out = hindsight.blast_radius("chalk", 1000)
+    assert out["truncation_note"] == analysis.TRUNCATION_CAVEAT == envelope.TRUNCATION_NOTE
+
+
+@pytest.mark.parametrize(
+    "name, call",
+    [
+        ("exposure_asof", lambda h: h.exposure_asof("chalk", None, 1000)),
+        ("blast_radius", lambda h: h.blast_radius("chalk", 1000)),
+    ],
+)
+def test_a_truncated_answer_never_calls_a_missing_repository_a_negative(name, call):
+    """The question an agent actually asks of the repos array is "is repo/x in
+    it", and under a cap the array cannot answer that either way."""
+    hindsight, _ = build(answers=HITS, cursor_for={"package"})
+    out = call(hindsight)
+    assert "unverified" in out["note"]
+    for phrase in ("proven negative", "real negative", "negative, not a lookup failure"):
+        assert phrase not in out["note"]
+    # Still a genuine read of a genuine dataset: truncation is not a refusal,
+    # and collapsing the two would withhold the rows that *were* found.
+    assert out["answerable"] is True
+    assert out["unanswerable_reason"] is None
+
+
+def test_an_uncut_miss_is_still_the_proven_negative_it_always_was():
+    """The regression guard: the fix must not weaken the answer it protects."""
+    hindsight, _ = build(answers={"node": [["chalk"]], "package": []})
+    out = hindsight.exposure_asof("chalk", None, 1000)
+    assert out["truncated"] is False
+    assert "a proven negative for this timestamp" in out["note"]
+
+    absent, _ = build(answers={})
+    assert "real negative, not a lookup failure" in absent.exposure_asof(
+        "never-seen", None, 1000
+    )["note"]
+
+
+def test_a_capped_reach_is_a_floor_and_not_a_small_trust_radius():
+    """A reach of two repositories is reassuring, and it is also what a read cut
+    at row two returns for the account that reaches four hundred."""
+    hindsight, _ = build(answers=HITS, cursor_for={"owned"})
+    out = hindsight.maintainer_reach("qix", 1000)
+    assert out["counts_are_lower_bounds"] is True
+    assert "floor" in out["note"]
+    assert "not proven absent" in out["note"]
+    assert out["absence_note"] == out["note"]
+
+
+def test_either_of_the_maintainer_reads_being_cut_marks_the_whole_answer():
+    """The packages drive the repositories, so a short ownership read shortens
+    every number below it, not just the package count."""
+    for cut in ("owned", "reach"):
+        hindsight, _ = build(answers=HITS, cursor_for={cut})
+        out = hindsight.maintainer_reach("qix", 1000)
+        assert out["truncated"] is True, cut
+        assert out["counts_are_lower_bounds"] is True, cut
+
+
+# --------------------------------------------------------------- raw passthrough
+
+
+def test_raw_rows_are_labelled_as_carrying_no_verdict():
+    """`cypher` runs a statement the agent wrote, against a dataset nothing has
+    checked. An empty result from it is not a negative, and the response has to
+    say so — the canned tools' coverage predicate never ran."""
+    hindsight, _ = build(answers={"node": []})
+    out = hindsight.cypher("MATCH (n:McpTestPkg) RETURN n.name")
+    assert out["rows"] == []
+    assert "no coverage verdict" in out["caveat"]
+    assert "not a negative" in out["caveat"]
+    # No evidence label: nothing here has been classified, so labelling it
+    # would be the overstatement the caveat exists to prevent.
+    assert "evidence" not in out
+
+
+def test_the_engines_own_truncation_flag_is_believed_without_a_cursor():
+    """The engine owns one of the three ways this read can be short. If it says
+    it truncated, that settles it: inferring completeness from the absence of a
+    cursor it chose not to send is how a partial answer renders as a whole one.
+    """
+    hindsight, _ = build()
+    hindsight.client.query = lambda *a, **kw: {
+        "columns": ["c"],
+        "rows": [[{"type": "any", "value": "a"}]],
+        "next_cursor": None,
+        "truncated": True,
+    }
+    out = hindsight.cypher("MATCH (n:McpTestPkg) RETURN n.name")
+    assert out["truncated"] is True
+    assert out["counts_are_lower_bounds"] is True
+    assert "count(*)" in out["truncation_note"]
+
+
+def test_the_canned_tools_believe_the_engines_truncation_flag_too():
+    """The raw cypher tool learned the three-way check first; the canned tools
+    read through ``_run``, and every floor they publish rides on its bool. An
+    engine that says ``truncated: true`` without handing back a cursor must
+    mark a blast radius short, or the lower bound renders as a silent total.
+    """
+    hindsight, client = build(answers=HITS)
+    plain = client.query
+
+    def engine_truncates(cypher, *args, **kwargs):
+        result = plain(cypher, *args, **kwargs)
+        if "count(*)" not in cypher:
+            result["truncated"] = True
+        return result
+
+    client.query = engine_truncates
+    out = hindsight.blast_radius("chalk", "2025-09-08T14:05:00Z")
+    assert out["truncated"] is True
+    assert out["counts_are_lower_bounds"] is True
+    assert out["note"] == envelope.UNVERIFIED_ABSENCE_NOTE
