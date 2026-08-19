@@ -7,7 +7,11 @@ compromised", and the difference is the entire credibility of the tool during an
 incident. So the vocabulary is fixed here, in one module, rather than composed
 ad hoc at each call site:
 
-* every answer carries ``evidence = "RESOLVED"``;
+* every answer carries :data:`EVIDENCE`, which is now
+  :data:`hindsight.envelope.EVIDENCE` rather than a second copy of the same
+  idea: this module used to spell it ``"RESOLVED"`` while the MCP tools spelled
+  it ``"resolved"``, so one graph offered two wire values for its one kind of
+  evidence and nothing rejected the mismatch;
 * every answer carries :data:`CAVEAT` verbatim;
 * no string in this file contains "deployed", "running", "in production",
   "affected" or "infected", and :func:`~tests.unit.test_web_analysis` asserts it.
@@ -26,13 +30,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from hindsight.envelope import EVIDENCE, TRUNCATION_NOTE
+from hindsight.envelope import completeness as _completeness
 from hindsight.history import SENTINEL
 
 #: Open intervals are stored as this sentinel because HydraDB has no IS NULL.
 FAR_FUTURE = SENTINEL
-
-#: The one kind of evidence in the graph. Rendered on every result.
-EVIDENCE = "RESOLVED"
 
 CAVEAT = (
     "Evidence is lockfile resolution only: a committed lockfile in this "
@@ -50,15 +53,13 @@ MAINTAINER_CAVEAT = (
 )
 
 #: Every count derived from a read that hit the row cap is a *floor*, and has to
-#: read as one. A security console that answers "0 other repositories affected"
-#: when the result set was cut off is worse than one that refuses to answer, so
-#: this string travels with the flag and the UI renders both.
-TRUNCATION_CAVEAT = (
-    "This read hit the row cap, so the result is incomplete and every count "
-    "below is a lower bound, not a total. Narrow the question — a single "
-    "package, a single repository, a single instant — before drawing any "
-    "conclusion from it, and in particular do not read a zero here as an absence."
-)
+#: read as one. A security console that answers "0 other repositories" when the
+#: result set was cut off is worse than one that refuses to answer, so this
+#: string travels with the flag and the UI renders both. The console's name for
+#: it, kept because the API field and the tests use it; the string itself is
+#: :data:`hindsight.envelope.TRUNCATION_NOTE`, so the agent surface says the
+#: same sentence about the same row cap instead of inventing its own.
+TRUNCATION_CAVEAT = TRUNCATION_NOTE
 
 SYNTHETIC_CAVEAT = (
     "This repository is a constructed example, not a real git history. It exists "
@@ -317,12 +318,10 @@ def completeness(truncated: bool) -> dict:
     A single helper rather than a literal at each call site, because the failure
     this guards against is *forgetting* — the flag existed and was simply dropped
     on the way out of three methods, and a partial answer then rendered as a
-    complete one.
+    complete one. Now shared with the agent surface for the same reason one step
+    out: the MCP tools were forgetting it wholesale.
     """
-    return {
-        "truncated": bool(truncated),
-        "truncation_note": TRUNCATION_CAVEAT if truncated else None,
-    }
+    return _completeness(truncated)
 
 
 __all__ = [
