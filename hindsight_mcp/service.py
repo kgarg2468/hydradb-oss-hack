@@ -233,7 +233,16 @@ class Hindsight:
             page_size=self.limits.max_rows,
         )
         rows = [[unwrap_cell(cell) for cell in row] for row in result.get("rows", [])]
-        truncated = result.get("next_cursor") is not None or len(rows) > self.limits.max_rows
+        # Same three-way check as the raw cypher tool: if the engine reports its
+        # own truncation we take its word, rather than inferring completeness
+        # from a cursor it chose not to hand back. Every canned tool's floors
+        # ride on this bool, so missing one source of "short" here would turn
+        # a lower bound back into a silent total.
+        truncated = (
+            result.get("next_cursor") is not None
+            or bool(result.get("truncated"))
+            or len(rows) > self.limits.max_rows
+        )
         return rows[: self.limits.max_rows], truncated
 
     def _dicts(self, query: Query) -> tuple[list[dict], bool]:

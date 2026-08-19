@@ -8,7 +8,7 @@ product requirement, so it is asserted on every tool that returns evidence.
 
 import pytest
 
-from hindsight import coverage
+from hindsight import coverage, envelope
 from hindsight.graphbuild import Schema
 from hindsight.history import SENTINEL
 from hindsight.ids import maintainer_id, package_id, version_id
@@ -814,3 +814,25 @@ def test_the_engines_own_truncation_flag_is_believed_without_a_cursor():
     assert out["truncated"] is True
     assert out["counts_are_lower_bounds"] is True
     assert "count(*)" in out["truncation_note"]
+
+
+def test_the_canned_tools_believe_the_engines_truncation_flag_too():
+    """The raw cypher tool learned the three-way check first; the canned tools
+    read through ``_run``, and every floor they publish rides on its bool. An
+    engine that says ``truncated: true`` without handing back a cursor must
+    mark a blast radius short, or the lower bound renders as a silent total.
+    """
+    hindsight, client = build(answers=HITS)
+    plain = client.query
+
+    def engine_truncates(cypher, *args, **kwargs):
+        result = plain(cypher, *args, **kwargs)
+        if "count(*)" not in cypher:
+            result["truncated"] = True
+        return result
+
+    client.query = engine_truncates
+    out = hindsight.blast_radius("chalk", "2025-09-08T14:05:00Z")
+    assert out["truncated"] is True
+    assert out["counts_are_lower_bounds"] is True
+    assert out["note"] == envelope.UNVERIFIED_ABSENCE_NOTE
