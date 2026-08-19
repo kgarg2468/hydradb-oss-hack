@@ -1,11 +1,16 @@
 """Parsing the incident file into a malicious-version index and timeline markers.
 
-The real ``poc/incident-chalk-debug.json`` is exercised too, because the console
-is only ever as correct as the file it annotates the timeline from, and that file
-was built by querying the npm registry's own ``time`` map.
+Both shipped incident files are exercised, because the console is only ever as
+correct as the file it annotates the timeline from and both were built by
+querying the npm registry's own ``time`` map. Two files rather than one is the
+point: the scrubber's domain, the packages with their own markers and the
+package the console opens on used to be constants in this module, and a second
+incident is the only test that proves they are not any more.
 """
 
 from __future__ import annotations
+
+from pathlib import Path
 
 import pytest
 
@@ -17,12 +22,20 @@ from hindsight_web.incident import (
     parse_iso,
 )
 
+#: The second real incident: a worm wave with registry-verified timestamps, no
+#: disclosure instant anyone can cite, and nothing remediated.
+KEYV_INCIDENT_PATH = (
+    Path(__file__).resolve().parents[2] / "poc" / "incident-keyv-shai-hulud.json"
+)
+
 RAW = {
     "incident": "test compromise",
     "date": "2025-09-08",
     "root_cause": "phishing",
     "payload": "clipper",
     "sources": ["https://example.invalid/writeup"],
+    "featured_packages": ["chalk", "debug"],
+    "default_package": "chalk",
     "window": {
         "first_malicious_publish_utc": "2025-09-08T13:12:10.343Z",
         "community_detection_utc": "2025-09-08T15:20:00Z",
@@ -137,6 +150,117 @@ def test_as_dict_is_json_ready_and_carries_the_domain():
     assert payload["versions"][0]["key"] == "ansi-styles@6.2.2"
 
 
+# ------------------------------------------------- the domain, from the data
+
+
+def test_the_domain_is_the_utc_day_the_exposure_window_opens_on():
+    """Whole days, not a tight fit around the events.
+
+    The scrubber has to have somewhere to travel before the first publish: the
+    question this console exists to answer is what a lockfile held *before* the
+    attack, and a domain that starts at the attack cannot be asked it.
+    """
+    incident = build_incident(RAW)
+    assert incident.domain_start == parse_iso("2025-09-08T00:00:00Z", field_name="t")
+    assert incident.domain_end == parse_iso("2025-09-09T00:00:00Z", field_name="t")
+
+
+def test_the_domain_widens_so_a_late_marker_is_still_reachable():
+    """A marker outside the domain is a chip the scrubber cannot travel to."""
+    raw = {
+        **RAW,
+        "window": {
+            **RAW["window"],
+            "community_detection_utc": "2025-09-10T04:00:00Z",
+        },
+    }
+    incident = build_incident(raw)
+    assert incident.domain_start == parse_iso("2025-09-08T00:00:00Z", field_name="t")
+    assert incident.domain_end == parse_iso("2025-09-11T00:00:00Z", field_name="t")
+    assert max(m.at for m in incident.markers) < incident.domain_end
+
+
+def test_a_file_may_state_its_own_display_domain():
+    raw = {
+        **RAW,
+        "display_domain_utc": ["2025-09-01T00:00:00Z", "2025-09-15T00:00:00Z"],
+    }
+    incident = build_incident(raw)
+    assert incident.domain_start == parse_iso("2025-09-01T00:00:00Z", field_name="t")
+    assert incident.domain_end == parse_iso("2025-09-15T00:00:00Z", field_name="t")
+
+
+def test_a_backwards_display_domain_is_an_error():
+    raw = {
+        **RAW,
+        "display_domain_utc": ["2025-09-15T00:00:00Z", "2025-09-01T00:00:00Z"],
+    }
+    with pytest.raises(IncidentError, match="display_domain_utc"):
+        build_incident(raw)
+
+
+def test_a_display_domain_that_hides_the_incidents_own_events_is_an_error():
+    """Stating a domain can widen the view, never crop the incident.
+
+    A declared domain that excludes the exposure window or a marker would make
+    the console clamp navigation short of events the same file says happened:
+    chips pointing outside the scrubber, a window edge that cannot be reached.
+    A timeline that hides its own incident is refused, not rendered.
+    """
+    ends_before_the_window_closes = {
+        **RAW,
+        "display_domain_utc": ["2025-09-08T00:00:00Z", "2025-09-08T14:00:00Z"],
+    }
+    with pytest.raises(IncidentError, match="excludes part of the incident"):
+        build_incident(ends_before_the_window_closes)
+
+    starts_after_the_first_publish = {
+        **RAW,
+        "display_domain_utc": ["2025-09-08T13:30:00Z", "2025-09-15T00:00:00Z"],
+    }
+    with pytest.raises(IncidentError, match="excludes part of the incident"):
+        build_incident(starts_after_the_first_publish)
+
+
+# --------------------------------------- which packages the file speaks about
+
+
+def _own_markers(incident) -> list[str]:
+    """Labels of the ``package@version published`` marks, in timeline order."""
+    return [m.label for m in incident.markers if "@" in m.label]
+
+
+def test_only_the_featured_packages_earn_a_marker_of_their_own():
+    """The set used to be ``{"chalk", "debug"}``, written into this module."""
+    incident = build_incident(RAW)
+    assert _own_markers(incident) == ["debug@4.4.2 published", "chalk@5.6.1 published"]
+
+    plain = build_incident({k: v for k, v in RAW.items() if k != "featured_packages"})
+    assert _own_markers(plain) == []
+
+
+def test_the_default_package_falls_back_from_stated_to_featured_to_alphabetical():
+    stated = {k: v for k, v in RAW.items()}
+    assert build_incident(stated).default_package == "chalk"
+
+    featured_only = {k: v for k, v in RAW.items() if k != "default_package"}
+    assert build_incident(featured_only).default_package == "chalk"
+
+    neither = {
+        k: v
+        for k, v in RAW.items()
+        if k not in ("default_package", "featured_packages")
+    }
+    assert build_incident(neither).default_package == "ansi-styles"
+
+
+def test_a_default_package_this_incident_does_not_cover_is_an_error():
+    """Opening on a package with no malicious version renders an all-clear the
+    incident never claimed, so it is refused at load rather than served."""
+    with pytest.raises(IncidentError, match="left-pad"):
+        build_incident({**RAW, "default_package": "left-pad"})
+
+
 # ----------------------------------------------------------- the real file
 
 
@@ -158,3 +282,236 @@ def test_the_shipped_incident_file_parses_and_matches_the_write_up():
 def test_the_shipped_file_has_no_malicious_version_still_in_the_registry():
     for version in load_incident().versions:
         assert version.still_present_in_registry is False
+
+
+# ------------------------------------------- the chalk file, bit for bit
+#
+# The domain, the named packages and the opening package were three constants
+# in the module until they became three fields in the file. These three tests
+# are the pin that says the move changed nothing about the incident the console
+# has been demoed on: same numbers, same chips, same opening view.
+
+
+def test_the_derived_domain_equals_the_constants_it_replaced():
+    """``DEFAULT_DOMAIN_START/END`` said exactly this, and said it about one
+    incident. Derivation has to reproduce it before it is allowed to generalise."""
+    incident = load_incident(DEFAULT_INCIDENT_PATH)
+    assert incident.domain_start == parse_iso("2025-09-08T00:00:00Z", field_name="t")
+    assert incident.domain_end == parse_iso("2025-09-09T00:00:00Z", field_name="t")
+
+
+def test_the_chalk_markers_are_unchanged_in_count_order_and_instant():
+    """Same chips at the same seconds; one label told a lie and was renamed.
+
+    "wave-1 remediation complete" claimed a completeness the file never
+    recorded: the marker fires on the latest entry that *has* a clean
+    successor, regardless of how many entries have none. The instant is the
+    same; the label now states only what is recorded.
+    """
+    incident = load_incident(DEFAULT_INCIDENT_PATH)
+    assert [(m.label, m.kind) for m in incident.markers] == [
+        ("first malicious publish", "publish"),
+        ("debug@4.4.2 published", "publish"),
+        ("chalk@5.6.1 published", "publish"),
+        ("wave-1 burst ends", "burst"),
+        ("first clean version published", "remediation"),
+        ("last recorded clean publish", "remediation"),
+        ("public disclosure", "detection"),
+    ]
+    assert [m.at for m in incident.markers] == [
+        1_757_337_130,  # 13:12:10Z ansi-styles
+        1_757_337_159,  # 13:12:39Z debug
+        1_757_337_185,  # 13:13:05Z chalk
+        1_757_337_631,  # 13:20:31Z backslash, the burst's far edge
+        1_757_342_874,  # 14:47:54Z chalk@5.6.2
+        1_757_344_483,  # 15:14:43Z supports-hyperlinks@4.1.2
+        1_757_344_800,  # 15:20:00Z public disclosure
+    ]
+
+
+def test_the_chalk_file_still_opens_on_chalk():
+    incident = load_incident(DEFAULT_INCIDENT_PATH)
+    assert incident.default_package == "chalk"
+    assert incident.featured_packages == ("chalk", "debug")
+
+
+# ------------------------------------------------ a second real incident file
+#
+# keyv/cacheable, 4 August 2026. It is here because it is *unlike* the chalk
+# file in every way the old constants assumed: a different year, a different
+# span, no citable disclosure instant, and nothing remediated. Anything the
+# console still gets right on this file, it gets right from the data.
+
+
+def test_the_second_incident_file_parses_with_its_own_day_and_packages():
+    assert KEYV_INCIDENT_PATH.exists(), "poc/incident-keyv-shai-hulud.json is missing"
+    incident = load_incident(KEYV_INCIDENT_PATH)
+    assert len(incident.by_package) == 8
+    assert incident.malicious_versions("keyv") == {"6.0.0"}
+    assert incident.domain_start == parse_iso("2026-08-04T00:00:00Z", field_name="t")
+    assert incident.domain_end == parse_iso("2026-08-05T00:00:00Z", field_name="t")
+
+
+def test_the_second_incident_opens_on_its_own_package_not_on_chalk():
+    incident = load_incident(KEYV_INCIDENT_PATH)
+    assert incident.default_package == "keyv"
+    assert "chalk" not in incident.packages
+
+
+def test_the_second_incidents_first_marker_is_its_own_first_publish():
+    incident = load_incident(KEYV_INCIDENT_PATH)
+    first = incident.markers[0]
+    assert first.label == "first malicious publish"
+    # 09:35:00.763Z truncated, not rounded: the sub-second part is dropped.
+    assert first.at == parse_iso("2026-08-04T09:35:00Z", field_name="t")
+    assert "keyv@6.0.0" in first.detail
+
+
+def test_the_second_incidents_burst_ends_at_the_last_wave_one_publish():
+    incident = load_incident(KEYV_INCIDENT_PATH)
+    burst = next(m for m in incident.markers if m.kind == "burst")
+    assert burst.at == parse_iso("2026-08-04T10:28:01Z", field_name="t")
+    assert "ecto@5.0.1" in burst.detail
+    assert "8 packages published in" in burst.detail
+
+
+def test_a_featured_package_that_is_not_the_first_publish_keeps_its_own_marker():
+    incident = load_incident(KEYV_INCIDENT_PATH)
+    assert _own_markers(incident) == ["flat-cache@6.1.24 published"]
+    own = next(m for m in incident.markers if "@" in m.label)
+    assert own.at == parse_iso("2026-08-04T10:10:55Z", field_name="t")
+
+
+def test_an_incident_with_no_citable_disclosure_gets_no_disclosure_marker():
+    """No ``community_detection_utc`` means no verifiable instant exists. The
+    console draws nothing rather than drawing a plausible one."""
+    incident = load_incident(KEYV_INCIDENT_PATH)
+    assert [m for m in incident.markers if m.kind == "detection"] == []
+
+
+def test_an_incident_with_nothing_remediated_yet_gets_no_remediation_markers():
+    """A dist-tag rollback does not update a lockfile, so there is no clean
+    superseding publish to point a marker at."""
+    incident = load_incident(KEYV_INCIDENT_PATH)
+    assert all(v.remediated_at is None for v in incident.versions)
+    assert all(v.remediated_version is None for v in incident.versions)
+    assert [m for m in incident.markers if m.kind == "remediation"] == []
+
+
+def test_every_marker_in_the_second_file_is_inside_its_derived_domain():
+    incident = load_incident(KEYV_INCIDENT_PATH)
+    for marker in incident.markers:
+        assert incident.domain_start <= marker.at <= incident.domain_end
+
+
+# ------------------------------------------------- claims the file cannot make
+#
+# A forensics timeline is only as honest as the worst sentence on it. These
+# pins came out of an adversarial review: each one is a way an incident file
+# could make the console assert something the file itself never recorded.
+
+
+def test_a_date_that_is_not_a_real_calendar_day_is_refused():
+    """JavaScript's Date normalises 2026-02-30 into March 2 without a word, so
+    the loader refuses what the renderer would silently rewrite."""
+    with pytest.raises(IncidentError, match="calendar day"):
+        build_incident({**RAW, "date": "2026-02-30"})
+    with pytest.raises(IncidentError, match="calendar day"):
+        build_incident({**RAW, "date": "not-a-date"})
+    assert build_incident({**RAW, "date": ""}).date == ""
+
+
+def test_a_backwards_exposure_window_is_refused():
+    raw = {
+        **RAW,
+        "window": {
+            **RAW["window"],
+            "practical_exposure_window_utc": [
+                "2025-09-08T15:30:00Z",
+                "2025-09-08T13:12:10Z",
+            ],
+        },
+    }
+    with pytest.raises(IncidentError, match="ends at or before it starts"):
+        build_incident(raw)
+
+
+def test_a_fix_that_precedes_what_it_fixes_is_refused():
+    packages = [dict(RAW["packages"][0])]
+    packages[0]["remediated_published_at"] = "2025-09-08T12:00:00Z"
+    with pytest.raises(IncidentError, match="cannot precede"):
+        build_incident({**RAW, "packages": packages, "default_package": "chalk",
+                        "featured_packages": ["chalk"]})
+
+
+def test_featured_packages_as_a_string_is_refused_not_split_into_letters():
+    with pytest.raises(IncidentError, match="not a string"):
+        build_incident({**RAW, "featured_packages": "chalk"})
+
+
+def test_a_featured_package_the_incident_does_not_cover_is_refused():
+    with pytest.raises(IncidentError, match="left-pad"):
+        build_incident({**RAW, "featured_packages": ["chalk", "left-pad"]})
+
+
+def test_a_first_publish_at_exactly_midnight_still_leaves_room_before_it():
+    """The console's founding question is "what was resolved *before* this";
+    a domain that starts at the attack cannot be asked it."""
+    raw = {
+        **RAW,
+        "window": {
+            **RAW["window"],
+            "first_malicious_publish_utc": "2025-09-08T00:00:00Z",
+            "community_detection_utc": "2025-09-08T02:00:00Z",
+            "practical_exposure_window_utc": [
+                "2025-09-08T00:00:00Z",
+                "2025-09-08T03:00:00Z",
+            ],
+        },
+        "packages": [
+            {
+                "package": "chalk",
+                "malicious_version": "5.6.1",
+                "wave": 1,
+                "published_at": "2025-09-08T00:00:00.000Z",
+            }
+        ],
+        "featured_packages": ["chalk"],
+        "default_package": "chalk",
+    }
+    incident = build_incident(raw)
+    assert incident.domain_start < incident.window.start
+    assert incident.domain_start == parse_iso("2025-09-07T00:00:00Z", field_name="t")
+
+
+def test_a_partial_remediation_says_how_many_versions_have_no_clean_successor():
+    """The old label claimed "remediation complete" whenever the latest
+    remediated entry was drawn, even with unremediated versions still listed."""
+    incident = load_incident(DEFAULT_INCIDENT_PATH)
+    last = [m for m in incident.markers if m.label == "last recorded clean publish"]
+    unremediated = sum(1 for v in incident.versions if v.remediated_at is None)
+    if last and unremediated:
+        assert f"{unremediated} listed version" in last[0].detail
+    elif last:
+        assert "no recorded clean successor" not in last[0].detail
+
+
+def test_the_files_own_qualifiers_travel_with_the_window():
+    """The keyv file's note is the sentence that keeps its numbers honest
+    (keyv@6.0.0 cannot arrive transitively); dropping it on load would let the
+    timeline claim more than the file does."""
+    payload = load_incident(KEYV_INCIDENT_PATH).as_dict()
+    assert "cannot arrive transitively" in payload["window"]["note"]
+    assert "dist-tag rollback" in payload["window"]["remediation_note"]
+    chalk = load_incident(DEFAULT_INCIDENT_PATH).as_dict()
+    assert "NOT exposed" in chalk["window"]["note"]
+
+
+def test_the_first_marker_does_not_claim_every_lockfile_could_resolve_it():
+    """keyv@6.0.0 cannot arrive transitively, so "any lockfile regenerated
+    after this instant can resolve it" was false for the second shipped file.
+    The marker now leaves reachability to the graph."""
+    for path in (DEFAULT_INCIDENT_PATH, KEYV_INCIDENT_PATH):
+        first = load_incident(path).markers[0]
+        assert "any lockfile" not in first.detail
+        assert "declared ranges" in first.detail

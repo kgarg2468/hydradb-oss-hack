@@ -1,0 +1,101 @@
+{
+  "incident": "npm supply-chain compromise of keyv/cacheable and 6 related packages (mini Shai-Hulud worm wave)",
+  "date": "2026-08-04",
+  "root_cause": "Maintainer 'jaredwray' had their GitHub account compromised. The attacker pushed malicious commits directly to the keyv main branch and cut a release through the maintainer's own GitHub Actions pipeline, so the poisoned versions shipped with VALID npm provenance signatures. A worm payload then used the stolen npm token to enumerate every package the token could publish, bump the patch version, inject a preinstall hook, and republish - spreading to 400+ packages across unrelated scopes within hours.",
+  "payload": "Two-stage dropper. An npm preinstall hook executes setup.mjs, which downloads the Bun runtime to run an obfuscated 728 KB payload (Math_Symbol.js). The payload steals npm tokens and reachable secrets, exfiltrates them to attacker-created GitHub repositories, resolves C2 domains through an Ethereum smart contract, and republishes trojanized versions of every package the stolen token can reach.",
+  "featured_packages": ["keyv", "flat-cache"],
+  "default_package": "keyv",
+  "window": {
+    "first_malicious_publish_utc": "2026-08-04T09:35:00.763Z",
+    "last_wave1_malicious_publish_utc": "2026-08-04T10:28:01.451Z",
+    "practical_exposure_window_utc": [
+      "2026-08-04T09:35:00Z",
+      "2026-08-04T13:18:00Z"
+    ],
+    "note": "Window end is the last known malicious publish of the wider 444-package campaign (per Expel/Wiz tracking); npm began removing the core eight versions from ~10:39 UTC. No community_detection_utc is recorded because no single verifiable disclosure timestamp exists - vendor posts were updated in place and carry no stable first-published time. Exposure nuance: keyv@6.0.0 cannot arrive transitively (no dependent declares ^6), while cacheable-request@13.0.20, cache-manager@7.2.10 and @cacheable/utils@2.5.1 satisfy existing caret ranges and install silently; ESLint pulls flat-cache and file-entry-cache transitively. A committed lockfile pinning a pre-incident version was NOT exposed - the as-of query proves which case each repo is in.",
+    "remediation_note": "As of 2026-08-18 no remediated versions have been published. npm removed the malicious versions and moved dist-tags back to the prior releases (flat-cache 6.1.23, cacheable-request 13.0.19, cache-manager 7.2.9, keyv 5.6.0). A dist-tag rollback does not update a lockfile that already resolved a malicious version - remediated_version is null for every package because no clean superseding publish exists to point at."
+  },
+  "sources": [
+    "https://registry.npmjs.org/<package> (time field) - authoritative publish timestamps; they survive npm's removal of the malicious versions, which is what makes this file verifiable at all",
+    "https://www.wiz.io/blog/keyv-and-cacheable-npm-supply-chain-attack",
+    "https://snyk.io/blog/inside-keyv-npm-compromise-preinstall-malware-trusted-provenance-ide-hooks/",
+    "https://socket.dev/blog/popular-npm-packages-in-the-keyv-and-cacheable-namespaces-compromised-in-active-supply-chain",
+    "https://www.chainguard.dev/unchained/the-keyv-and-cacheable-npm-supply-chain-attack-inside-the-mini-shai-hulud-campaign",
+    "https://expel.com/blog/chaindrop-the-mini-shai-hulud-npm-worms-latest-wave-hits-keyv-and-cacheable/",
+    "https://labs.cloudsecurityalliance.org/research/csa-research-note-mini-shai-hulud-multi-ecosystem-supply-cha/"
+  ],
+  "packages": [
+    {
+      "package": "keyv",
+      "malicious_version": "6.0.0",
+      "wave": 1,
+      "published_at": "2026-08-04T09:35:00.763Z",
+      "still_present_in_registry": false,
+      "remediated_version": null,
+      "remediated_published_at": null
+    },
+    {
+      "package": "cacheable",
+      "malicious_version": "2.5.1",
+      "wave": 1,
+      "published_at": "2026-08-04T10:10:44.549Z",
+      "still_present_in_registry": false,
+      "remediated_version": null,
+      "remediated_published_at": null
+    },
+    {
+      "package": "flat-cache",
+      "malicious_version": "6.1.24",
+      "wave": 1,
+      "published_at": "2026-08-04T10:10:55.001Z",
+      "still_present_in_registry": false,
+      "remediated_version": null,
+      "remediated_published_at": null
+    },
+    {
+      "package": "cacheable-request",
+      "malicious_version": "13.0.20",
+      "wave": 1,
+      "published_at": "2026-08-04T10:11:24.412Z",
+      "still_present_in_registry": false,
+      "remediated_version": null,
+      "remediated_published_at": null
+    },
+    {
+      "package": "file-entry-cache",
+      "malicious_version": "11.1.6",
+      "wave": 1,
+      "published_at": "2026-08-04T10:13:02.348Z",
+      "still_present_in_registry": false,
+      "remediated_version": null,
+      "remediated_published_at": null
+    },
+    {
+      "package": "@cacheable/utils",
+      "malicious_version": "2.5.1",
+      "wave": 1,
+      "published_at": "2026-08-04T10:14:21.305Z",
+      "still_present_in_registry": false,
+      "remediated_version": null,
+      "remediated_published_at": null
+    },
+    {
+      "package": "cache-manager",
+      "malicious_version": "7.2.10",
+      "wave": 1,
+      "published_at": "2026-08-04T10:14:41.662Z",
+      "still_present_in_registry": false,
+      "remediated_version": null,
+      "remediated_published_at": null
+    },
+    {
+      "package": "ecto",
+      "malicious_version": "5.0.1",
+      "wave": 1,
+      "published_at": "2026-08-04T10:28:01.451Z",
+      "still_present_in_registry": false,
+      "remediated_version": null,
+      "remediated_published_at": null
+    }
+  ]
+}

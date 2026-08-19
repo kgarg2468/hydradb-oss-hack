@@ -33,11 +33,6 @@ from .service import Console, ConsoleError
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
-#: Package the timeline opens on. chalk and debug are the two the incident is
-#: named after; chalk is the one with a remediated version, so its timeline has
-#: both edges of the story on it.
-DEFAULT_PACKAGE = "chalk"
-
 
 def _error(message: str, status: int = 400, **extra) -> JSONResponse:
     return JSONResponse({"error": message, **extra}, status_code=status)
@@ -51,8 +46,16 @@ def _instant(request: Request, console: Console) -> int:
     return to_epoch(raw, field_name="at")
 
 
-def _package(request: Request) -> str:
-    return (request.query_params.get("package") or DEFAULT_PACKAGE).strip()
+def _package(request: Request, console: Console) -> str:
+    """``?package=`` or the package the loaded incident opens on.
+
+    There is no module-level default any more. A constant here would be a claim
+    about which incident is loaded, made by the one layer that has no way to
+    check it, and it would answer a request against a keyv file with ``chalk``.
+    """
+    return (
+        request.query_params.get("package") or console.incident.default_package
+    ).strip()
 
 
 def build_app(console: Console | None = None) -> Starlette:
@@ -80,13 +83,13 @@ def build_app(console: Console | None = None) -> Starlette:
     def exposure(request: Request):
         console = current()
         return JSONResponse(
-            console.exposure(_package(request), _instant(request, console))
+            console.exposure(_package(request, console), _instant(request, console))
         )
 
     def blast_radius(request: Request):
         console = current()
         return JSONResponse(
-            console.blast_radius(_package(request), _instant(request, console))
+            console.blast_radius(_package(request, console), _instant(request, console))
         )
 
     def maintainer_reach(request: Request):
@@ -106,7 +109,9 @@ def build_app(console: Console | None = None) -> Starlette:
         if not version:
             return _error("version is required, e.g. ?package=chalk&version=5.6.1")
         return JSONResponse(
-            console.version_footprint(_package(request), version, _instant(request, console))
+            console.version_footprint(
+                _package(request, console), version, _instant(request, console)
+            )
         )
 
     def on_timestamp_error(request: Request, exc: Exception):
@@ -152,4 +157,4 @@ def build_app(console: Console | None = None) -> Starlette:
 
 app = build_app()
 
-__all__ = ["DEFAULT_PACKAGE", "app", "build_app"]
+__all__ = ["app", "build_app"]

@@ -3,6 +3,8 @@
   "date": "2025-09-08",
   "root_cause": "Maintainer 'Qix' was phished via a fake npm 2FA-reset email from the look-alike domain npmjs.help (registered 2025-09-05). The attacker captured username, password and a live TOTP code and took over the account.",
   "payload": "Browser-side crypto-clipper. Hooked fetch/XMLHttpRequest and wallet APIs (window.ethereum, Solana) and rewrote payment destinations to attacker addresses before signing. No OS/filesystem persistence.",
+  "featured_packages": ["chalk", "debug"],
+  "default_package": "chalk",
   "window": {
     "first_malicious_publish_utc": "2025-09-08T13:12:10.343Z",
     "last_wave1_malicious_publish_utc": "2025-09-08T13:20:31.923Z",

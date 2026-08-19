@@ -66,7 +66,11 @@
     overview: null,
     incident: null,
     health: null,
-    package: 'chalk',
+    /* No package until /api/incident says which one. This console does not know
+       which incident it is showing, so naming a package here would be a guess
+       that survives exactly as long as the incident file does not change. Every
+       read that uses it happens after the incident payload has landed. */
+    package: '',
     at: 0,
     domain: { start: 0, end: 0 },
     zoom: 'day',
@@ -1770,10 +1774,38 @@
       p.appendChild(document.createTextNode(clean(repo.origin)));
       body.appendChild(p);
     });
+    /* The day and the name of the compromise are the incident file's to state,
+       not this file's. `date` is a plain YYYY-MM-DD, so it is read at UTC noon:
+       parsing it at midnight and formatting it in a negative-offset timezone
+       would print the day before, and being off by a day about when an attack
+       started is not a rounding error in a forensics console. A date the
+       parser cannot read falls back to the first publish instant, which the
+       server has already validated, rather than rendering NaN prose. A
+       calendar-impossible date (2026-02-30) cannot reach this code at all:
+       the loader refuses it at parse time precisely because Date.parse would
+       silently normalise it into March, and the test suite pins that. */
+    var dateParsed = overview.incident.date
+      ? Date.parse(overview.incident.date + 'T12:00:00Z')
+      : NaN;
+    var day = isFinite(dateParsed)
+      ? dayLabel(dateParsed / 1000)
+      : dayLabel(overview.incident.window.first_malicious_publish);
     var sources = el('p', 'pop-dim',
-      'Package names, version strings and publish timestamps are real throughout, taken from ' +
-      'the npm registry and the public write-ups of the September 8, 2025 compromise.');
+      'Package names, version strings and publish timestamps are as recorded by ' +
+      'the loaded incident file and the sources it cites, covering the ' + day +
+      ' compromise: ' + clean(overview.incident.title) + '.');
     body.appendChild(sources);
+    /* The file's own qualifiers are the sentences that keep its numbers honest
+       (which versions can arrive transitively, what "remediated" even means
+       right now). If the file states them, the console repeats them; hiding
+       them would let the timeline claim more than its authority does. */
+    if (overview.incident.window.note) {
+      body.appendChild(el('p', 'pop-dim', clean(overview.incident.window.note)));
+    }
+    if (overview.incident.window.remediation_note) {
+      body.appendChild(
+        el('p', 'pop-dim', clean(overview.incident.window.remediation_note)));
+    }
   }
 
   /* ------------------------------------------------------------------ boot */
@@ -1823,8 +1855,12 @@
         option.value = name;
         picker.appendChild(option);
       });
-      picker.value = state.incident.packages.indexOf('chalk') >= 0
-        ? 'chalk' : state.incident.packages[0];
+      /* The incident file names the package the console opens on, and the
+         server has already checked it is one of the incident's own. The
+         indexOf guard stays for an older payload that carries no such field. */
+      var opens = overview.incident.default_package;
+      picker.value = opens && state.incident.packages.indexOf(opens) >= 0
+        ? opens : state.incident.packages[0];
       state.package = picker.value;
       picker.addEventListener('change', function () {
         state.package = picker.value;
@@ -1917,16 +1953,28 @@
       });
       document.body.className = 'tab-graph';
 
-      // Open on the question the demo asks: 14:05 UTC on the incident day,
-      // inside the window, after every wave-1 package had been published, and
-      // before the first clean release. Derived from the window rather than
-      // hard-coded, so a different incident file still opens somewhere sane.
+      // Open on the incident's most interesting instant: after the last listed
+      // malicious publish (the attack fully armed) and before remediation
+      // starts, or before the window closes if nothing was ever remediated.
+      // The midpoint of that stretch, clamped into the window, lands the chalk
+      // file at ~14:04 (the demo's old hand-picked 14:05) and the keyv file at
+      // ~11:53, inside its 09:35-13:18 window. The previous hard-coded 14:05
+      // UTC opened the keyv incident 47 minutes after its window had closed.
       // A link overrides all of it, which is why this runs first and applyView
       // runs last: the default is only ever the fallback.
-      var opening = new Date(state.incident.window.start * 1000);
-      opening.setUTCHours(14, 5, 0, 0);
-      state.at = Math.max(state.incident.window.start,
-        Math.floor(opening.getTime() / 1000));
+      var win = state.incident.window;
+      var lastPublish = win.start;
+      var firstRemedy = win.end;
+      (state.incident.versions || []).forEach(function (v) {
+        if (v.published_at > lastPublish) { lastPublish = v.published_at; }
+        if (v.remediated_at && v.remediated_at < firstRemedy) {
+          firstRemedy = v.remediated_at;
+        }
+      });
+      var opening = lastPublish < firstRemedy
+        ? Math.floor((lastPublish + firstRemedy) / 2)
+        : Math.floor((win.start + win.end) / 2);
+      state.at = Math.min(win.end, Math.max(win.start, opening));
       applyView(readView());
       fitCanvas();
 
