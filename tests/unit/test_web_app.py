@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import importlib
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -19,7 +20,7 @@ from hindsight.client import HydraError
 from hindsight.graphbuild import DEFAULT_SCHEMA
 from hindsight.ids import version_id
 from hindsight_web.analysis import TRUNCATION_CAVEAT
-from hindsight_web.app import DEFAULT_PACKAGE, build_app
+from hindsight_web.app import build_app
 from hindsight_web import queries as web_queries
 from hindsight_web.queries import resolve_schema
 
@@ -134,12 +135,47 @@ def test_incident_endpoint_carries_the_markers_the_scrubber_draws(client):
 # -------------------------------------------------------------------- exposure
 
 
-def test_exposure_defaults_to_chalk_at_the_start_of_the_window(client):
+def test_exposure_defaults_to_the_incidents_own_package_at_the_start_of_the_window(
+    client,
+):
+    """The fallback is a field on the loaded incident, not a constant in app.py."""
     status, body = get(client, "/api/exposure")
     assert status == 200
-    assert body["package"] == DEFAULT_PACKAGE == "chalk"
+    assert body["package"] == "chalk"
     assert body["at_iso"] == "2025-09-08T13:12:10Z"
     assert body["in_exposure_window"] is True
+
+
+def test_the_package_fallback_follows_the_incident_file_it_is_pointed_at(monkeypatch):
+    """Point ``HINDSIGHT_INCIDENT_FILE`` at a different incident and the console
+    opens on that incident's package.
+
+    This is the whole of "incidents are data": nothing in the request, the
+    routing layer or the shipped code names a package, so a deployment that
+    swaps the file gets an answer about the packages that file is about. The
+    old module constant would have answered ``chalk`` here, against an incident
+    that does not contain chalk at all.
+    """
+    import hindsight_web.app as web_app
+
+    keyv = Path(__file__).resolve().parents[2] / "poc" / "incident-keyv-shai-hulud.json"
+    assert keyv.exists(), "poc/incident-keyv-shai-hulud.json is missing"
+
+    def console_for_incident(*, schema, incident):
+        # The fake reader is wired for the test label namespace, so only the
+        # incident is swapped here; the schema is not what this test is about.
+        view = console()
+        view.incident = incident
+        return view
+
+    monkeypatch.setenv("HINDSIGHT_INCIDENT_FILE", str(keyv))
+    monkeypatch.setattr(web_app, "Console", console_for_incident)
+
+    with TestClient(web_app.build_app()) as c:
+        body = c.get("/api/exposure").json()
+
+    assert body["package"] == "keyv"
+    assert body["at_iso"] == "2026-08-04T09:35:00Z"
 
 
 def test_exposure_accepts_both_iso_and_unix_instants(client):

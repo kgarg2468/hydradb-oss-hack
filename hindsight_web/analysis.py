@@ -63,7 +63,7 @@ TRUNCATION_CAVEAT = (
 SYNTHETIC_CAVEAT = (
     "This repository is a constructed example, not a real git history. It exists "
     "because none of the real repositories in this dataset regenerated a lockfile "
-    "inside the two-hour window, so a true positive has to be built to be shown. "
+    "inside the exposure window, so a true positive has to be built to be shown. "
     "Its lockfile timeline is fabricated; the package versions and publish "
     "timestamps it references are real."
 )

@@ -66,7 +66,11 @@
     overview: null,
     incident: null,
     health: null,
-    package: 'chalk',
+    /* No package until /api/incident says which one. This console does not know
+       which incident it is showing, so naming a package here would be a guess
+       that survives exactly as long as the incident file does not change. Every
+       read that uses it happens after the incident payload has landed. */
+    package: '',
     at: 0,
     domain: { start: 0, end: 0 },
     zoom: 'day',
@@ -1770,9 +1774,18 @@
       p.appendChild(document.createTextNode(clean(repo.origin)));
       body.appendChild(p);
     });
+    /* The day and the name of the compromise are the incident file's to state,
+       not this file's. `date` is a plain YYYY-MM-DD, so it is read at UTC noon:
+       parsing it at midnight and formatting it in a negative-offset timezone
+       would print the day before, and being off by a day about when an attack
+       started is not a rounding error in a forensics console. */
+    var day = overview.incident.date
+      ? dayLabel(Date.parse(overview.incident.date + 'T12:00:00Z') / 1000)
+      : dayLabel(overview.incident.window.first_malicious_publish);
     var sources = el('p', 'pop-dim',
       'Package names, version strings and publish timestamps are real throughout, taken from ' +
-      'the npm registry and the public write-ups of the September 8, 2025 compromise.');
+      'the npm registry and the public write-ups of the ' + day + ' compromise: ' +
+      clean(overview.incident.title) + '.');
     body.appendChild(sources);
   }
 
@@ -1823,8 +1836,12 @@
         option.value = name;
         picker.appendChild(option);
       });
-      picker.value = state.incident.packages.indexOf('chalk') >= 0
-        ? 'chalk' : state.incident.packages[0];
+      /* The incident file names the package the console opens on, and the
+         server has already checked it is one of the incident's own. The
+         indexOf guard stays for an older payload that carries no such field. */
+      var opens = overview.incident.default_package;
+      picker.value = opens && state.incident.packages.indexOf(opens) >= 0
+        ? opens : state.incident.packages[0];
       state.package = picker.value;
       picker.addEventListener('change', function () {
         state.package = picker.value;

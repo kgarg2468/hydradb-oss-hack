@@ -1,10 +1,16 @@
 """The incident file -> a malicious-version index and a set of timeline markers.
 
-``poc/incident-chalk-debug.json`` is the authority for what "malicious" means in
-this console. Every publish timestamp in it was verified against the npm
-registry's own ``time`` map (which survives unpublish), so the markers the
-scrubber snaps to are real events with real seconds, not round numbers chosen to
-look tidy.
+The incident file is the authority for what "malicious" means in this console.
+Every publish timestamp in it was verified against the npm registry's own
+``time`` map (which survives unpublish), so the markers the scrubber snaps to
+are real events with real seconds, not round numbers chosen to look tidy.
+
+*Which* incident file is a deployment decision, not a fact about this module.
+``poc/incident-chalk-debug.json`` is the default; ``HINDSIGHT_INCIDENT_FILE``
+points the console at any other. Nothing below names a package, a day or a
+duration: the scrubber's domain, the packages that earn their own marker, and
+the package the console opens on are all read out of the file, because a
+console that knows which incident it is showing cannot show a second one.
 
 The console never infers maliciousness from the graph. A version is malicious
 because the incident file says so and because a named source says so; the graph
@@ -28,9 +34,10 @@ DEFAULT_INCIDENT_PATH = (
     Path(__file__).resolve().parent.parent / "poc" / "incident-chalk-debug.json"
 )
 
-#: The scrubber's default domain: the whole of the incident day, UTC.
-DEFAULT_DOMAIN_START = int(datetime(2025, 9, 8, 0, 0, tzinfo=UTC).timestamp())
-DEFAULT_DOMAIN_END = int(datetime(2025, 9, 9, 0, 0, tzinfo=UTC).timestamp())
+#: One UTC day in seconds. The scrubber's domain is measured in whole days so
+#: the axis labels land on midnight rather than on whatever second the attacker
+#: happened to publish at.
+DAY = 24 * 60 * 60
 
 
 class IncidentError(Exception):
@@ -109,8 +116,12 @@ class Incident:
     window: Window
     versions: tuple[MaliciousVersion, ...]
     markers: tuple[Marker, ...]
-    domain_start: int = DEFAULT_DOMAIN_START
-    domain_end: int = DEFAULT_DOMAIN_END
+    domain_start: int
+    domain_end: int
+    #: The package the console opens on when the request does not name one.
+    default_package: str
+    #: The packages the incident is named after, which keep their own markers.
+    featured_packages: tuple[str, ...] = ()
     #: package name -> the malicious versions of it, for O(1) classification
     by_package: dict[str, set[str]] = field(default_factory=dict)
 
@@ -137,6 +148,8 @@ class Incident:
                 "span": humanize(self.domain_end - self.domain_start),
             },
             "packages": self.packages,
+            "default_package": self.default_package,
+            "featured_packages": list(self.featured_packages),
             "package_count": len(self.by_package),
             "version_count": len(self.versions),
             "versions": [v.as_dict() for v in self.versions],
@@ -144,13 +157,22 @@ class Incident:
         }
 
 
-def _markers(window_raw: dict, versions: tuple[MaliciousVersion, ...]) -> tuple[Marker, ...]:
+def _markers(
+    window_raw: dict,
+    versions: tuple[MaliciousVersion, ...],
+    featured: tuple[str, ...] = (),
+) -> tuple[Marker, ...]:
     """Named instants worth snapping to, oldest first.
 
-    Wave 1 is nineteen publishes inside 8 min 22 s. Drawing nineteen ticks a
-    pixel apart would be decoration, not information, so the burst is collapsed
-    to its two ends and the three packages that give the incident its name keep
-    their own marks.
+    A worm publishes a whole wave inside minutes, and drawing every one of those
+    ticks a pixel apart would be decoration rather than information. So the
+    burst is collapsed to its two ends, and only the packages the incident file
+    calls out in ``featured_packages`` keep marks of their own.
+
+    Everything past the burst is optional, because incidents differ: a file with
+    no ``community_detection_utc`` gets no disclosure marker (no verifiable
+    timestamp exists to draw), and a file where nothing has been remediated yet
+    gets no remediation markers rather than an invented one.
     """
     out: list[Marker] = []
     wave1 = [v for v in versions if v.wave == 1]
@@ -167,7 +189,7 @@ def _markers(window_raw: dict, versions: tuple[MaliciousVersion, ...]) -> tuple[
                 "any lockfile regenerated after this instant can resolve it",
             )
         )
-    named = {"debug", "chalk"}
+    named = set(featured)
     for v in sorted(wave1, key=lambda v: v.published_at):
         if v.package in named and v is not first:
             out.append(
@@ -226,6 +248,81 @@ def _markers(window_raw: dict, versions: tuple[MaliciousVersion, ...]) -> tuple[
             )
         )
     return tuple(sorted(out, key=lambda m: m.at))
+
+
+def _midnight_at_or_before(ts: int) -> int:
+    moment = datetime.fromtimestamp(ts, UTC)
+    return int(
+        datetime(moment.year, moment.month, moment.day, tzinfo=UTC).timestamp()
+    )
+
+
+def _midnight_at_or_after(ts: int) -> int:
+    floor = _midnight_at_or_before(ts)
+    return floor if floor == ts else floor + DAY
+
+
+def _domain(
+    raw: dict, window: Window, markers: tuple[Marker, ...]
+) -> tuple[int, int]:
+    """The stretch of time the scrubber can travel over.
+
+    A file may state it outright with ``display_domain_utc``, which is the
+    escape hatch for an incident whose interesting span is not the span of its
+    own events -- a slow-burn campaign the operator wants to see a week either
+    side of.
+
+    Otherwise it is derived, and the derivation is the one that made the old
+    hard-coded constants right for the chalk/debug file: the UTC day the
+    exposure window opens on, widened to whole days only as far as it must be
+    for the window's end and every marker to sit inside it. Derived rather than
+    stated means a second incident file needs no code change, and whole days
+    rather than a tight fit around the events means the axis is readable and the
+    scrubber has somewhere to travel before the first publish -- which is the
+    whole point of a console that answers "what was resolved *before* this".
+    """
+    declared = raw.get("display_domain_utc")
+    if declared:
+        if len(declared) != 2:
+            raise IncidentError(
+                "display_domain_utc must be a [start, end] ISO-8601 pair"
+            )
+        start = parse_iso(declared[0], field_name="display_domain_utc[0]")
+        end = parse_iso(declared[1], field_name="display_domain_utc[1]")
+        if end <= start:
+            raise IncidentError("display_domain_utc ends at or before it starts")
+        return start, end
+
+    instants = [window.start, window.end, *(m.at for m in markers)]
+    start = min(_midnight_at_or_before(window.start), *map(_midnight_at_or_before, instants))
+    end = max(start + DAY, *map(_midnight_at_or_after, instants))
+    return start, end
+
+
+def _default_package(
+    raw: dict, featured: tuple[str, ...], by_package: dict[str, set[str]]
+) -> str:
+    """Which package the console opens on, and it is never a guess about npm.
+
+    The file gets the first say, then the first featured package, then the
+    alphabetically first package so that the answer is at least deterministic.
+    Whatever comes out has to be a package this incident actually covers: an
+    opening view of a package with no malicious version in the file would render
+    an all-clear the incident never claimed.
+    """
+    declared = raw.get("default_package")
+    if declared:
+        chosen = str(declared)
+    elif featured:
+        chosen = featured[0]
+    else:
+        chosen = min(by_package)
+    if chosen not in by_package:
+        raise IncidentError(
+            f"default_package={chosen!r} is not one of this incident's packages "
+            f"({', '.join(sorted(by_package))})"
+        )
+    return chosen
 
 
 def load_incident(path: str | os.PathLike | None = None) -> Incident:
@@ -294,6 +391,9 @@ def build_incident(raw: dict) -> Incident:
     )
 
     ordered = tuple(sorted(versions, key=lambda v: (v.published_at, v.package)))
+    featured = tuple(str(p) for p in raw.get("featured_packages") or ())
+    markers = _markers(window_raw, ordered, featured)
+    domain_start, domain_end = _domain(raw, window, markers)
     return Incident(
         title=str(raw.get("incident") or "supply-chain incident"),
         date=str(raw.get("date") or ""),
@@ -302,14 +402,17 @@ def build_incident(raw: dict) -> Incident:
         sources=tuple(str(s) for s in raw.get("sources") or ()),
         window=window,
         versions=ordered,
-        markers=_markers(window_raw, ordered),
+        markers=markers,
+        domain_start=domain_start,
+        domain_end=domain_end,
+        default_package=_default_package(raw, featured, by_package),
+        featured_packages=featured,
         by_package=by_package,
     )
 
 
 __all__ = [
-    "DEFAULT_DOMAIN_END",
-    "DEFAULT_DOMAIN_START",
+    "DAY",
     "DEFAULT_INCIDENT_PATH",
     "Incident",
     "IncidentError",
