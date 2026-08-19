@@ -27,9 +27,12 @@ honesty sentence of its own that
 second wording of the same caveat is a second caveat, and the two will differ.
 
 **A count that cannot be a total is not presented as one.** Every count in the
-packet carries an explicit ``basis`` of ``exact`` or ``floor``, decided by the
-exposure payload's own truncation flag, so a consumer reading the JSON cannot
-pick up the number without picking up its qualifier. When the dataset could not
+packet carries an explicit ``basis`` of ``exact``, ``floor`` or ``observed``,
+decided by the exposure payload's own truncation flag and by what a cut read
+does to that particular count, so a consumer reading the JSON cannot pick up the
+number without picking up its qualifier. A cut read bounds the exposed count and
+the repository total from below and does the opposite to the two negatives,
+which it can only have overstated. When the dataset could not
 answer at all there are no counts in the packet: not zeros, not floors, not a
 null - the block says why instead, because three zeros are the shape of a clean
 estate and an empty dataset must never be able to render as one.
@@ -69,9 +72,10 @@ SCOPE_STATEMENT = (
     "This packet states what the graph proves and what it cannot, on three axes "
     "that are deliberately separate and never collapsed into one flag. "
     "Evidence: what the graph can prove at all, which is lockfile resolution "
-    "and nothing more. Completeness: whether the read hit the row cap, in which "
-    "case every count derived from it is a floor and every absence within it is "
-    "unverified. Coverage: whether the dataset held anything for an answer to "
+    "and nothing more. Completeness: whether the read hit the row cap; when it "
+    "did, the exposed count and the repository total are floors, and every "
+    "negative - a clean classification or an absence - is unverified rather "
+    "than proven. Coverage: whether the dataset held anything for an answer to "
     "be absent from. Truncation means we saw some of the graph; absent coverage "
     "means we saw none of it. Both hand back empty result sets, neither is a "
     "negative, and they call for different sentences."
@@ -101,6 +105,27 @@ DATASET_FACTS_UNAVAILABLE = (
     "this packet alone which dataset was queried."
 )
 
+#: Stated when the dataset probe ran and failed. A failed probe hands back the
+#: zeros its own failure is shaped like, and a zero repository count serialised
+#: as a dataset fact is the empty-dataset lie one layer further out: the
+#: measured fields are dropped and this sentence stands in their place.
+HEALTH_PROBE_FAILED = (
+    "The dataset probe failed while this packet was generated, so node counts "
+    "are not recorded here. The identity fields above are configuration, not "
+    "measurements; a reader cannot confirm from this packet how many "
+    "repositories the dataset held."
+)
+
+#: How the packet relates to the screen it was exported from. The console paints
+#: an answer and then holds it; this document is composed from its own read at
+#: the moment the export was asked for, so the two can differ and the packet is
+#: the later of them.
+FRESHNESS_NOTE = (
+    "Composed from a fresh read at generation time. If the estate's record "
+    "changed after the console screen this was exported from was painted, this "
+    "packet is the more current of the two."
+)
+
 #: What a reader would otherwise assume this document closes. These are the
 #: documented roadmap, and naming them here is the point: the three assumptions
 #: below are precisely the ones a finding invites when it does not disclaim
@@ -120,11 +145,12 @@ NOT_INCLUDED = (
         "statement": (
             "This packet does not classify whether each repository's install "
             "was lockfile-authoritative or resolved inside a declared range at "
-            "build time. 'npm ci' makes the lockfile authoritative; 'npm "
-            "install' inside a caret range does not, and no CI run history is "
-            "joined here to tell them apart. A repository reported as not "
-            "resolving a malicious version at this instant may still have "
-            "resolved one in a build this graph never saw."
+            "build time. 'npm ci' installs the lockfile exactly; 'npm install' "
+            "can re-resolve inside a declared range when the lockfile is "
+            "missing, stale or out of sync with the manifest, and no CI run "
+            "history is joined here to tell them apart. A repository reported "
+            "as not resolving a malicious version at this instant may still "
+            "have resolved one in a build this graph never saw."
         ),
     },
     {
@@ -142,6 +168,25 @@ NOT_INCLUDED = (
 #: then the two negatives, then the denominator that makes any of them mean
 #: something. "1 repository" could be 1 of 9 or 1 of 900.
 COUNT_ORDER = ("exposed", "resolved_clean", "not_resolved", "repos")
+
+#: The counts a cut read still bounds from below, and the only ones. A row that
+#: fell past the cap can add an exposure and can add a repository, so those two
+#: numbers can only rise on a complete read. The two negatives cannot: a
+#: repository whose malicious row was the one cut is counted clean or absent
+#: here and would move out of that class on a complete read, so they are
+#: observations of what came back rather than floors under anything.
+FLOOR_COUNTS = ("exposed", "repos")
+
+#: Said on a cut read, next to the counts it is about. The distinction the
+#: sentence draws is the one a reader will otherwise not draw for themselves:
+#: "floor" reads as "at least this bad" and would quietly attach to the two
+#: numbers that a complete read can only shrink.
+RECLASSIFICATION_NOTE = (
+    "Resolved-clean and not-resolved are classifications of what a truncated "
+    "read returned: a repository counted clean or absent here may prove exposed "
+    "on a complete read. Only the exposed count and the repository total are "
+    "floors."
+)
 
 #: Spelled out rather than title-cased from the key, because these are the
 #: claims the packet is making and a reader should not have to expand
@@ -173,6 +218,15 @@ RECEIPT_FIELDS = (
     "synthetic_note",
 )
 
+#: Attached to every non-exposed row of a cut read. The table is the part of the
+#: packet a reader quotes one line out of, and a row reading "NOT_RESOLVED" out
+#: of context is a proven negative unless the qualifier travels on the row
+#: itself. The exposed rows need no such caveat: a row that came back is a row
+#: that was found, and no omitted row can unfind it.
+RECEIPT_TRUNCATION_CAVEAT = (
+    "verdict from a truncated read: an omitted row may contradict this status"
+)
+
 #: Dataset facts carried out of the health payload, same rule as the receipts.
 DATASET_FIELDS = (
     "reachable",
@@ -185,6 +239,19 @@ DATASET_FIELDS = (
     "synthetic_repo_count",
     "unwatermarked_repos",
     "resolves_edges",
+    "incident",
+)
+
+#: The subset of the above that a probe knows without reaching the node. These
+#: are configuration read out of this process, so they survive a failed probe;
+#: every field not listed here is a measurement, and a failed probe reports
+#: those as zeros that are the shape of the failure rather than of the dataset.
+DATASET_IDENTITY_FIELDS = (
+    "reachable",
+    "endpoint",
+    "namespace",
+    "cell",
+    "labels",
     "incident",
 )
 
@@ -218,6 +285,13 @@ def ascii_only(text: object) -> str:
     out = str("" if text is None else text)
     for bad, good in _FOLD.items():
         out = out.replace(bad, good)
+    # A value is one line. Package names and repository slugs arrive off a query
+    # string, and a newline inside one would open a markdown block of its own in
+    # the middle of a table cell or a bullet, so the three characters that carry
+    # document structure become the space a reader would have typed.
+    out = out.replace("\r\n", " ")
+    for structural in ("\r", "\n", "\t"):
+        out = out.replace(structural, " ")
     # Collapse the spacing an em-dash fold can double up, so the sentence reads
     # as one a person wrote rather than as one a filter passed over.
     out = out.replace(" -  ", " - ").replace("  - ", " - ")
@@ -240,6 +314,13 @@ def _total(counts: dict) -> int:
 def _floor(value: object, truncated: bool) -> str:
     """A number as the packet prints it, with the qualifier attached to it."""
     return (">= " if truncated else "") + str(int(value or 0))
+
+
+def _basis(key: str, truncated: bool) -> str:
+    """What kind of number this count is, given how complete the read was."""
+    if not truncated:
+        return "exact"
+    return "floor" if key in FLOOR_COUNTS else "observed"
 
 
 def _refusal_cause(exposure: dict) -> str:
@@ -314,12 +395,16 @@ def _answer(exposure: dict, package: str) -> dict:
     each carrying its own ``basis``; an unanswerable one produces no ``counts``
     key at all, because a consumer that finds the key will use the number in it
     and no amount of accompanying prose reliably stops that.
+
+    ``truncated`` says how the read ended and nothing more. What that does to
+    each number is on the number, in its ``basis``, because a cut read does not
+    do the same thing to all four of them.
     """
     truncated = bool(exposure.get("truncated"))
     out: dict = {
         "answerable": exposure.get("answerable") is not False,
         "headline": _headline(exposure, package),
-        "counts_are_floors": truncated,
+        "truncated": truncated,
     }
 
     if exposure.get("answerable") is False:
@@ -336,11 +421,10 @@ def _answer(exposure: dict, package: str) -> dict:
         return out
 
     counts = exposure.get("counts") or {}
-    basis = "floor" if truncated else "exact"
     out["counts"] = {
         key: {
             "value": int(counts.get(key) or 0),
-            "basis": basis,
+            "basis": _basis(key, truncated),
             "label": COUNT_LABEL[key],
         }
         for key in COUNT_ORDER
@@ -353,14 +437,36 @@ def _answer(exposure: dict, package: str) -> dict:
         # say about it.
         out["truncation_note"] = exposure.get("truncation_note") or TRUNCATION_NOTE
         out["absence_note"] = UNVERIFIED_ABSENCE_NOTE
+        out["reclassification_note"] = RECLASSIFICATION_NOTE
     if exposure.get("note"):
         out["note"] = exposure["note"]
     return out
 
 
 def _receipts(exposure: dict) -> list[dict]:
-    """Per-repository rows, exactly as the read produced them."""
-    return [_present(repo, RECEIPT_FIELDS) for repo in exposure.get("repos") or []]
+    """Per-repository rows, exactly as the read produced them.
+
+    Two payloads produce no receipts here. An unanswerable read produces none
+    because a verdict drawn from a dataset that could not answer is not a
+    verdict: the payload may still carry rows, and the console refuses to draw
+    them for the same reason. A read that returned nothing produces none because
+    there was nothing to return.
+
+    A truncated read produces all of them, each negative one carrying the
+    qualifier its own status needs. The row is what gets quoted out of the
+    packet, so the caveat travels on the row rather than only above the table.
+    """
+    if exposure.get("answerable") is False:
+        return []
+
+    truncated = bool(exposure.get("truncated"))
+    out = []
+    for repo in exposure.get("repos") or []:
+        receipt = _present(repo, RECEIPT_FIELDS)
+        if truncated and receipt.get("status") != "EXPOSED":
+            receipt["truncation_caveat"] = RECEIPT_TRUNCATION_CAVEAT
+        out.append(receipt)
+    return out
 
 
 def _authority(incident_payload: dict, exposure: dict, package: str) -> dict:
@@ -394,17 +500,29 @@ def _authority(incident_payload: dict, exposure: dict, package: str) -> dict:
 def _provenance(
     exposure: dict, health: dict | None, *, generated_at: int, permalink: str
 ) -> dict:
-    """When this was generated, how to re-ask it, and against what."""
+    """When this was generated, how to re-ask it, and against what.
+
+    A probe that ran and failed is a third state, and it is the one that has to
+    be handled explicitly: ``health`` is a dict either way, so a failed probe
+    reaching :func:`_present` unexamined would serialise its zeros as though
+    somebody had counted them.
+    """
     out: dict = {
         "generated_at": int(generated_at),
         "generated_at_iso": iso(generated_at),
         "permalink": permalink,
         "query_elapsed_ms": exposure.get("elapsed_ms"),
+        "freshness": FRESHNESS_NOTE,
         "dataset_facts_available": health is not None,
     }
     if health is None:
         out["dataset"] = None
         out["dataset_facts_note"] = DATASET_FACTS_UNAVAILABLE
+    elif health.get("reachable") is False:
+        out["dataset_facts_available"] = False
+        out["dataset"] = _present(health, DATASET_IDENTITY_FIELDS)
+        out["probe_error"] = health.get("error")
+        out["dataset_facts_note"] = HEALTH_PROBE_FAILED
     else:
         out["dataset"] = _present(health, DATASET_FIELDS)
     return out
@@ -471,7 +589,10 @@ def build_finding(
 
 
 def _row(cells) -> str:
-    return "| " + " | ".join(ascii_only(c) for c in cells) + " |"
+    # A pipe inside a value is content, not a column boundary. A repository slug
+    # carrying one would otherwise add a column to its own row and shift every
+    # cell after it under the wrong heading.
+    return "| " + " | ".join(ascii_only(c).replace("|", "\\|") for c in cells) + " |"
 
 
 def _bullet(label: str, value: object) -> str:
@@ -539,7 +660,11 @@ def render_markdown(finding: dict) -> str:
     out.append("# Hindsight evidence packet: " + ascii_only(package)
                + " at " + ascii_only(at_iso))
     out.append("")
-    out.append(ascii_only(answer.get("headline")))
+    # Bold rather than bare, because one branch of the headline opens with the
+    # package name and the package name comes off a query string: a package
+    # called "## anything" would mint a heading at the start of this line, and
+    # emphasised text cannot become a block of its own.
+    out.append("**" + ascii_only(answer.get("headline")) + "**")
     out.append("")
 
     out.append("## The question")
@@ -579,8 +704,15 @@ def render_markdown(finding: dict) -> str:
             shown = (">= " if basis == "floor" else "") + str(value)
             out.append(_row([entry.get("label") or key, shown, basis]))
         out.append("")
-        if answer.get("counts_are_floors"):
-            out.append("Every count above is a floor, not a total.")
+        if answer.get("truncated"):
+            # The reclassification note says this in the JSON; saying it twice
+            # in the document would be two caveats a reader learns to skip.
+            out.append(
+                "The exposed count and the repository total are floors, not "
+                "totals. The two negative classifications are as-observed and "
+                "unverified: a complete read can only move repositories out of "
+                "them into exposed."
+            )
             out.append("")
             out.append(_bullet("Truncation", answer.get("truncation_note")))
             out.append(_bullet("Unverified absence", answer.get("absence_note")))
@@ -610,6 +742,23 @@ def render_markdown(finding: dict) -> str:
                 receipt.get("basis") or "",
             ]))
         out.append("")
+        if answer.get("truncated"):
+            out.append(
+                "This read hit the row cap: rows not marked exposed are "
+                "as-observed, not proven - an omitted row may contradict them."
+            )
+            out.append("")
+        # The rows are marked one by one in the table; the note itself is stated
+        # once, because it is identical on every constructed repository and a
+        # sentence repeated per row is a sentence nobody finishes.
+        constructed = next(
+            (r for r in receipts if r.get("synthetic") and r.get("synthetic_note")),
+            None,
+        )
+        if constructed:
+            out.append("Constructed example: "
+                       + ascii_only(constructed.get("synthetic_note")))
+            out.append("")
 
     out.append("## Authority for the word malicious")
     out.append("")
@@ -660,12 +809,10 @@ def render_markdown(finding: dict) -> str:
     if provenance.get("query_elapsed_ms") is not None:
         out.append(_bullet("Exposure read latency",
                            str(provenance.get("query_elapsed_ms")) + " ms"))
+    if provenance.get("freshness"):
+        out.append(_bullet("Freshness", provenance.get("freshness")))
     dataset = provenance.get("dataset")
-    if not dataset:
-        out.append("")
-        out.append(ascii_only(provenance.get("dataset_facts_note")
-                              or DATASET_FACTS_UNAVAILABLE))
-    else:
+    if dataset:
         for key in DATASET_FIELDS:
             # ``None`` is "not measured" here, not a value: the edge count is
             # absent unless it was explicitly asked for, and an empty bullet
@@ -678,6 +825,17 @@ def render_markdown(finding: dict) -> str:
             out.append(_bullet("Label namespace", ", ".join(
                 str(k) + "=" + str(labels[k]) for k in sorted(labels)
             )))
+    if provenance.get("probe_error"):
+        out.append(_bullet("Probe error", provenance.get("probe_error")))
+    # Whenever the packet carries one, not only when the block is empty: a probe
+    # that failed leaves identity fields standing above a note that says why the
+    # measurements are not beside them.
+    note = provenance.get("dataset_facts_note") or (
+        None if dataset else DATASET_FACTS_UNAVAILABLE
+    )
+    if note:
+        out.append("")
+        out.append(ascii_only(note))
     out.append("")
 
     # The caveat itself is stated verbatim under "The question", where the claim
@@ -691,7 +849,8 @@ def render_markdown(finding: dict) -> str:
     read = envelope.get("completeness") or {}
     seen = envelope.get("coverage") or {}
     out.append(_bullet("Read completeness", (
-        "truncated at the row cap, so every count above is a floor"
+        "truncated at the row cap, so the exposed count is a floor and every "
+        "negative above is unverified"
         if read.get("truncated")
         else "complete, no read hit the row cap"
     )))
@@ -723,8 +882,14 @@ __all__ = [
     "COUNT_ORDER",
     "DATASET_FACTS_UNAVAILABLE",
     "DATASET_FIELDS",
+    "DATASET_IDENTITY_FIELDS",
+    "FLOOR_COUNTS",
+    "FRESHNESS_NOTE",
+    "HEALTH_PROBE_FAILED",
     "NOT_INCLUDED",
     "RECEIPT_FIELDS",
+    "RECEIPT_TRUNCATION_CAVEAT",
+    "RECLASSIFICATION_NOTE",
     "SCOPE_STATEMENT",
     "ascii_only",
     "build_finding",

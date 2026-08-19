@@ -689,6 +689,11 @@
       : 'No read has completed yet, so the panels below are empty rather than ' +
         'negative.')));
     slot.appendChild(box);
+    /* The export links go with the read that minted them. A packet downloaded
+       from a failed read's screen would be about the previous answer while the
+       page around it names a different instant. */
+    $('export-json').removeAttribute('href');
+    $('export-md').removeAttribute('href');
     if (kept) { return; }
 
     $('stats').innerHTML = '';

@@ -45,7 +45,11 @@ from hindsight_web.analysis import (
 )
 from hindsight_web.finding import (
     DATASET_FACTS_UNAVAILABLE,
+    FRESHNESS_NOTE,
+    HEALTH_PROBE_FAILED,
     NOT_INCLUDED,
+    RECEIPT_TRUNCATION_CAVEAT,
+    RECLASSIFICATION_NOTE,
     SCOPE_STATEMENT,
     ascii_only,
     build_finding,
@@ -183,7 +187,7 @@ def test_an_answerable_read_states_its_counts_as_exact():
     """
     answer = packet()["answer"]
     assert answer["answerable"] is True
-    assert answer["counts_are_floors"] is False
+    assert answer["truncated"] is False
     assert answer["counts"]["exposed"] == {
         "value": 1,
         "basis": "exact",
@@ -359,11 +363,9 @@ def test_the_top_level_order_leads_with_the_question():
 # ---------------------------------------------------------- (b) a cut read
 
 
-def test_a_truncated_read_marks_every_count_a_floor():
+def test_a_truncated_read_marks_the_two_counts_a_cut_can_only_understate():
     answer = packet(truncated=True)["answer"]
-    assert answer["counts_are_floors"] is True
-    for key in ("exposed", "resolved_clean", "not_resolved", "repos"):
-        assert answer["counts"][key]["basis"] == "floor"
+    assert answer["truncated"] is True
     # Verbatim, from the module both read surfaces import it from.
     assert answer["truncation_note"] == TRUNCATION_NOTE
     assert answer["absence_note"] == UNVERIFIED_ABSENCE_NOTE
@@ -372,6 +374,55 @@ def test_a_truncated_read_marks_every_count_a_floor():
         "note": TRUNCATION_NOTE,
         "absence_note": UNVERIFIED_ABSENCE_NOTE,
     }
+
+
+def test_a_cut_read_does_not_call_its_two_negatives_floors():
+    """A floor is a promise the number can only rise, and two of these four
+    can fall.
+
+    A repository whose malicious row was the one past the cap comes back
+    counted clean, or absent from the read entirely. A complete read moves it
+    into ``exposed`` and out of whichever negative held it, so the negatives
+    are observations of what this read returned and calling them floors would
+    invert what a reader does with them.
+    """
+    answer = packet(truncated=True)["answer"]
+    assert answer["counts"]["exposed"]["basis"] == "floor"
+    assert answer["counts"]["repos"]["basis"] == "floor"
+    assert answer["counts"]["resolved_clean"]["basis"] == "observed"
+    assert answer["counts"]["not_resolved"]["basis"] == "observed"
+    assert answer["reclassification_note"] == RECLASSIFICATION_NOTE
+    assert "may prove exposed on a complete read" in answer["reclassification_note"]
+    # The old single flag is gone: the per-count basis is where the semantics
+    # live now, and a packet-wide "these are floors" contradicts two of them.
+    assert "counts_are_floors" not in answer
+
+
+def test_a_cut_read_qualifies_every_verdict_a_missing_row_could_overturn():
+    """The row is what gets quoted out of the packet, so the caveat is on it.
+
+    ``EXPOSED`` needs none: a row that came back is a row that was found, and
+    no omitted row unfinds it.
+    """
+    receipts = packet(truncated=True)["receipts"]
+    assert receipts[0]["status"] == "EXPOSED"
+    assert "truncation_caveat" not in receipts[0]
+    for receipt in receipts[1:]:
+        assert receipt["truncation_caveat"] == RECEIPT_TRUNCATION_CAVEAT
+    # And nothing is qualified on a complete read.
+    for receipt in packet()["receipts"]:
+        assert "truncation_caveat" not in receipt
+
+
+def test_the_markdown_of_a_cut_read_qualifies_the_table_under_the_table():
+    document = render_markdown(packet(truncated=True))
+    assert (
+        "This read hit the row cap: rows not marked exposed are as-observed, "
+        "not proven - an omitted row may contradict them."
+    ) in document
+    assert document.index("| Repository | Status") < document.index(
+        "This read hit the row cap:"
+    )
 
 
 def test_the_truncated_headline_states_the_floor_in_ascii():
@@ -385,10 +436,29 @@ def test_the_truncated_headline_states_the_floor_in_ascii():
 
 def test_the_markdown_of_a_cut_read_says_so_on_the_numbers():
     document = render_markdown(packet(truncated=True))
-    assert "Every count above is a floor, not a total." in document
+    assert (
+        "The exposed count and the repository total are floors, not totals. "
+        "The two negative classifications are as-observed and unverified: a "
+        "complete read can only move repositories out of them into exposed."
+    ) in document
+    # The qualifier goes on the two numbers it is true of and on no others.
     assert "| >= 1 | floor |" in document
+    assert "| 1 | observed |" in document
+    assert ">= 1 | observed" not in document
     assert ascii_only(TRUNCATION_NOTE) in document
     assert ascii_only(UNVERIFIED_ABSENCE_NOTE) in document
+    # The completeness axis summarises the same thing and has to summarise it
+    # the same way: a document that calls all four counts floors in one section
+    # and two of them in another is a document a reader picks from.
+    assert "every count above is a floor" not in document
+    assert (
+        "- **Read completeness:** truncated at the row cap, so the exposed "
+        "count is a floor and every negative above is unverified"
+    ) in document
+    # Stated once. The JSON carries the reclassification note for a consumer
+    # that never renders this document; repeating it here in different words
+    # would be the second caveat a reader learns to skip.
+    assert ascii_only(RECLASSIFICATION_NOTE) not in document
 
 
 # ------------------------------------------------------ (c) no coverage at all
@@ -413,6 +483,47 @@ def test_an_unanswerable_dataset_yields_a_packet_with_no_counts_in_it():
     )
     assert built["envelope"]["coverage"]["answerable"] is False
     assert built["envelope"]["coverage"]["reason"] == "empty_dataset"
+
+
+def test_an_unanswerable_read_carries_no_receipts_even_when_it_has_rows():
+    """A verdict drawn from a payload that could not answer is not a verdict.
+
+    The console refuses to draw the rows of an unanswerable read for exactly
+    this reason, and a packet outlives the console session that would have
+    explained them: three repository rows saying NOT_RESOLVED, exported out of
+    a dataset with no ingested history, read as a proven negative to everybody
+    who opens the file afterwards.
+    """
+    source = exposure()
+    source.update(
+        answerable=False,
+        unanswerable_reason="no_ingested_history",
+        unanswerable_note="no repository here has ingested lockfile history",
+    )
+    assert source["repos"], "the fixture must carry rows for this to mean anything"
+    built = build_finding(
+        source,
+        INCIDENT.as_dict(),
+        HEALTH,
+        package="chalk",
+        at=AT,
+        generated_at=GENERATED_AT,
+        permalink=PERMALINK,
+    )
+    assert built["receipts"] == []
+    document = render_markdown(built)
+    assert "No repository rows accompany this answer." in document
+    # Scoped to the section that states verdicts. The provenance block may name
+    # repositories - the unwatermarked list is a dataset fact and says nothing
+    # about this package - and it is a verdict about this question that an
+    # unanswerable read is not allowed to produce.
+    receipts = document[
+        document.index("## Receipts"):document.index("## Authority")
+    ]
+    for row in source["repos"]:
+        assert row["slug"] not in receipts
+    for verdict in ("EXPOSED", "RESOLVED_CLEAN", "NOT_RESOLVED"):
+        assert verdict not in receipts
 
 
 def test_an_ingestless_dataset_refuses_for_its_own_reason():
@@ -454,11 +565,69 @@ def test_the_markdown_says_the_dataset_facts_are_missing():
 
 
 def test_a_partial_health_payload_carries_only_what_it_has():
-    provenance = packet(health={"reachable": False, "endpoint": "http://x/query"})[
+    provenance = packet(health={"reachable": True, "endpoint": "http://x/query"})[
         "provenance"
     ]
-    assert provenance["dataset"] == {"reachable": False, "endpoint": "http://x/query"}
+    assert provenance["dataset"] == {"reachable": True, "endpoint": "http://x/query"}
     assert provenance["dataset_facts_available"] is True
+
+
+def test_a_failed_probe_reports_zeros_as_a_failure_rather_than_as_a_dataset():
+    """A probe that could not reach the node returns the counts its own failure
+    is shaped like, and ``repo_count: 0`` in an evidence packet is the empty
+    dataset rendering as a fact somebody measured.
+
+    The identity fields survive because this process knows them without asking
+    anybody: which endpoint it was pointed at is configuration, not a reading.
+    """
+    provenance = packet(
+        health={
+            "reachable": False,
+            "error": "connection refused",
+            "endpoint": "http://127.0.0.1:8000/query",
+            "namespace": "hindsight",
+            "labels": {"repo": "HsRepo"},
+            "repo_count": 0,
+            "ingested_repo_count": 0,
+            "synthetic_repo_count": 0,
+            "resolves_edges": 0,
+        }
+    )["provenance"]
+    assert provenance["dataset_facts_available"] is False
+    assert provenance["probe_error"] == "connection refused"
+    assert provenance["dataset_facts_note"] == HEALTH_PROBE_FAILED
+    assert provenance["dataset"] == {
+        "reachable": False,
+        "endpoint": "http://127.0.0.1:8000/query",
+        "namespace": "hindsight",
+        "labels": {"repo": "HsRepo"},
+    }
+    for measured in (
+        "repo_count",
+        "ingested_repo_count",
+        "synthetic_repo_count",
+        "resolves_edges",
+    ):
+        assert measured not in provenance["dataset"]
+
+
+def test_the_markdown_of_a_failed_probe_states_no_count_and_says_why():
+    document = render_markdown(
+        packet(health={"reachable": False, "error": "connection refused",
+                       "endpoint": "http://127.0.0.1:8000/query", "repo_count": 0})
+    )
+    assert ascii_only(HEALTH_PROBE_FAILED) in document
+    assert "**Probe error:** connection refused" in document
+    assert "repo count: 0" not in document
+    assert "repo count" not in document
+
+
+def test_the_provenance_says_which_of_the_packet_and_the_screen_is_current():
+    """The console holds the answer it painted; this is composed at export
+    time, so the two can disagree and the packet says which way."""
+    assert packet()["provenance"]["freshness"] == FRESHNESS_NOTE
+    document = render_markdown(packet())
+    assert "**Freshness:** " + ascii_only(FRESHNESS_NOTE) in document
 
 
 # ------------------------------------------------- (e) the document itself
@@ -505,7 +674,7 @@ def test_the_markdown_leads_with_the_question_and_the_headline():
     document = render_markdown(packet())
     lines = document.split("\n")
     assert lines[0] == "# Hindsight evidence packet: chalk at " + iso(AT)
-    assert lines[2] == "1 of 3 repositories resolved a malicious chalk version"
+    assert lines[2] == "**1 of 3 repositories resolved a malicious chalk version**"
     # Every section an auditor is promised, in the order the packet orders them.
     for heading in (
         "## The question",
@@ -540,6 +709,98 @@ def test_the_markdown_carries_the_permalink_and_the_sources():
     assert ascii_only(SCOPE_STATEMENT) in document
     for claim in ("runtime execution", "resolution ambiguity", "cryptographic"):
         assert claim in document
+
+
+def test_the_markdown_carries_the_constructed_example_caveat_as_prose():
+    """The table marks the row; this is the sentence that says what the mark
+    means, and it is the one thing a reader who quotes the table needs and
+    would otherwise have only on the screen the packet replaced."""
+    document = render_markdown(packet())
+    assert "Constructed example: " + ascii_only(SYNTHETIC_CAVEAT) in document
+    assert document.index("| Repository | Status") < document.index(
+        "Constructed example: "
+    )
+    # Once, not once per row, and never on a read with nothing constructed in
+    # it: a caveat that appears when it does not apply is one a reader skips.
+    assert document.count("Constructed example: ") == 1
+    assert "Constructed example: " not in render_markdown(
+        packet(repo_count=0, ingested=0)
+    )
+
+
+# ------------------------------------------------- (f) a hostile identifier
+#
+# The package name and the repository slugs arrive off a query string and land
+# in a document whose structure is punctuation. A name is content in this
+# document and is not allowed to become a heading, a row or a column of it.
+
+
+def _forged(name):
+    """A packet whose package name tries to open a markdown block of its own."""
+    source = exposure(package=name)
+    source["package_in_graph"] = False
+    source["counts"] = summarize([])
+    source["repos"] = []
+    return build_finding(
+        source,
+        INCIDENT.as_dict(),
+        HEALTH,
+        package=name,
+        at=AT,
+        generated_at=GENERATED_AT,
+        permalink=PERMALINK,
+    )
+
+
+def test_a_package_name_cannot_forge_a_section_heading():
+    """A newline inside an identifier would start a block, and the headline is
+    the one line in the document a package name can begin."""
+    document = render_markdown(_forged("x\n\n## Forged heading"))
+    headings = [line for line in document.split("\n") if line.startswith("## ")]
+    assert headings == [
+        "## The question",
+        "## The answer",
+        "## Receipts",
+        "## Authority for the word malicious",
+        "## Provenance and reproducibility",
+        "## What this packet states about itself",
+        "## What this packet does not establish",
+    ]
+    # Folded to a line, not deleted: the name a reader was asked about is still
+    # legible in the document that answers about it.
+    assert "Forged heading" in document
+
+
+def test_the_headline_is_emphasised_so_a_name_cannot_lead_a_block():
+    document = render_markdown(_forged("## anything"))
+    line = document.split("\n")[2]
+    assert line.startswith("**") and line.endswith("**")
+    assert "anything is not resolved by any repository in this graph" in line
+
+
+def test_a_pipe_in_a_slug_does_not_add_a_column_to_the_receipt_table():
+    """A cell is content. An unescaped pipe would shift every cell after it in
+    that row under the heading of the one before."""
+    source = exposure()
+    source["repos"][1]["slug"] = "acme/one|two"
+    built = build_finding(
+        source,
+        INCIDENT.as_dict(),
+        HEALTH,
+        package="chalk",
+        at=AT,
+        generated_at=GENERATED_AT,
+        permalink=PERMALINK,
+    )
+    document = render_markdown(built)
+    table = document[
+        document.index("## Receipts"):document.index("## Authority")
+    ].split("\n")
+    rows = [line for line in table if line.startswith("| ")]
+    assert len(rows) == 5, "the header, the rule and one row per repository"
+    widths = {line.count("|") - line.count("\\|") for line in rows}
+    assert widths == {6}, "one row disagreed with the table it is in"
+    assert "acme/one\\|two" in document
 
 
 # ------------------------------------------------------------------ the fold

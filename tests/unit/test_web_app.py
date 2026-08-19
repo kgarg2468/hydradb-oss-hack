@@ -825,6 +825,22 @@ def test_a_scoped_package_name_still_yields_a_usable_filename(client):
     assert "/" not in disposition.split("filename=")[1]
 
 
+def test_a_long_package_name_still_yields_a_saveable_filename(client):
+    """An npm name runs to 214 characters and a filename component is capped at
+    255 bytes, so a legal package name plus the prefix and the instant is a
+    download the operating system refuses to write."""
+    response = client.get(
+        "/api/finding", params={"package": "a" * 214, "at": AT}
+    )
+    assert response.status_code == 200
+    filename = response.headers["content-disposition"].split('filename=')[1].strip('"')
+    assert len(filename) < 160
+    # Bounded, not mangled: the instant is what tells two exports of the same
+    # package apart, so it survives whole and so does the extension.
+    assert filename.endswith("-2025-09-08T14-02-10Z.json")
+    assert filename.startswith("hindsight-finding-" + "a" * 100 + "-")
+
+
 def test_an_unknown_finding_format_is_a_400_not_a_silent_fallback(client):
     """Handing somebody a different artifact from the one they asked for is the
     wrong habit for this endpoint in particular."""
@@ -875,6 +891,15 @@ def test_the_page_offers_the_export_and_wires_it_to_the_finding_route():
     # link to the wrong instant is the failure the packet exists to not commit.
     assert 'href="/api/finding' not in page
     assert ".export-link:not([href])" in style
+    # And a read that fails takes the previous answer's links down with it: an
+    # export minted for the last completed read, standing under a banner about
+    # a different instant, is the packet-to-screen disagreement this whole
+    # export exists to not commit.
+    assert "$('export-json').removeAttribute('href');" in script
+    assert "$('export-md').removeAttribute('href');" in script
+    assert script.index("function readFailed(err)") < script.index(
+        "$('export-json').removeAttribute('href');"
+    )
 
 
 def test_the_shipped_static_files_carry_no_em_or_en_dashes():

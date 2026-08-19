@@ -184,8 +184,13 @@ def build_app(console: Console | None = None) -> Starlette:
             generated_at=int(time.time()),
             permalink=_permalink(request, package, at),
         )
+        # An npm name runs to 214 characters and a filename component is capped
+        # at 255 bytes on the platforms this gets downloaded onto, so the one
+        # unbounded part of the name is bounded here. The instant is
+        # fixed-width and is what tells two exports of the same package apart,
+        # so it keeps its full length.
         stem = FINDING_FILENAME.format(
-            package=_slug(package), at=_slug(iso(at) or at)
+            package=_slug(package)[:100], at=_slug(iso(at) or at)
         )
         if fmt == "markdown":
             return Response(
